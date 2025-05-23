@@ -314,12 +314,44 @@ function setupYouTubeBaseControls() {
   if (baseYoutubePlayer && typeof baseYoutubePlayer.addEventListener === 'function') {
     baseYoutubePlayer.addEventListener('onStateChange', (event) => { if (event.data === YT.PlayerState.ENDED) { clearInterval(window.baseSeekInterval); } });
   }
+  let lastBaseYTSeekTime = 0;
+  const seekCooldown = 50;
+
+  $("#baseSeekBar").off("mousedown touchstart").on('mousedown touchstart', function() {
+    if (window.isBaseSeeking !== undefined) window.isBaseSeeking = true;
+    if (window.markUserInteraction && typeof window.markUserInteraction === 'function') {
+      window.markUserInteraction();
+    }
+  });
+
   $("#baseSeekBar").off("input").on("input", function() {
     if (!baseYoutubePlayer || typeof baseYoutubePlayer.getDuration !== 'function') return;
-    const seekPercent = parseFloat($(this).val()); const duration = baseYoutubePlayer.getDuration();
-    if (duration > 0) {
-      const seekTime = (seekPercent / 100) * duration; baseYoutubePlayer.seekTo(seekTime, true);
-      $("#baseTimeDisplay").text(`${secondsToTime(seekTime)} / ${secondsToTime(duration)}`);
+    
+    const now = Date.now();
+    if (now - lastBaseYTSeekTime < seekCooldown) return;
+    lastBaseYTSeekTime = now;
+
+    const seekPercent = parseFloat($(this).val()); 
+    const duration = baseYoutubePlayer.getDuration();
+    if (isNaN(duration) || duration <= 0) {
+      console.log('Cannot seek: invalid YouTube base video duration');
+      return;
+    }
+    
+    const seekTime = (seekPercent / 100) * duration;
+    if (window.markUserInteraction && typeof window.markUserInteraction === 'function') {
+      window.markUserInteraction();
+    }
+    
+    try {
+      if (window.syncSeek && typeof window.syncSeek === 'function') {
+        window.syncSeek(true, seekTime);
+      } else {
+        baseYoutubePlayer.seekTo(seekTime, true);
+        $("#baseTimeDisplay").text(`${secondsToTime(seekTime)} / ${secondsToTime(duration)}`);
+      }
+    } catch (e) {
+      console.error('Error during YouTube base video seeking:', e);
     }
   });
 }

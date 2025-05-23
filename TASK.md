@@ -1,5 +1,18 @@
 # reaction-sync - Reliability Enhancement Tasks
 
+## CRITICAL BUG - URGENT FIX NEEDED (Jan 2025)
+
+### **Critical YouTube Seek Sync Bug:** ✅ **FIXED**
+When user manually seeks YouTube base video using seek bar, the React video doesn't follow in sync mode. This was because the YouTube seek bar handler in `js/youtube.js` directly called `baseYoutubePlayer.seekTo()` instead of calling `syncSeek(true, targetTime)` like the local video handlers do. 
+
+**Fix Applied:** Enhanced YouTube base seek bar handler to:
+- Call `window.syncSeek(true, seekTime)` instead of direct `seekTo()`
+- Add proper user interaction tracking (`markUserInteraction()`)
+- Add seek cooldown timing (50ms) like local video handlers
+- Add mousedown/touchstart event handlers for `isBaseSeeking` flag
+- Add error handling with try-catch blocks
+- Fallback to direct seekTo if syncSeek unavailable (backward compatibility)
+
 The primary goal of these tasks is to significantly improve the reliability and robustness of the video synchronization, seeking, and play/pause functionalities. The aim is to achieve a near 100% reliable experience across different video sources and scenarios.
 
 ## 1. Core Synchronization Reliability (syncNow, setDelay, syncVideos)
@@ -103,9 +116,6 @@ This section focuses on ensuring that user interactions like seeking and play/pa
     *   Consider an optional, toggleable on-screen display showing key sync variables in real-time for easier debugging during active use.
 
 ## 4. Additional Enhancements & Reliability Improvements
-*   **4.1: Automated Testing & CI:**
-    *   4.1.1: Write automated unit tests (e.g., using Jest or Mocha) for core sync logic and utilities.
-    *   4.1.2: Configure CI pipeline (e.g., GitHub Actions) to run tests, linting, and build on each commit.
 *   **4.2: Performance & Smoothness:**
     *   4.2.1: Replace `setInterval` in the sync loop with `requestAnimationFrame` for smoother timing.
     *   4.2.2: Debounce or throttle UI updates (seek bar, time displays) to reduce rendering overhead.
@@ -117,8 +127,6 @@ This section focuses on ensuring that user interactions like seeking and play/pa
 *   **4.5: Accessibility & Mobile Support:**
     *   4.5.1: Add ARIA labels, keyboard navigation, and focus states for all controls.
     *   4.5.2: Improve responsive design and implement touch/gesture controls for mobile devices.
-*   **4.6: Universal Codec Support via ffmpeg.wasm fallback**
-    *   4.6.1: Integrate ffmpeg.wasm to transcode unsupported containers and codecs on-the-fly to MP4/H.264 for native playback.
 
 ---
 
