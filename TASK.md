@@ -34,6 +34,18 @@ When user manually seeks YouTube reaction video using seek bar, the base video d
 - Add error handling with try-catch blocks
 - Fallback to direct seekTo if syncSeek unavailable (backward compatibility)
 
+### **✅ Critical UI/UX & Sync Loop Bugs - FIXED**
+**Issue 1: Delay Control Layout** - The + and - buttons next to delay indicator moved when delay text changed length.
+**Issue 2: No Hold-Down Functionality** - Delay buttons only worked with single clicks.
+**Issue 3: Sync Loop Conflicts** - `syncPlay`/`syncPause` functions created infinite retry loops causing "States differ. Re-attempting." spam.
+**Issue 4: Real-time Delay Application** - Sync conflicts interfered with real-time delay changes.
+
+**Fix Applied:**
+- **Layout**: Changed delay container to `display: flex` with fixed widths and `flex-shrink: 0`
+- **Hold-Down**: Added mousedown/touchstart events with progressive speed (0.1s → 0.5s → 1.0s increments)
+- **Sync Loop**: Reduced retry attempts and increased timeouts to prevent YouTube API conflicts
+- **Mobile Support**: Added touch events for mobile delay button holding
+
 The primary goal of these tasks is to significantly improve the reliability and robustness of the video synchronization, seeking, and play/pause functionalities. The aim is to achieve a near 100% reliable experience across different video sources and scenarios.
 
 ## 1. Core Synchronization Reliability (syncNow, setDelay, syncVideos)

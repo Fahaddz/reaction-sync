@@ -178,24 +178,79 @@
       };
       document.addEventListener('keydown', window.keydownHandler);
       document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('decreaseDelayBtn').addEventListener('click', function() {
+        let delayInterval = null;
+        let isHolding = false;
+        let holdStartTime = 0;
+        
+        function adjustDelay(direction) {
           if (typeof window.setDelay === 'function' && typeof window.videoReactDelay === 'number') {
             const currentDelay = window.videoReactDelay;
-            const newDelay = Math.max(-300, (currentDelay - 0.1).toFixed(1));
-            window.setDelay(newDelay, false);
+            let increment = 0.1;
+            
+            // Speed up after holding for 1 second
+            if (isHolding && (Date.now() - holdStartTime) > 1000) {
+              increment = 0.5; // Faster increment when holding
+            } else if (isHolding && (Date.now() - holdStartTime) > 2000) {
+              increment = 1.0; // Even faster after 2 seconds
+            }
+            
+            const change = direction * increment;
+            const newDelay = Math.max(-300, Math.min(300, currentDelay + change));
+            window.setDelay(parseFloat(newDelay.toFixed(1)), false);
           } else {
             console.error('setDelay function or videoReactDelay not available');
           }
-        });
-        document.getElementById('increaseDelayBtn').addEventListener('click', function() {
-          if (typeof window.setDelay === 'function' && typeof window.videoReactDelay === 'number') {
-            const currentDelay = window.videoReactDelay;
-            const newDelay = Math.min(300, (currentDelay + 0.1).toFixed(1));
-            window.setDelay(newDelay, false);
-          } else {
-            console.error('setDelay function or videoReactDelay not available');
+        }
+        
+        function startHolding(direction) {
+          isHolding = true;
+          holdStartTime = Date.now();
+          adjustDelay(direction); // Initial click
+          
+          delayInterval = setInterval(() => {
+            adjustDelay(direction);
+          }, 100); // Repeat every 100ms while holding
+        }
+        
+        function stopHolding() {
+          isHolding = false;
+          if (delayInterval) {
+            clearInterval(delayInterval);
+            delayInterval = null;
           }
+        }
+        
+        // Decrease delay button
+        const decreaseBtn = document.getElementById('decreaseDelayBtn');
+        decreaseBtn.addEventListener('mousedown', () => startHolding(-1));
+        decreaseBtn.addEventListener('mouseup', stopHolding);
+        decreaseBtn.addEventListener('mouseleave', stopHolding);
+        decreaseBtn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          startHolding(-1);
         });
+        decreaseBtn.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          stopHolding();
+        });
+        
+        // Increase delay button
+        const increaseBtn = document.getElementById('increaseDelayBtn');
+        increaseBtn.addEventListener('mousedown', () => startHolding(1));
+        increaseBtn.addEventListener('mouseup', stopHolding);
+        increaseBtn.addEventListener('mouseleave', stopHolding);
+        increaseBtn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          startHolding(1);
+        });
+        increaseBtn.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          stopHolding();
+        });
+        
+        // Ensure cleanup if user releases anywhere
+        document.addEventListener('mouseup', stopHolding);
+        document.addEventListener('touchend', stopHolding);
       });
     </script>
   </head>
@@ -228,11 +283,11 @@
       <input type="range" id="baseSeekBar" min="0" max="100" value="0" step="any" title="Base Video Time">
       <div style="display: flex; align-items: center; gap: 10px; margin-left: 15px;">
         <div style="color: white;">Delay: </div>
-        <div id="delayContainer" style="display: inline-block; margin-left: 5px;">
-          <button id="decreaseDelayBtn" style="padding: 0px 3px; font-size: 0.7em; margin-right: 2px;" title="Decrease delay (PageUp)">-</button>
-          <span id="delay" style="color: white;">?</span>
+        <div id="delayContainer" style="display: flex; align-items: center; margin-left: 5px; gap: 3px;">
+          <button id="decreaseDelayBtn" style="padding: 0px 6px; font-size: 0.8em; min-width: 24px; flex-shrink: 0;" title="Decrease delay (PageUp / Hold for faster)">-</button>
+          <span id="delay" style="color: white; min-width: 80px; text-align: center; flex-shrink: 0;">?</span>
           <span id="delayValue" style="display: none;">0.0</span>
-          <button id="increaseDelayBtn" style="padding: 0px 3px; font-size: 0.7em; margin-left: 2px;" title="Increase delay (PageDown)">+</button>
+          <button id="increaseDelayBtn" style="padding: 0px 6px; font-size: 0.8em; min-width: 24px; flex-shrink: 0;" title="Increase delay (PageDown / Hold for faster)">+</button>
         </div>
         <button id="youtubeQuality" style="padding: 2px 8px; font-size: 0.9em;">Quality</button>
       </div>

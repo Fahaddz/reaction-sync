@@ -604,13 +604,21 @@ function syncPlay(sourceIsBase) {
   markUserInteraction();
   if (isVideosSynced) {
     playBase(true); playReact(true);
+    // Give more time for YouTube players and only retry once
     setTimeout(() => {
       if (isVideosSynced && (!isBasePlaying() || !isReactPlaying())) {
-        console.warn('SyncPlay Check 1: States differ. Re-attempting.');
-        if (!isBasePlaying()) playBase(true); if (!isReactPlaying()) playReact(true);
-        setTimeout(() => { if (isVideosSynced && (!isBasePlaying() || !isReactPlaying())) { console.error('SyncPlay Check 2: States STILL differ.'); updatePlayPauseButtons(); } }, 400);
+        console.warn('SyncPlay Check 1: States differ. Single retry.');
+        if (!isBasePlaying()) playBase(true); 
+        if (!isReactPlaying()) playReact(true);
+        // Final check after longer delay - no more retries to prevent loops
+        setTimeout(() => { 
+          if (isVideosSynced && (!isBasePlaying() || !isReactPlaying())) { 
+            console.warn('SyncPlay Check 2: Some players still differ, but continuing.');
+            updatePlayPauseButtons(); 
+          }
+        }, 600);
       }
-    }, 200);
+    }, 300);
   } else {
     if (sourceIsBase) { playBase(false); } else { playReact(false); }
   }
@@ -621,13 +629,21 @@ function syncPause(sourceIsBase) {
   markUserInteraction();
   if (isVideosSynced) {
     pauseBase(true); pauseReact(true);
+    // Give more time for YouTube players and only retry once
     setTimeout(() => {
       if (isVideosSynced && (isBasePlaying() || isReactPlaying())) {
-        console.warn('SyncPause Check 1: States differ. Re-attempting.');
-        if (isBasePlaying()) pauseBase(true); if (isReactPlaying()) pauseReact(true);
-        setTimeout(() => { if (isVideosSynced && (isBasePlaying() || isReactPlaying())) { console.error('SyncPause Check 2: States STILL differ.'); updatePlayPauseButtons(); } }, 400);
+        console.warn('SyncPause Check 1: States differ. Single retry.');
+        if (isBasePlaying()) pauseBase(true); 
+        if (isReactPlaying()) pauseReact(true);
+        // Final check after longer delay - no more retries to prevent loops
+        setTimeout(() => { 
+          if (isVideosSynced && (isBasePlaying() || isReactPlaying())) { 
+            console.warn('SyncPause Check 2: Some players still differ, but continuing.');
+            updatePlayPauseButtons(); 
+          }
+        }, 600);
       }
-    }, 200);
+    }, 300);
   } else {
     if (sourceIsBase) { pauseBase(false); } else { pauseReact(false); }
   }
