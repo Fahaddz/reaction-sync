@@ -12,27 +12,36 @@ async function selectLocalVideo(videoX, callBack) {
     const support = await checkCodecSupport(file);
 
     if (!support.supported) {
-      // Fallback: transcode unsupported file to MP4/H.264 using ffmpeg.wasm
-      const transcodedBlob = await transcodeToMp4(file);
-      $(videoX).attr("src", URL.createObjectURL(transcodedBlob));
-      $(videoX)[0].load();
-      document.title = file.name;
+      console.warn(`Video codec not supported: ${support.reason}`);
+      console.log('Attempting to transcode video using FFmpeg...');
+      
+      try {
+        const transcodedBlob = await transcodeToMp4(file);
+        $(videoX).attr("src", URL.createObjectURL(transcodedBlob));
+        $(videoX)[0].load();
+        document.title = file.name + " (transcoded)";
 
-      if (videoX === "#videoBaseLocal") {
-        $("#videoBaseLocal").trigger("loadedmetadata");
-      } else if (videoX === "#videoReact") {
-        $("#videoReact").trigger("loadedmetadata");
-        let tokens = file.name.split(".");
-        let num = tokens.find(
-          (token) => token.split("dt")[0] == "" && !isNaN(token.split("dt")[1])
-        );
-        if (num) {
-          num = num.split("dt")[1];
-          setDelay(Number(num) / 10);
+        if (videoX === "#videoBaseLocal") {
+          $("#videoBaseLocal").trigger("loadedmetadata");
+        } else if (videoX === "#videoReact") {
+          $("#videoReact").trigger("loadedmetadata");
+          let tokens = file.name.split(".");
+          let num = tokens.find(
+            (token) => token.split("dt")[0] == "" && !isNaN(token.split("dt")[1])
+          );
+          if (num) {
+            num = num.split("dt")[1];
+            setDelay(Number(num) / 10);
+          }
         }
+        callBack && callBack(file);
+        console.log('Video transcoding completed successfully');
+        return;
+      } catch (error) {
+        console.error('Video transcoding failed:', error);
+        alert(`Failed to load video: ${support.reason}\n\nTranscoding also failed: ${error.message}\n\nPlease try:\n1. Using a different video format (MP4/H.264 recommended)\n2. Converting the video using external tools\n3. Refreshing the page and trying again`);
+        return;
       }
-      callBack && callBack(file);
-      return;
     }
 
     $(videoX).attr("src", URL.createObjectURL(files[0]));
