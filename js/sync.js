@@ -254,6 +254,10 @@ function syncNow() {
     window.isVideosSynced = true;
     startSyncLoop();
 
+    console.log('✅ Manual sync activated. Calculated delay:', calculatedDelay.toFixed(2), 'seconds');
+    updateStatus('Videos synced! Delay: ' + (calculatedDelay >= 0 ? '+' : '') + calculatedDelay.toFixed(1) + 's');
+    setTimeout(() => updateStatus(''), 3000);
+    
     try {
       const syncButton = $("#syncButton");
       if (syncButton.length) {
@@ -284,6 +288,8 @@ function setDelay(delay, shouldSeek = false) {
     delay = Math.round(delay * 100) / 100;
     videoReactDelay = delay;
     window.videoReactDelay = videoReactDelay;
+    
+    console.log('Delay set to:', delay, 'seconds. Sync enabled:', !isVideosSynced ? 'Auto-enabling sync' : 'Already synced');
 
     const absDelay = Math.abs(videoReactDelay);
     const sign = videoReactDelay < 0 ? "-" : "+";
@@ -297,9 +303,12 @@ function setDelay(delay, shouldSeek = false) {
 
     if (!isVideosSynced) {
       isVideosSynced = true; window.isVideosSynced = true;
+      console.log('🔄 Auto-enabling sync because delay was changed. Videos will now sync automatically.');
+      updateStatus('Sync enabled - videos will stay synchronized');
       try { updateSyncIndicator(true); } catch (indicatorErr) { console.warn('Error updating sync indicator:', indicatorErr); }
       try { startSyncLoop(); } catch (loopErr) { console.warn('Error starting sync loop:', loopErr); }
       try { document.dispatchEvent(new CustomEvent('syncStateChange')); } catch (eventErr) { console.warn('Error dispatching sync event:', eventErr); }
+      setTimeout(() => updateStatus(''), 2000);
     }
 
     if (shouldSeek) {
@@ -723,10 +732,19 @@ function updateUIElements() {
 
 function syncVideos(force = false) {
   updateStatus('');
-  if (!isVideosSynced || !areVideosReady()) return;
-  if (isSeeking && !force) return;
+  if (!isVideosSynced || !areVideosReady()) {
+    if (DEBUG) console.log('SyncVideos early return: synced =', isVideosSynced, 'ready =', areVideosReady());
+    return;
+  }
+  if (isSeeking && !force) {
+    if (DEBUG) console.log('SyncVideos early return: seeking =', isSeeking, 'force =', force);
+    return;
+  }
   const timeSinceInteraction = Date.now() - lastInteractionTime;
-  if (!force && isUserInteracting && timeSinceInteraction < SEEK_COOLDOWN * 2) return;
+  if (!force && isUserInteracting && timeSinceInteraction < SEEK_COOLDOWN * 2) {
+    if (DEBUG) console.log('SyncVideos early return: userInteracting =', isUserInteracting, 'timeSince =', timeSinceInteraction);
+    return;
+  }
 
   try {
     const baseTime = getBaseCurrentTime();
@@ -752,6 +770,21 @@ function syncVideos(force = false) {
     const timeDifference = Math.abs(reactTime - targetReactTime);
     const canPerformTimeSync = !isSeeking && (!isUserInteracting || force);
     const needsTimeSyncDueToDrift = baseIsPlaying && reactIsPlaying && timeDifference > getSyncThreshold();
+    
+    if (DEBUG) {
+      console.log('SyncVideos:', {
+        baseTime: baseTime.toFixed(2),
+        reactTime: reactTime.toFixed(2), 
+        delay: videoReactDelay.toFixed(2),
+        targetReactTime: targetReactTime.toFixed(2),
+        timeDiff: timeDifference.toFixed(2),
+        threshold: getSyncThreshold().toFixed(2),
+        baseIsPlaying,
+        reactIsPlaying,
+        needsTimeSync: needsTimeSyncDueToDrift,
+        canPerformTimeSync
+      });
+    }
 
     if (canPerformTimeSync && (force || needsTimeSyncDueToDrift)) {
       try {

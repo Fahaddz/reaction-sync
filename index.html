@@ -96,6 +96,17 @@
             console.error('disableSync function not available');
           }
         });
+        document.getElementById('debugButton').addEventListener('click', function() {
+          const debugOverlay = document.getElementById('debugOverlay');
+          if (debugOverlay.style.display === 'none') {
+            debugOverlay.style.display = 'block';
+            console.log('Debug mode enabled. Check console for detailed sync information.');
+            window.DEBUG_SYNC = true;
+          } else {
+            debugOverlay.style.display = 'none';
+            window.DEBUG_SYNC = false;
+          }
+        });
       });
     </script>
     <style>
@@ -302,6 +313,7 @@
         <button id="syncButton" style="padding: 1px 6px; font-size: 0.7em;">S</button>
         <button id="desyncButton" style="padding: 1px 6px; font-size: 0.7em;">D</button>
         <button id="forceResyncButton" style="padding: 1px 6px; font-size: 0.7em;">FR</button>
+        <button id="debugButton" style="padding: 1px 6px; font-size: 0.7em;" title="Toggle Debug Mode">🐛</button>
       </div>
     </div>
     <div id="tipsScreen">
