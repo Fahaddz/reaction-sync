@@ -1,8 +1,8 @@
 # reaction-sync - Reliability Enhancement Tasks
 
-## CRITICAL BUG - URGENT FIX NEEDED (Jan 2025)
+## CRITICAL BUG FIXES - January 2025
 
-### **Critical YouTube Seek Sync Bug:** ✅ **FIXED**
+### **✅ Critical YouTube Seek Sync Bug - FIXED**
 When user manually seeks YouTube base video using seek bar, the React video doesn't follow in sync mode. This was because the YouTube seek bar handler in `js/youtube.js` directly called `baseYoutubePlayer.seekTo()` instead of calling `syncSeek(true, targetTime)` like the local video handlers do. 
 
 **Fix Applied:** Enhanced YouTube base seek bar handler to:
@@ -12,6 +12,16 @@ When user manually seeks YouTube base video using seek bar, the React video does
 - Add mousedown/touchstart event handlers for `isBaseSeeking` flag
 - Add error handling with try-catch blocks
 - Fallback to direct seekTo if syncSeek unavailable (backward compatibility)
+
+### **✅ Critical YouTube Play/Pause Sync Bug - FIXED**
+When user clicks directly on YouTube base video to play/pause, the React video doesn't follow in sync mode. This was because the YouTube `onStateChange` event handler only updated UI buttons but didn't trigger `syncPlay`/`syncPause` functions.
+
+**Fix Applied:** Enhanced YouTube `onYoutubeStateChange` handler to:
+- Trigger `window.syncPlay(true/false)` on `YT.PlayerState.PLAYING` events when synced
+- Trigger `window.syncPause(true/false)` on `YT.PlayerState.PAUSED` events when synced
+- Add 50ms timeout delay to prevent feedback loops
+- Apply to both base and react YouTube players
+- Only trigger when `isVideosSynced` is true
 
 The primary goal of these tasks is to significantly improve the reliability and robustness of the video synchronization, seeking, and play/pause functionalities. The aim is to achieve a near 100% reliable experience across different video sources and scenarios.
 

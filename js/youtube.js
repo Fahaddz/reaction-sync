@@ -258,9 +258,35 @@ function onYoutubeStateChange(event, isReaction = false) {
     isReaction ? reactYoutubeRetryCount = 0 : baseYoutubeRetryCount = 0;
     isReaction ? $("#reactPlayPauseInner").text("⏸") : $("#basePlayPause").text("⏸");
     if(!isReaction) window.baseManuallyPaused = null;
+    
+    // Trigger sync when user clicks YouTube video to play (only if not already in a sync operation)
+    if (window.isVideosSynced && window.syncPlay && typeof window.syncPlay === 'function' && !window.isSeeking) {
+      if (!isReaction) {
+        setTimeout(() => {
+          if (window.isVideosSynced && !window.isSeeking) window.syncPlay(true);
+        }, 50); // Small delay to prevent feedback loops
+      } else {
+        setTimeout(() => {
+          if (window.isVideosSynced && !window.isSeeking) window.syncPlay(false);
+        }, 50);
+      }
+    }
   } else if (event.data === YT.PlayerState.PAUSED) {
     isReaction ? $("#reactPlayPauseInner").text("⏵") : $("#basePlayPause").text("⏵");
     if(!isReaction) window.baseManuallyPaused = Date.now();
+    
+    // Trigger sync when user clicks YouTube video to pause (only if not already in a sync operation)
+    if (window.isVideosSynced && window.syncPause && typeof window.syncPause === 'function' && !window.isSeeking) {
+      if (!isReaction) {
+        setTimeout(() => {
+          if (window.isVideosSynced && !window.isSeeking) window.syncPause(true);
+        }, 50); // Small delay to prevent feedback loops
+      } else {
+        setTimeout(() => {
+          if (window.isVideosSynced && !window.isSeeking) window.syncPause(false);
+        }, 50);
+      }
+    }
   }
   if (!isReaction && typeof window.onYouTubeBasePlayerStateChange === 'function') {
     window.onYouTubeBasePlayerStateChange(event);
