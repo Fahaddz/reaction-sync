@@ -429,20 +429,47 @@ function isReactPlaying() {
 function areVideosReady() {
   try {
     let reactVideoExists = false;
+    let reactVideoStatus = '';
     if (isReactYoutubeVideo) {
-      reactVideoExists = reactYoutubePlayer !== null && typeof reactYoutubePlayer.getPlayerState === 'function' && typeof YT !== 'undefined' && YT.PlayerState && reactYoutubePlayer.getPlayerState() !== YT.PlayerState.UNSTARTED;
+      const hasPlayer = reactYoutubePlayer !== null;
+      const hasState = hasPlayer && typeof reactYoutubePlayer.getPlayerState === 'function';
+      const hasYT = typeof YT !== 'undefined' && YT.PlayerState;
+      const state = hasState ? reactYoutubePlayer.getPlayerState() : 'N/A';
+      const notUnstarted = hasState && state !== YT.PlayerState.UNSTARTED;
+      reactVideoExists = hasPlayer && hasState && hasYT && notUnstarted;
+      reactVideoStatus = `React YT: player=${hasPlayer}, state=${state}, ready=${reactVideoExists}`;
     } else {
       const video = $("#videoReact")[0];
-      reactVideoExists = !!(video && typeof video.readyState === 'number' && video.readyState >= 1);
+      const hasVideo = !!video;
+      const readyState = hasVideo ? video.readyState : 0;
+      reactVideoExists = hasVideo && readyState >= 1;
+      reactVideoStatus = `React Local: exists=${hasVideo}, readyState=${readyState}, ready=${reactVideoExists}`;
     }
+    
     let baseVideoExists = false;
+    let baseVideoStatus = '';
     if (isBaseYoutubeVideo) {
-      baseVideoExists = baseYoutubePlayer !== null && typeof baseYoutubePlayer.getPlayerState === 'function' && typeof YT !== 'undefined' && YT.PlayerState && baseYoutubePlayer.getPlayerState() !== YT.PlayerState.UNSTARTED;
+      const hasPlayer = baseYoutubePlayer !== null;
+      const hasState = hasPlayer && typeof baseYoutubePlayer.getPlayerState === 'function';
+      const hasYT = typeof YT !== 'undefined' && YT.PlayerState;
+      const state = hasState ? baseYoutubePlayer.getPlayerState() : 'N/A';
+      const notUnstarted = hasState && state !== YT.PlayerState.UNSTARTED;
+      baseVideoExists = hasPlayer && hasState && hasYT && notUnstarted;
+      baseVideoStatus = `Base YT: player=${hasPlayer}, state=${state}, ready=${baseVideoExists}`;
     } else {
       const video = $("#videoBaseLocal")[0];
-      baseVideoExists = !!(video && typeof video.readyState === 'number' && video.readyState >= 1);
+      const hasVideo = !!video;
+      const readyState = hasVideo ? video.readyState : 0;
+      baseVideoExists = hasVideo && readyState >= 1;
+      baseVideoStatus = `Base Local: exists=${hasVideo}, readyState=${readyState}, ready=${baseVideoExists}`;
     }
-    return reactVideoExists && baseVideoExists;
+    
+    const allReady = reactVideoExists && baseVideoExists;
+    if ((DEBUG || window.DEBUG_SYNC) && !allReady) {
+      console.log('Videos not ready:', baseVideoStatus, '|', reactVideoStatus);
+    }
+    
+    return allReady;
   } catch (e) { console.error("Error checking if videos are ready:", e); return true; }
 }
 
@@ -802,10 +829,22 @@ function syncVideos(force = false) {
 function startSyncLoop() {
   try {
     stopSyncLoop();
+    console.log('🔄 Starting sync loop with interval:', getSyncInterval(), 'ms');
     syncIntervalId = setInterval(() => {
       if (isVideosSynced) {
-        if (areVideosReady()) { syncVideos(false); }
-      } else { stopSyncLoop(); }
+        const videosReady = areVideosReady();
+        if (DEBUG || window.DEBUG_SYNC) {
+          console.log('Sync loop tick: videosReady =', videosReady, 'isSeeking =', isSeeking, 'isUserInteracting =', isUserInteracting);
+        }
+        if (videosReady) { 
+          syncVideos(false); 
+        } else {
+          if (DEBUG || window.DEBUG_SYNC) console.log('Videos not ready, skipping syncVideos');
+        }
+      } else { 
+        console.log('⏹️ Stopping sync loop - videos not synced');
+        stopSyncLoop(); 
+      }
     }, getSyncInterval());
     return true;
   } catch (e) { console.error('Error starting sync loop:', e); return false; }
