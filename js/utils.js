@@ -1,4 +1,4 @@
-import { createFFmpeg, fetchFile } from 'https://esm.sh/@ffmpeg/ffmpeg@0.12.6';
+import { createFFmpeg, fetchFile } from 'https://esm.sh/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js';
 const ffmpeg = createFFmpeg({ log: true });
 
 function secondsToTime(seconds, prec = 1) {
