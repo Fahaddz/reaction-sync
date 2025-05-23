@@ -1,38 +1,47 @@
+// FFmpeg functionality disabled - see Option 2 approach
+// Uncomment the section below if you want to use Option 1 (FFmpeg integration)
+
 let ffmpeg;
 let fetchFile;
+let toBlobURL;
 
 async function initFFmpeg() {
-  if (ffmpeg) return { ffmpeg, fetchFile };
+  if (ffmpeg) return { ffmpeg, fetchFile, toBlobURL };
   
   const cdnOptions = [
     {
       name: 'UNPKG',
-      moduleUrl: 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js',
-      coreUrl: 'https://unpkg.com/@ffmpeg/core@0.12.15/dist/esm/ffmpeg-core.js'
+      packageUrl: 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js',
+      utilUrl: 'https://unpkg.com/@ffmpeg/util@0.12.15/dist/esm/index.js',
+      coreUrl: 'https://unpkg.com/@ffmpeg/core@0.12.15/dist/esm/ffmpeg-core.js',
+      wasmUrl: 'https://unpkg.com/@ffmpeg/core@0.12.15/dist/esm/ffmpeg-core.wasm'
     },
     {
       name: 'JSDelivr',
-      moduleUrl: 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js',
-      coreUrl: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.15/dist/esm/ffmpeg-core.js'
-    },
-    {
-      name: 'CDNjs',
-      moduleUrl: 'https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.15/esm/index.min.js',
-      coreUrl: 'https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.15/esm/ffmpeg-core.js'
+      packageUrl: 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js',
+      utilUrl: 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.15/dist/esm/index.js',
+      coreUrl: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.15/dist/esm/ffmpeg-core.js',
+      wasmUrl: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.15/dist/esm/ffmpeg-core.wasm'
     }
   ];
   
   for (const cdn of cdnOptions) {
     try {
       console.log(`Attempting to load FFmpeg from ${cdn.name}...`);
-      const { createFFmpeg, fetchFile: fetchFileImport } = await import(cdn.moduleUrl);
-      fetchFile = fetchFileImport;
-      ffmpeg = createFFmpeg({ 
-        log: false,
-        corePath: cdn.coreUrl
-      });
+      
+      const [ffmpegModule, utilModule] = await Promise.all([
+        import(cdn.packageUrl),
+        import(cdn.utilUrl)
+      ]);
+      
+      const { FFmpeg } = ffmpegModule;
+      fetchFile = utilModule.fetchFile;
+      toBlobURL = utilModule.toBlobURL;
+      
+      ffmpeg = new FFmpeg();
+      
       console.log(`Successfully loaded FFmpeg from ${cdn.name}`);
-      return { ffmpeg, fetchFile };
+      return { ffmpeg, fetchFile, toBlobURL };
     } catch (error) {
       console.warn(`Failed to load FFmpeg from ${cdn.name}:`, error.message);
       continue;
@@ -41,6 +50,48 @@ async function initFFmpeg() {
   
   console.error('All CDNs failed to load FFmpeg');
   throw new Error('FFmpeg could not be loaded from any CDN. This feature requires FFmpeg.wasm to transcode unsupported video formats. Please check your internet connection and try refreshing the page.');
+}
+
+async function transcodeToMp4(file) {
+  try {
+    const { ffmpeg: ffmpegInstance, fetchFile: fetchFileInstance, toBlobURL: toBlobURLInstance } = await initFFmpeg();
+    
+    const loaded = ffmpegInstance.loaded;
+    if (!loaded) {
+      console.log('Loading FFmpeg core...');
+      
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.15/dist/esm';
+      await ffmpegInstance.load({
+        coreURL: await toBlobURLInstance(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURLInstance(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      });
+      console.log('FFmpeg loaded successfully');
+    }
+    
+    console.log('Starting transcoding process...');
+    await ffmpegInstance.writeFile(file.name, await fetchFileInstance(file));
+    
+    await ffmpegInstance.exec([
+      '-i', file.name,
+      '-c:v', 'libx264',
+      '-preset', 'fast',
+      '-crf', '23',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      'output.mp4'
+    ]);
+    
+    const data = await ffmpegInstance.readFile('output.mp4');
+    console.log('Transcoding completed successfully');
+    
+    await ffmpegInstance.deleteFile(file.name);
+    await ffmpegInstance.deleteFile('output.mp4');
+    
+    return new Blob([data], { type: 'video/mp4' });
+  } catch (error) {
+    console.error('FFmpeg transcoding failed:', error);
+    throw new Error(`Video transcoding failed: ${error.message}. The video format may not be supported or FFmpeg failed to load.`);
+  }
 }
 
 function secondsToTime(seconds, prec = 1) {
@@ -113,45 +164,6 @@ function checkCodecSupport(file) {
       resolve({ supported: false, reason: e.message });
     }
   });
-}
-
-/**
- * Transcodes a video file to MP4/H.264 using ffmpeg.wasm.
- */
-async function transcodeToMp4(file) {
-  try {
-    const { ffmpeg: ffmpegInstance, fetchFile: fetchFileInstance } = await initFFmpeg();
-    
-    if (!ffmpegInstance.isLoaded()) {
-      console.log('Loading FFmpeg core...');
-      await ffmpegInstance.load();
-      console.log('FFmpeg loaded successfully');
-    }
-    
-    console.log('Starting transcoding process...');
-    ffmpegInstance.FS('writeFile', file.name, await fetchFileInstance(file));
-    
-    await ffmpegInstance.run(
-      '-i', file.name,
-      '-c:v', 'libx264',
-      '-preset', 'fast',
-      '-crf', '23',
-      '-c:a', 'aac',
-      '-b:a', '128k',
-      'output.mp4'
-    );
-    
-    const data = ffmpegInstance.FS('readFile', 'output.mp4');
-    console.log('Transcoding completed successfully');
-    
-    ffmpegInstance.FS('unlink', file.name);
-    ffmpegInstance.FS('unlink', 'output.mp4');
-    
-    return new Blob([data.buffer], { type: 'video/mp4' });
-  } catch (error) {
-    console.error('FFmpeg transcoding failed:', error);
-    throw new Error(`Video transcoding failed: ${error.message}. The video format may not be supported or FFmpeg failed to load.`);
-  }
 }
 
 export {
