@@ -145,7 +145,7 @@ function checkCodecSupport(file) {
         if (video.error) {
           switch (video.error.code) {
             case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-              reason = 'Video codec not supported (possibly HEVC/H.265). Try converting to H.246 or use Microsoft Edge browser.'; // Corrected H.264 in the message
+              reason = 'Video codec not supported (possibly HEVC/H.265). Try converting to H.264 or use Microsoft Edge browser.';
               break;
             case MediaError.MEDIA_ERR_DECODE:
               reason = 'Video decode error';

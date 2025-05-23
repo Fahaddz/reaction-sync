@@ -1,4 +1,4 @@
-import { checkCodecSupport, srt2webvtt, transcodeToMp4 } from './utils.js'; // srt2webvtt is used in loadSubtitles
+import { checkCodecSupport, srt2webvtt } from './utils.js';
 import { setDelay } from './sync.js';
 
 async function selectLocalVideo(videoX, callBack) {
@@ -13,62 +13,27 @@ async function selectLocalVideo(videoX, callBack) {
 
     if (!support.supported) {
       console.warn(`Video codec not supported: ${support.reason}`);
-      console.log('Attempting to transcode video using FFmpeg...');
       
-      try {
-        // Show loading indicator
-        const originalTitle = document.title;
-        document.title = '🔄 Transcoding video...';
-        
-        // Attempt transcoding
-        const transcodedBlob = await transcodeToMp4(file);
-        $(videoX).attr("src", URL.createObjectURL(transcodedBlob));
-        $(videoX)[0].load();
-        document.title = `${file.name} (transcoded)`;
-
-        if (videoX === "#videoBaseLocal") {
-          $("#videoBaseLocal").trigger("loadedmetadata");
-        } else if (videoX === "#videoReact") {
-          $("#videoReact").trigger("loadedmetadata");
-          let tokens = file.name.split(".");
-          let num = tokens.find(
-            (token) => token.split("dt")[0] == "" && !isNaN(token.split("dt")[1])
-          );
-          if (num) {
-            num = num.split("dt")[1];
-            setDelay(Number(num) / 10);
-          }
-        }
-        callBack && callBack(file);
-        return;
-        
-      } catch (error) {
-        console.error('FFmpeg transcoding failed:', error);
-        document.title = originalTitle;
-        
-        // Fallback to user guidance
-        const userChoice = confirm(
-          `⚠️ Video Format Not Supported\n\n` +
-          `Problem: ${support.reason}\n\n` +
-          `Transcoding also failed: ${error.message}\n\n` +
-          `Solutions:\n` +
-          `1. Convert your video to MP4/H.264 format using:\n` +
-          `   • HandBrake (free, recommended)\n` +
-          `   • VLC Media Player (free)\n` +
-          `   • FFmpeg (command line)\n` +
-          `   • Online converters\n\n` +
-          `2. Try using Microsoft Edge browser (better codec support)\n\n` +
-          `Click OK to open HandBrake download page, or Cancel to choose a different video.`
-        );
-        
-        if (userChoice) {
-          window.open('https://handbrake.fr/downloads.php', '_blank');
-        }
-        return;
+      const userChoice = confirm(
+        `⚠️ Video Format Not Supported\n\n` +
+        `Problem: ${support.reason}\n\n` +
+        `Solutions:\n` +
+        `1. Convert your video to MP4/H.264 format using:\n` +
+        `   • HandBrake (free, recommended)\n` +
+        `   • VLC Media Player (free)\n` +
+        `   • FFmpeg (command line)\n` +
+        `   • Online converters\n\n` +
+        `2. Try using Microsoft Edge browser (better codec support)\n\n` +
+        `3. Use a different video file\n\n` +
+        `Click OK to open HandBrake download page, or Cancel to choose a different video.`
+      );
+      
+      if (userChoice) {
+        window.open('https://handbrake.fr/downloads.php', '_blank');
       }
+      return;
     }
 
-    // Video is supported, load normally
     $(videoX).attr("src", URL.createObjectURL(files[0]));
     $(videoX)[0].load();
     document.title = files[0].name;
