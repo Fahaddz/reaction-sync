@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>reaction-sync</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.1/jquery-ui.min.js"></script>
+    <script>
+      function onYouTubeIframeAPIReady() {
+        window.youtubeAPIReady = true;
+        const event = new CustomEvent('youtube-api-ready');
+        window.dispatchEvent(event);
+      }
+      var tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      tag.onload = function() {
+      };
+      tag.onerror = function() {
+        console.error("Failed to load YouTube API");
+        setTimeout(function() {
+          var newTag = document.createElement('script');
+          newTag.src = "https://www.youtube.com/iframe_api";
+          document.head.appendChild(newTag);
+        }, 2000);
+      };
+      var firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-P8C85TVE0N"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { dataLayer.push(arguments); }
+      gtag("js", new Date());
+      gtag("config", "G-P8C85TVE0N");
+    </script>
+    <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/custom-controls.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('addBaseVideoLocal').addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (window.selectVideo) window.selectVideo("#videoBaseLocal", null, false);
+        });
+        document.getElementById('addBaseVideoLink').addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (window.selectVideo) window.selectVideo("#videoBaseLocal", null, true);
+        });
+        document.getElementById('addReactVidLocal').addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (window.selectVideo) window.selectVideo("#videoReact", function(file) {
+            if (file && file.name) {
+              let tokens = file.name.split(".");
+              let num = tokens.find(token => token.split("dt")[0] == "" && !isNaN(token.split("dt")[1]));
+              if (num) {
+                num = num.split("dt")[1];
+                if (window.setDelay) window.setDelay(Number(num) / 10);
+              }
+            }
+          }, false);
+        });
+        document.getElementById('addReactVidLink').addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (window.selectVideo) window.selectVideo("#videoReact", function(file) {
+            if (typeof file === 'object' && file.name) {
+              let tokens = file.name.split(".");
+              let num = tokens.find(token => token.split("dt")[0] == "" && !isNaN(token.split("dt")[1]));
+              if (num) {
+                num = num.split("dt")[1];
+                if (window.setDelay) window.setDelay(Number(num) / 10);
+              }
+            }
+          }, true);
+        });
+        document.getElementById('addSubBtn').addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (window.loadSubtitles) window.loadSubtitles();
+        });
+        document.getElementById('syncButton').addEventListener('click', function() {
+          if (window.syncNow) {
+            window.syncNow();
+          } else {
+            console.error('syncNow function not available');
+          }
+        });
+        document.getElementById('desyncButton').addEventListener('click', function() {
+          if (window.disableSync) {
+            window.disableSync();
+          } else {
+            console.error('disableSync function not available');
+          }
+        });
+      });
+    </script>
+    <style>
+      #videoBase { background: #000; width: 100%; z-index: 1; max-height: 100vh; object-fit: contain; }
+      #videoBaseContainer { position: fixed !important; top: 0; left: 0; width: 100vw !important; height: 100vh !important; overflow: hidden; z-index: 1; pointer-events: none !important; }
+      #videoBaseYoutube { position: absolute; top: 0; left: 0; width: 100% !important; height: calc(100% - 40px) !important; background: black; pointer-events: auto !important; }
+      #videoBaseLocal { position: absolute; top: 0; left: 0; width: 100%; height: calc(100% - 40px) !important; object-fit: contain; pointer-events: auto !important; }
+      html, body { padding: 0; margin: 0; overflow: hidden; width: 100vw; height: 100vh; background: #000; font-family: sans-serif; position: relative; z-index: 0; }
+      #videoReactContainer { position: fixed !important; z-index: 100; top: 1vw; left: 1vw; border-radius: 8px; border: 2px solid rgba(255, 255, 255, 0.2); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); transition: border-color 0.3s ease; background: transparent; min-width: 200px; min-height: 112px; overflow: visible !important; resize: none !important; transform: none !important; will-change: auto; touch-action: none; cursor: default !important;}
+      #videoReactContainer.resizing { border-color: rgba(0, 255, 255, 0.6); box-shadow: 0 0 15px rgba(0, 255, 255, 0.4); pointer-events: auto !important; user-select: none !important; }
+      #videoReactContainer.resizing .ui-resizable-se { opacity: 1 !important; background: rgba(0,255,255,0.8) !important; z-index: 1003 !important; }
+      #videoReactContainer.ui-resizable { touch-action: none !important; }
+      #videoReact { width: 100% !important; height: 100% !important; border-radius: 8px; object-fit: contain !important; background: #000; transform: translateZ(0); }
+      #videoReactYoutube { width: 100% !important; border-radius: 8px 8px 0 0; background: #000; overflow: hidden; position: absolute; z-index: 4; pointer-events: none; }
+      #videoReactYoutube iframe { pointer-events: none !important; width: 100% !important; height: 100% !important; }
+      .reactControls { position: absolute; bottom: 0; left: 0; right: 0; height: 40px; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; padding: 0 10px; border-radius: 0 0 8px 8px; z-index: 1000; opacity: 0; transition: opacity 0.3s ease; gap: 10px; pointer-events: auto; }
+      #videoReactContainer:hover .reactControls { opacity: 1; }
+      #videoReactContainer:hover #reactDragHandle { opacity: 0.7 !important; }
+      #reactDragHandle { position: absolute; left: -28px !important; bottom: 50%; transform: translateY(50%) translateX(-8px) !important; background: rgba(0, 0, 0, 0.4) !important; color: rgba(255, 255, 255, 0.9); padding: 12px 5px !important; border-radius: 8px 0 0 8px; font-size: 0.8em !important; cursor: move; z-index: 1001 !important; backdrop-filter: blur(5px); border: 1px solid rgba(255, 255, 255, 0.2); border-right: none; transition: all 0.2s ease; display: block; writing-mode: vertical-rl; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; pointer-events: auto !important; opacity: 1 !important; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+      #reactDragHandle:hover { background: rgba(0, 0, 0, 0.4); transform: translateY(50%) scale(1.05); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); }
+      #reactDragHandle::before { content: ''; display: none; }
+      #reactSeekBar { flex: 1; margin: 0 10px; height: 4px; }
+      #reactVolumeSlider { width: 60px; margin-right: 10px; }
+      .timeDisplay { color: white; font-weight: bold; min-width: 120px; font-size: 0.9em; text-align: center; }
+      .ui-resizable-handle { position: absolute; background: rgba(255, 255, 255, 0.2); width: 10px; height: 10px; display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 1000 !important; pointer-events: auto; }
+      .ui-resizable-se { width: 24px !important; height: 24px !important; background-color: rgba(255, 255, 255, 0.8) !important; background-image: none !important; cursor: se-resize !important; z-index: 1002 !important; bottom: 0 !important; right: 0 !important; display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important; position: absolute !important; border-radius: 3px 0 0 0; box-shadow: 0 0 5px rgba(0, 0, 0, 0.5); transition: background-color 0.2s ease; background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.8) 40%, rgba(0,255,255,0.6) 41%, rgba(0,255,255,0.6) 60%, rgba(255,255,255,0.8) 61%, rgba(255,255,255,0.8) 100%) !important; }
+      .ui-resizable-se:hover { background: rgba(255,255,255,0.9) !important; box-shadow: 0 0 8px rgba(0,255,255,0.7); background-color: rgba(255, 255, 255, 1) !important; }
+      .ui-resizable-helper { border: 2px solid rgba(0, 255, 255, 0.6); background: rgba(0, 255, 255, 0.1); }
+      html.ui-resizable, body.ui-resizable { cursor: default !important; }
+      .ui-resizable:not(#videoReactContainer) { cursor: default !important; }
+      #videoReactContainer .ui-resizable-se { cursor: se-resize !important; }
+      #BottomBar { position: absolute; bottom: 45px; left: 0; right: 0; color: rgba(255, 255, 255, 0.8); padding: 5px 0; text-align: center; }
+      #delay { min-width: 60px; text-align: center; background: rgba(0, 0, 0, 0.7); padding: 5px 15px; border-radius: 20px; }
+      #timeRange, #timeRangeBase, #ReactVol, #BaseVol { display: none; }
+      input, button { cursor: pointer; }
+      input[type="range"] { appearance: none; margin-right: 15px; background: transparent; border-radius: 5px; height: 12px; overflow: hidden; outline: none; position: relative; z-index: 1000; pointer-events: all !important; }
+      input[type="range"]::-webkit-slider-thumb { appearance: none; height: 16px !important; width: 16px !important; margin-top: -4px; border-radius: 50%; background: #448; cursor: pointer; transition: transform 0.2s ease, background 0.3s ease-in-out; box-shadow: none !important; transform: scale(1.2); }
+      input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.8); }
+      input[type="range"]::-webkit-slider-runnable-track { appearance: none; box-shadow: none; border: none; height: 4px; background: rgba(255, 255, 255, 0.3); border-radius: 2px; }
+      button { background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.3); padding: 4px 12px; border-radius: 20px; transition: all 0.3s ease; margin: 0 4px; }
+      button:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.5); }
+      #tipsScreen { position: absolute; top: 0; left: 0; right: 0; z-index: 15; color: #fff; padding: 0.5rem; background: rgba(0, 0, 0, 0.75); max-height: calc(100vh - 100px); overflow: auto; overflow-x: hidden; }
+      li + li { margin-top: 0.5rem; }
+      #baseVideoControls { position: absolute; bottom: 0; left: 0; right: 0; height: 40px; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; padding: 8px 15px; opacity: 0; transition: opacity 0.3s ease; gap: 10px; pointer-events: auto !important; z-index: 1000; }
+      #baseVideoControls * { pointer-events: auto !important; position: relative; }
+      #baseVideoControls #basePlayPause { margin-left: 0; margin-right: 0; }
+      #baseVideoControls button { position: relative; z-index: 1000; transform: translateZ(0); will-change: transform; }
+      #baseVideoControls #baseVolumeSlider { width: 80px; margin-left: 15px; }
+      #youtubeQuality { background-color: rgba(0, 0, 0, 0.5); color: white; border: 1px solid rgba(255, 255, 255, 0.3); padding: 5px 10px; margin-left: 10px; border-radius: 3px; cursor: pointer; position: relative; }
+      .quality-menu { position: absolute; bottom: 40px; right: 0; background-color: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 5px; display: flex; flex-direction: column; width: 150px; max-height: 300px; overflow-y: auto; z-index: 1000; }
+      .quality-option { padding: 8px 12px; color: white; background: transparent; border: none; text-align: left; cursor: pointer; transition: background 0.2s; font-size: 14px; }
+      .quality-option:hover { background-color: rgba(255, 255, 255, 0.1); }
+      .quality-option.active { background-color: rgba(255, 0, 0, 0.3); }
+      body:hover #baseVideoControls { opacity: 1; }
+      #baseSeekBar { flex: 2; margin: 0 15px; height: 4px; }
+    </style>
+    <script>
+      window.keydownHandler = function(event) {
+        try {
+          if (event.key === 's' || event.key === 'S') {
+            if (window.syncNow) window.syncNow();
+            event.preventDefault(); event.stopPropagation(); return true;
+          }
+          if (event.key === 'd' || event.key === 'D') {
+            if (window.disableSync) window.disableSync();
+            event.preventDefault(); event.stopPropagation(); return true;
+          }
+          if (event.key === ' ' || event.key === 'Spacebar') {
+            if (window.isBasePlaying && window.isBasePlaying()) {
+              window.pauseBase && window.pauseBase();
+            } else {
+              window.playBase && window.playBase();
+            }
+            event.preventDefault(); event.stopPropagation(); return true;
+          }
+        } catch (e) {
+          console.error('Error in keydown handler:', e);
+        }
+        return false;
+      };
+      document.addEventListener('keydown', window.keydownHandler);
+      document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('decreaseDelayBtn').addEventListener('click', function() {
+          if (typeof window.setDelay === 'function' && typeof window.videoReactDelay === 'number') {
+            const currentDelay = window.videoReactDelay;
+            const newDelay = Math.max(-300, (currentDelay - 0.1).toFixed(1));
+            window.setDelay(newDelay, false);
+          } else {
+            console.error('setDelay function or videoReactDelay not available');
+          }
+        });
+        document.getElementById('increaseDelayBtn').addEventListener('click', function() {
+          if (typeof window.setDelay === 'function' && typeof window.videoReactDelay === 'number') {
+            const currentDelay = window.videoReactDelay;
+            const newDelay = Math.min(300, (currentDelay + 0.1).toFixed(1));
+            window.setDelay(newDelay, false);
+          } else {
+            console.error('setDelay function or videoReactDelay not available');
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <div id="videoReactContainer" class="ui-widget-content">
+      <video id="videoReact" draggable="true" style="display:block;">
+        <source src="" type="video/mp4; codecs=hevc,mp4a.40.2">
+        <source src="" type="video/mp4">
+      </video>
+      <div id="videoReactYoutube" style="width:100%;height:calc(100% - 40px);display:none;"></div>
+      <div id="reactDragHandle">DRAG</div>
+      <div class="reactControls">
+        <button id="reactPlayPauseInner">⏵</button>
+        <input type="range" id="reactSeekBar" min="0" max="100" value="0" step="any" title="React Video Time">
+        <div id="reactTimeDisplay" class="timeDisplay">0:00 / 0:00</div>
+        <input type="range" id="reactVolumeSlider" min="0" max="1" value="1" step="any" title="React Video Volume">
+      </div>
+    </div>
+    <div id="videoBaseContainer" style="width:100%;height:100%;position:relative;">
+      <video id="videoBaseLocal" style="display:block;">
+        <source src="" type="video/mp4; codecs=hevc,mp4a.40.2">
+        <source src="" type="video/mp4">
+      </video>
+      <div id="videoBaseYoutube" style="width:100%;height:100%;display:none;"></div>
+    </div>
+    <div id="baseVideoControls">
+      <div class="button-group">
+        <button id="addBaseVideoLocal">Base Local</button>
+        <button id="addBaseVideoLink">Base Link</button>
+      </div>
+      <button id="basePlayPause">⏵</button>
+      <input type="range" id="baseSeekBar" min="0" max="100" value="0" step="any" title="Base Video Time">
+      <div style="display: flex; align-items: center; gap: 10px; margin-left: 15px;">
+        <div style="color: white;">Delay: </div>
+        <div id="delayContainer" style="display: inline-block; margin-left: 5px;">
+          <button id="decreaseDelayBtn" style="padding: 0px 3px; font-size: 0.7em; margin-right: 2px;" title="Decrease delay (PageUp)">-</button>
+          <span id="delay" style="color: white;">?</span>
+          <span id="delayValue" style="display: none;">0.0</span>
+          <button id="increaseDelayBtn" style="padding: 0px 3px; font-size: 0.7em; margin-left: 2px;" title="Increase delay (PageDown)">+</button>
+        </div>
+        <button id="youtubeQuality" style="padding: 2px 8px; font-size: 0.9em;">Quality</button>
+      </div>
+      <div id="baseTimeDisplay" class="timeDisplay" style="margin-left: auto;">0:00 / 0:00</div>
+      <button id="addSubBtn">Subtitles</button>
+      <div class="button-group">
+        <button id="addReactVidLocal">React Local</button>
+        <button id="addReactVidLink">React Link</button>
+      </div>
+      <input type="range" id="baseVolumeSlider" min="0" max="1" value="1" step="any" title="Base Video Volume">
+      <div class="button-group" style="margin-left: auto;">
+        <button id="syncButton" style="padding: 1px 6px; font-size: 0.7em;">S</button>
+        <button id="desyncButton" style="padding: 1px 6px; font-size: 0.7em;">D</button>
+        <button id="forceResyncButton" style="padding: 1px 6px; font-size: 0.7em;">FR</button>
+      </div>
+    </div>
+    <div id="tipsScreen">
+      reaction-sync v0.0.7 | How To use:
+      <ul>
+        <li>Both base and reaction/commentary videos should be local videos</li>
+        <li>Controls and time display show on hover</li>
+        <li>Load the movie/show video by clicking on the <b>Base Video</b> button (supports YouTube URLs or local files)</li>
+        <li>Load the reaction/commentary video by clicking <b>React Video</b> button</li>
+        <li>Optionally Load Subtitles by clicking the <b>Subtitles</b> button</li>
+        <li>Each video has its own controls:
+          <ul>
+            <li>Play/Pause button</li>
+            <li>Seek bar for precise navigation</li>
+            <li>Volume control</li>
+          </ul>
+        </li>
+        <li>When the movie/show appears in both videos:
+          <ul>
+            <li>Position both videos to matching content points</li>
+            <li>For YouTube videos, play both videos briefly first (important for proper sync)</li>
+            <li>Then click <b>S</b> to sync or press the <b>S</b> key</li>
+            <li>To disable sync, click <b>D</b> or press the <b>D</b> key</li>
+          </ul>
+        </li>
+        <li>Drag the reaction video by the <b>DRAG</b> handle on the left</li>
+        <li>Resize the reaction video by dragging the bottom-right corner</li>
+        <li>Keyboard shortcuts:
+          <ul>
+            <li>Space: Play/Pause</li>
+            <li>S: Sync videos</li>
+            <li>D: Desync videos</li>
+            <li>Page Up/Down: Adjust delay by 0.1 seconds</li>
+            <li>Arrow keys: Navigate reaction video</li>
+            <li>Shift + Arrow keys: Navigate base video</li>
+          </ul>
+        </li>
+      </ul>
+      <button onclick="this.parentNode.style.display='none'" style="margin-top: 10px;">Close Tips</button>
+    </div>
+    <div id="syncStatus" style="position:fixed;top:5px;right:5px;background:rgba(0,0,0,0.7);color:#fff;padding:5px 10px;border-radius:4px;font-size:12px;z-index:9999;"></div>
+    <div id="debugOverlay" style="position:fixed;bottom:0;right:0;background:rgba(0,0,0,0.7);color:#0f0;font-size:12px;padding:5px;max-width:200px;max-height:150px;overflow:auto;display:none;z-index:9999"></div>
+  </body>
+</html>
