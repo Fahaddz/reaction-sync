@@ -207,7 +207,7 @@
             
             const change = direction * increment;
             const newDelay = Math.max(-300, Math.min(300, currentDelay + change));
-            window.setDelay(parseFloat(newDelay.toFixed(1)), false);
+            window.setDelay(parseFloat(newDelay.toFixed(1)), true);
           } else {
             console.error('setDelay function or videoReactDelay not available');
           }
