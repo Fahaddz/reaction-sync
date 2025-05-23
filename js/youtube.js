@@ -317,6 +317,49 @@ function setupYouTubeReactControls() {
   if (reactYoutubePlayer && typeof reactYoutubePlayer.addEventListener === 'function') {
     reactYoutubePlayer.addEventListener('onStateChange', (event) => { if (event.data === YT.PlayerState.ENDED) { clearInterval(window.reactSeekInterval); } });
   }
+  
+  // Add seek bar handlers for YouTube reaction video (missing critical sync functionality)
+  let lastReactYTSeekTime = 0;
+  const seekCooldown = 50;
+
+  $("#reactSeekBar").off("mousedown touchstart").on('mousedown touchstart', function() {
+    if (window.isReactSeeking !== undefined) window.isReactSeeking = true;
+    if (window.markUserInteraction && typeof window.markUserInteraction === 'function') {
+      window.markUserInteraction();
+    }
+  });
+
+  $("#reactSeekBar").off("input").on("input", function() {
+    if (!reactYoutubePlayer || typeof reactYoutubePlayer.getDuration !== 'function') return;
+    
+    const now = Date.now();
+    if (now - lastReactYTSeekTime < seekCooldown) return;
+    lastReactYTSeekTime = now;
+
+    const seekPercent = parseFloat($(this).val()); 
+    const duration = reactYoutubePlayer.getDuration();
+    if (isNaN(duration) || duration <= 0) {
+      console.log('Cannot seek: invalid YouTube reaction video duration');
+      return;
+    }
+    
+    const seekTime = (seekPercent / 100) * duration;
+    if (window.markUserInteraction && typeof window.markUserInteraction === 'function') {
+      window.markUserInteraction();
+    }
+    
+    try {
+      if (window.syncSeek && typeof window.syncSeek === 'function') {
+        window.syncSeek(false, seekTime);
+      } else {
+        reactYoutubePlayer.seekTo(seekTime, true);
+        $("#reactTimeDisplay").text(`${secondsToTime(seekTime)} / ${secondsToTime(duration)}`);
+      }
+    } catch (e) {
+      console.error('Error during YouTube reaction video seeking:', e);
+    }
+  });
+  
   $(".reactControls").css({ "position": "absolute", "bottom": "0", "left": "0", "right": "0", "z-index": "1000" });
   const container = $("#videoReactContainer");
   if (reactYoutubePlayer && typeof reactYoutubePlayer.setSize === 'function') {
