@@ -39,19 +39,57 @@
     <script type="module" src="js/custom-controls.js"></script>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
+        // Setup dropdown menus
+        function setupDropdownMenu(buttonId, menuId) {
+          const button = document.getElementById(buttonId);
+          const menu = document.getElementById(menuId);
+          
+          button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Hide all other menus
+            document.querySelectorAll('.video-source-menu').forEach(m => {
+              if (m !== menu) m.style.display = 'none';
+            });
+            
+            // Toggle this menu
+            menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+          });
+        }
+        
+        // Setup both dropdown menus
+        setupDropdownMenu('baseVideoSourceBtn', 'baseVideoSourceMenu');
+        setupDropdownMenu('reactVideoSourceBtn', 'reactVideoSourceMenu');
+        
+        // Hide menus when clicking outside
+        document.addEventListener('click', function(e) {
+          if (!e.target.closest('.video-source-dropdown')) {
+            document.querySelectorAll('.video-source-menu').forEach(m => {
+              m.style.display = 'none';
+            });
+          }
+        });
+        
+        // Base video handlers
         document.getElementById('addBaseVideoLocal').addEventListener('click', function(e) {
           e.preventDefault();
           e.stopImmediatePropagation();
+          document.getElementById('baseVideoSourceMenu').style.display = 'none';
           if (window.selectVideo) window.selectVideo("#videoBaseLocal", null, false);
         });
         document.getElementById('addBaseVideoLink').addEventListener('click', function(e) {
           e.preventDefault();
           e.stopImmediatePropagation();
+          document.getElementById('baseVideoSourceMenu').style.display = 'none';
           if (window.selectVideo) window.selectVideo("#videoBaseLocal", null, true);
         });
+        
+        // React video handlers
         document.getElementById('addReactVidLocal').addEventListener('click', function(e) {
           e.preventDefault();
           e.stopImmediatePropagation();
+          document.getElementById('reactVideoSourceMenu').style.display = 'none';
           if (window.selectVideo) window.selectVideo("#videoReact", function(file) {
             if (file && file.name) {
               let tokens = file.name.split(".");
@@ -66,6 +104,7 @@
         document.getElementById('addReactVidLink').addEventListener('click', function(e) {
           e.preventDefault();
           e.stopImmediatePropagation();
+          document.getElementById('reactVideoSourceMenu').style.display = 'none';
           if (window.selectVideo) window.selectVideo("#videoReact", function(file) {
             if (typeof file === 'object' && file.name) {
               let tokens = file.name.split(".");
@@ -161,7 +200,230 @@
       .quality-option:hover { background-color: rgba(255, 255, 255, 0.1); }
       .quality-option.active { background-color: rgba(255, 0, 0, 0.3); }
       body:hover #baseVideoControls { opacity: 1; }
-      #baseSeekBar { flex: 2; margin: 0 15px; height: 4px; }
+      #baseSeekBar { flex: 2; margin: 0 10px; height: 4px; }
+      
+      /* Modern compact dropdown menus */
+      .video-source-dropdown {
+        position: relative;
+        display: inline-block;
+      }
+      
+      .video-source-menu {
+        position: absolute;
+        bottom: 32px;
+        left: 0;
+        background: linear-gradient(145deg, rgba(25, 25, 35, 0.95), rgba(15, 15, 25, 0.95));
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        display: none;
+        flex-direction: column;
+        width: 80px;
+        z-index: 1000;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(10px);
+      }
+      
+      .video-source-option {
+        padding: 6px 10px;
+        color: #e0e0e0;
+        background: transparent;
+        border: none;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      
+      .video-source-option:hover {
+        background: linear-gradient(145deg, rgba(66, 165, 245, 0.2), rgba(33, 150, 243, 0.2));
+        color: #ffffff;
+        transform: translateY(-1px);
+      }
+      
+      /* Modern compact button styles */
+      .compact-btn {
+        padding: 4px 8px !important;
+        font-size: 11px !important;
+        min-width: auto !important;
+        background: linear-gradient(145deg, rgba(45, 45, 55, 0.8), rgba(35, 35, 45, 0.8)) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 6px !important;
+        color: #e0e0e0 !important;
+        transition: all 0.2s ease !important;
+        font-weight: 500 !important;
+      }
+      
+      .compact-btn:hover {
+        background: linear-gradient(145deg, rgba(66, 165, 245, 0.3), rgba(33, 150, 243, 0.3)) !important;
+        border-color: rgba(66, 165, 245, 0.5) !important;
+        color: #ffffff !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(66, 165, 245, 0.2) !important;
+      }
+      
+      /* Ultra-compact control elements */
+      .ultra-compact {
+        padding: 2px 6px !important;
+        font-size: 10px !important;
+        min-width: 18px !important;
+        height: 24px !important;
+        margin: 0 1px !important;
+      }
+      
+      /* Modern seek bar styling */
+      #baseSeekBar {
+        flex: 3 !important;
+        margin: 0 6px !important;
+        height: 6px !important;
+        background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)) !important;
+        border-radius: 3px !important;
+        outline: none !important;
+        transition: all 0.2s ease !important;
+      }
+      
+      #baseSeekBar::-webkit-slider-thumb {
+        appearance: none !important;
+        width: 14px !important;
+        height: 14px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(145deg, #42a5f5, #2196f3) !important;
+        cursor: pointer !important;
+        border: 2px solid rgba(255,255,255,0.2) !important;
+        box-shadow: 0 2px 8px rgba(66, 165, 245, 0.3) !important;
+        transition: all 0.2s ease !important;
+      }
+      
+      #baseSeekBar::-webkit-slider-thumb:hover {
+        transform: scale(1.2) !important;
+        box-shadow: 0 4px 16px rgba(66, 165, 245, 0.5) !important;
+      }
+      
+      /* Modern play/pause button */
+      #basePlayPause {
+        background: linear-gradient(145deg, rgba(66, 165, 245, 0.8), rgba(33, 150, 243, 0.8)) !important;
+        border: 1px solid rgba(66, 165, 245, 0.3) !important;
+        border-radius: 50% !important;
+        width: 28px !important;
+        height: 28px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: white !important;
+        font-size: 12px !important;
+        transition: all 0.2s ease !important;
+        margin: 0 4px !important;
+      }
+      
+      #basePlayPause:hover {
+        transform: scale(1.1) !important;
+        box-shadow: 0 4px 16px rgba(66, 165, 245, 0.4) !important;
+        background: linear-gradient(145deg, rgba(66, 165, 245, 1), rgba(33, 150, 243, 1)) !important;
+      }
+      
+      /* Compact time display */
+      .compact-time {
+        font-size: 10px !important;
+        color: #b0b0b0 !important;
+        font-weight: 500 !important;
+        font-family: 'Courier New', monospace !important;
+        margin: 0 4px !important;
+      }
+      
+      /* Modern controls container */
+      #baseVideoControls {
+        background: linear-gradient(145deg, rgba(20, 20, 30, 0.95), rgba(10, 10, 20, 0.95)) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 12px !important;
+        backdrop-filter: blur(15px) !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+        padding: 6px 8px !important;
+        gap: 4px !important;
+      }
+      
+      /* Modern volume slider */
+      #baseVolumeSlider {
+        background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)) !important;
+        border-radius: 3px !important;
+        outline: none !important;
+        height: 4px !important;
+      }
+      
+      #baseVolumeSlider::-webkit-slider-thumb {
+        appearance: none !important;
+        width: 12px !important;
+        height: 12px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(145deg, #66bb6a, #4caf50) !important;
+        cursor: pointer !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
+        transition: all 0.2s ease !important;
+      }
+      
+      #baseVolumeSlider::-webkit-slider-thumb:hover {
+        transform: scale(1.2) !important;
+        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4) !important;
+      }
+      
+      /* Modern react video controls */
+      .reactControls {
+        background: linear-gradient(145deg, rgba(20, 20, 30, 0.95), rgba(10, 10, 20, 0.95)) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 8px !important;
+        backdrop-filter: blur(10px) !important;
+        padding: 4px 6px !important;
+        gap: 3px !important;
+      }
+      
+      /* Modern react controls styling */
+      #reactPlayPauseInner {
+        background: linear-gradient(145deg, rgba(255, 193, 7, 0.8), rgba(255, 152, 0, 0.8)) !important;
+        border: 1px solid rgba(255, 193, 7, 0.3) !important;
+        border-radius: 50% !important;
+        width: 24px !important;
+        height: 24px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: white !important;
+        font-size: 10px !important;
+        transition: all 0.2s ease !important;
+      }
+      
+      #reactPlayPauseInner:hover {
+        transform: scale(1.1) !important;
+        box-shadow: 0 3px 12px rgba(255, 193, 7, 0.4) !important;
+      }
+      
+      #reactSeekBar, #reactVolumeSlider {
+        background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)) !important;
+        border-radius: 2px !important;
+        outline: none !important;
+        height: 3px !important;
+      }
+      
+      #reactSeekBar::-webkit-slider-thumb, #reactVolumeSlider::-webkit-slider-thumb {
+        appearance: none !important;
+        width: 10px !important;
+        height: 10px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(145deg, #ff9800, #f57c00) !important;
+        cursor: pointer !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
+        transition: all 0.2s ease !important;
+      }
+      
+      #reactSeekBar::-webkit-slider-thumb:hover, #reactVolumeSlider::-webkit-slider-thumb:hover {
+        transform: scale(1.2) !important;
+        box-shadow: 0 2px 8px rgba(255, 152, 0, 0.4) !important;
+      }
+      
+      #reactTimeDisplay {
+        font-size: 9px !important;
+        color: #b0b0b0 !important;
+        font-family: 'Courier New', monospace !important;
+        font-weight: 500 !important;
+      }
     </style>
     <script>
       window.keydownHandler = function(event) {
@@ -286,34 +548,49 @@
       <div id="videoBaseYoutube" style="width:100%;height:100%;display:none;"></div>
     </div>
     <div id="baseVideoControls">
-      <div class="button-group">
-        <button id="addBaseVideoLocal">Base Local</button>
-        <button id="addBaseVideoLink">Base Link</button>
-      </div>
-      <button id="basePlayPause">⏵</button>
-      <input type="range" id="baseSeekBar" min="0" max="100" value="0" step="any" title="Base Video Time">
-      <div style="display: flex; align-items: center; gap: 10px; margin-left: 15px;">
-        <div style="color: white;">Delay: </div>
-        <div id="delayContainer" style="display: flex; align-items: center; margin-left: 5px; gap: 3px;">
-          <button id="decreaseDelayBtn" style="padding: 0px 6px; font-size: 0.8em; min-width: 24px; flex-shrink: 0;" title="Decrease delay (PageUp / Hold for faster)">-</button>
-          <span id="delay" style="color: white; min-width: 80px; text-align: center; flex-shrink: 0;">?</span>
-          <span id="delayValue" style="display: none;">0.0</span>
-          <button id="increaseDelayBtn" style="padding: 0px 6px; font-size: 0.8em; min-width: 24px; flex-shrink: 0;" title="Increase delay (PageDown / Hold for faster)">+</button>
+      <!-- Ultra-compact left controls -->
+      <div class="video-source-dropdown">
+        <button id="baseVideoSourceBtn" class="compact-btn ultra-compact">Base</button>
+        <div id="baseVideoSourceMenu" class="video-source-menu">
+          <button class="video-source-option" id="addBaseVideoLocal">Local</button>
+          <button class="video-source-option" id="addBaseVideoLink">Link</button>
         </div>
-        <button id="youtubeQuality" style="padding: 2px 8px; font-size: 0.9em;">Quality</button>
       </div>
-      <div id="baseTimeDisplay" class="timeDisplay" style="margin-left: auto;">0:00 / 0:00</div>
-      <button id="addSubBtn">Subtitles</button>
-      <div class="button-group">
-        <button id="addReactVidLocal">React Local</button>
-        <button id="addReactVidLink">React Link</button>
+      
+      <button id="basePlayPause">⏵</button>
+      
+      <!-- MAXIMIZED SEEK BAR - This gets the most space now -->
+      <input type="range" id="baseSeekBar" min="0" max="100" value="0" step="any" title="Base Video Time">
+      
+      <!-- Ultra-compact delay controls -->
+      <div style="display: flex; align-items: center; gap: 2px;">
+        <span style="color: #b0b0b0; font-size: 9px;">D:</span>
+        <button id="decreaseDelayBtn" class="compact-btn ultra-compact">-</button>
+        <span id="delay" style="color: #e0e0e0; min-width: 45px; text-align: center; font-size: 9px; font-family: 'Courier New', monospace;">?</span>
+        <span id="delayValue" style="display: none;">0.0</span>
+        <button id="increaseDelayBtn" class="compact-btn ultra-compact">+</button>
       </div>
-      <input type="range" id="baseVolumeSlider" min="0" max="1" value="1" step="any" title="Base Video Volume">
-      <div class="button-group" style="margin-left: auto;">
-        <button id="syncButton" style="padding: 1px 6px; font-size: 0.7em;">S</button>
-        <button id="desyncButton" style="padding: 1px 6px; font-size: 0.7em;">D</button>
-        <button id="forceResyncButton" style="padding: 1px 6px; font-size: 0.7em;">FR</button>
-        <button id="debugButton" style="padding: 1px 6px; font-size: 0.7em;" title="Toggle Debug Mode">🐛</button>
+      
+      <button id="youtubeQuality" class="compact-btn ultra-compact">Q</button>
+      <div id="baseTimeDisplay" class="compact-time">0:00/0:00</div>
+      <button id="addSubBtn" class="compact-btn ultra-compact">CC</button>
+      
+      <div class="video-source-dropdown">
+        <button id="reactVideoSourceBtn" class="compact-btn ultra-compact">React</button>
+        <div id="reactVideoSourceMenu" class="video-source-menu">
+          <button class="video-source-option" id="addReactVidLocal">Local</button>
+          <button class="video-source-option" id="addReactVidLink">Link</button>
+        </div>
+      </div>
+      
+      <input type="range" id="baseVolumeSlider" min="0" max="1" value="1" step="any" title="Base Video Volume" style="width: 40px; margin: 0 2px;">
+      
+      <!-- Ultra-compact sync controls -->
+      <div style="display: flex; gap: 1px;">
+        <button id="syncButton" class="compact-btn ultra-compact" title="Sync Videos">S</button>
+        <button id="desyncButton" class="compact-btn ultra-compact" title="Desync Videos">D</button>
+        <button id="forceResyncButton" class="compact-btn ultra-compact" title="Force Resync">FR</button>
+        <button id="debugButton" class="compact-btn ultra-compact" title="Toggle Debug Mode">🐛</button>
       </div>
     </div>
     <div id="tipsScreen">
