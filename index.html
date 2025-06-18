@@ -330,33 +330,34 @@
         margin: 0 4px !important;
       }
       
-      /* Modern controls container */
+      /* Modern controls container - More transparent and smaller */
       #baseVideoControls {
-        background: linear-gradient(145deg, rgba(20, 20, 30, 0.95), rgba(10, 10, 20, 0.95)) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 12px !important;
-        backdrop-filter: blur(15px) !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
-        padding: 6px 8px !important;
-        gap: 4px !important;
+        background: linear-gradient(145deg, rgba(15, 15, 25, 0.6), rgba(8, 8, 18, 0.6)) !important;
+        border: 1px solid rgba(255, 255, 255, 0.04) !important;
+        border-radius: 6px !important;
+        backdrop-filter: blur(8px) !important;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15) !important;
+        padding: 3px 5px !important;
+        gap: 2px !important;
+        z-index: 50 !important; /* Lower z-index than react controls */
       }
       
       /* Modern volume slider */
       #baseVolumeSlider {
-        background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)) !important;
-        border-radius: 3px !important;
+        background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)) !important;
+        border-radius: 2px !important;
         outline: none !important;
-        height: 4px !important;
+        height: 3px !important;
       }
       
       #baseVolumeSlider::-webkit-slider-thumb {
         appearance: none !important;
-        width: 12px !important;
-        height: 12px !important;
+        width: 10px !important;
+        height: 10px !important;
         border-radius: 50% !important;
         background: linear-gradient(145deg, #66bb6a, #4caf50) !important;
         cursor: pointer !important;
-        border: 1px solid rgba(255,255,255,0.2) !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
         transition: all 0.2s ease !important;
       }
       
@@ -365,51 +366,53 @@
         box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4) !important;
       }
       
-      /* Modern react video controls */
+      /* Modern react video controls - Higher z-index */
       .reactControls {
-        background: linear-gradient(145deg, rgba(20, 20, 30, 0.95), rgba(10, 10, 20, 0.95)) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 8px !important;
+        background: linear-gradient(145deg, rgba(15, 15, 25, 0.7), rgba(8, 8, 18, 0.7)) !important;
+        border: 1px solid rgba(255, 255, 255, 0.06) !important;
+        border-radius: 6px !important;
         backdrop-filter: blur(10px) !important;
-        padding: 4px 6px !important;
-        gap: 3px !important;
+        padding: 3px 4px !important;
+        gap: 2px !important;
+        z-index: 200 !important; /* Higher z-index than base controls */
+        position: relative !important;
       }
       
-      /* Modern react controls styling */
+      /* Modern react controls styling - Smaller */
       #reactPlayPauseInner {
-        background: linear-gradient(145deg, rgba(255, 193, 7, 0.8), rgba(255, 152, 0, 0.8)) !important;
-        border: 1px solid rgba(255, 193, 7, 0.3) !important;
+        background: linear-gradient(145deg, rgba(255, 193, 7, 0.7), rgba(255, 152, 0, 0.7)) !important;
+        border: 1px solid rgba(255, 193, 7, 0.25) !important;
         border-radius: 50% !important;
-        width: 24px !important;
-        height: 24px !important;
+        width: 20px !important;
+        height: 20px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         color: white !important;
-        font-size: 10px !important;
+        font-size: 9px !important;
         transition: all 0.2s ease !important;
       }
       
       #reactPlayPauseInner:hover {
         transform: scale(1.1) !important;
-        box-shadow: 0 3px 12px rgba(255, 193, 7, 0.4) !important;
+        box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4) !important;
       }
       
       #reactSeekBar, #reactVolumeSlider {
-        background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)) !important;
+        background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)) !important;
         border-radius: 2px !important;
         outline: none !important;
-        height: 3px !important;
+        height: 2px !important;
       }
       
       #reactSeekBar::-webkit-slider-thumb, #reactVolumeSlider::-webkit-slider-thumb {
         appearance: none !important;
-        width: 10px !important;
-        height: 10px !important;
+        width: 8px !important;
+        height: 8px !important;
         border-radius: 50% !important;
         background: linear-gradient(145deg, #ff9800, #f57c00) !important;
         cursor: pointer !important;
-        border: 1px solid rgba(255,255,255,0.2) !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
         transition: all 0.2s ease !important;
       }
       
@@ -419,135 +422,10 @@
       }
       
       #reactTimeDisplay {
-        font-size: 9px !important;
+        font-size: 8px !important;
         color: #b0b0b0 !important;
         font-family: 'Courier New', monospace !important;
         font-weight: 500 !important;
-      }
-      
-      /* Modern controls container */
-      #baseVideoControls {
-        background: linear-gradient(145deg, rgba(20, 20, 30, 0.95), rgba(10, 10, 20, 0.95)) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 12px !important;
-        backdrop-filter: blur(15px) !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
-        padding: 6px 8px !important;
-        gap: 4px !important;
-      }
-      
-      /* Modern volume slider */
-      #baseVolumeSlider {
-        background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)) !important;
-        border-radius: 3px !important;
-        outline: none !important;
-        height: 4px !important;
-      }
-      
-      #baseVolumeSlider::-webkit-slider-thumb {
-        appearance: none !important;
-        width: 12px !important;
-        height: 12px !important;
-        border-radius: 50% !important;
-        background: linear-gradient(145deg, #66bb6a, #4caf50) !important;
-        cursor: pointer !important;
-        border: 1px solid rgba(255,255,255,0.2) !important;
-        transition: all 0.2s ease !important;
-      }
-      
-      #baseVolumeSlider::-webkit-slider-thumb:hover {
-        transform: scale(1.2) !important;
-        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4) !important;
-      }
-      
-      /* Modern react video controls */
-      .reactControls {
-        background: linear-gradient(145deg, rgba(20, 20, 30, 0.95), rgba(10, 10, 20, 0.95)) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 8px !important;
-        backdrop-filter: blur(10px) !important;
-        padding: 4px 6px !important;
-        gap: 3px !important;
-      }
-      
-      /* Modern react controls styling */
-      #reactPlayPauseInner {
-        background: linear-gradient(145deg, rgba(255, 193, 7, 0.8), rgba(255, 152, 0, 0.8)) !important;
-        border: 1px solid rgba(255, 193, 7, 0.3) !important;
-        border-radius: 50% !important;
-        width: 24px !important;
-        height: 24px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        color: white !important;
-        font-size: 10px !important;
-        transition: all 0.2s ease !important;
-      }
-      
-      #reactPlayPauseInner:hover {
-        transform: scale(1.1) !important;
-        box-shadow: 0 3px 12px rgba(255, 193, 7, 0.4) !important;
-      }
-      
-      #reactSeekBar, #reactVolumeSlider {
-        background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)) !important;
-        border-radius: 2px !important;
-        outline: none !important;
-        height: 3px !important;
-      }
-      
-      #reactSeekBar::-webkit-slider-thumb, #reactVolumeSlider::-webkit-slider-thumb {
-        appearance: none !important;
-        width: 10px !important;
-        height: 10px !important;
-        border-radius: 50% !important;
-        background: linear-gradient(145deg, #ff9800, #f57c00) !important;
-        cursor: pointer !important;
-        border: 1px solid rgba(255,255,255,0.2) !important;
-        transition: all 0.2s ease !important;
-      }
-      
-      #reactSeekBar::-webkit-slider-thumb:hover, #reactVolumeSlider::-webkit-slider-thumb:hover {
-        transform: scale(1.2) !important;
-        box-shadow: 0 2px 8px rgba(255, 152, 0, 0.4) !important;
-      }
-      
-      #reactTimeDisplay {
-        font-size: 9px !important;
-        color: #b0b0b0 !important;
-        font-family: 'Courier New', monospace !important;
-        font-weight: 500 !important;
-      }
-      
-      /* Modern controls container */
-      #baseVideoControls {
-        background: linear-gradient(145deg, rgba(20, 20, 30, 0.95), rgba(10, 10, 20, 0.95)) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 12px !important;
-        backdrop-filter: blur(15px) !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
-        padding: 6px 8px !important;
-        gap: 4px !important;
-      }
-      
-      /* Modern volume slider */
-      #baseVolumeSlider {
-        background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)) !important;
-        border-radius: 3px !important;
-        outline: none !important;
-        height: 4px !important;
-      }
-      
-      #baseVolumeSlider::-webkit-slider-thumb {
-        appearance: none !important;
-        width: 12px !important;
-        height: 12px !important;
-        border-radius: 50% !important;
-        background: linear-gradient(145deg, #66bb6a, #4caf50) !important;
-        cursor: pointer !important;
-        border: 1px solid rgba(255,255,255,0.2) !important;
-        transition: all 0.2s ease !important;
       }
       
       #baseVolumeSlider::-webkit-slider-thumb:hover {
@@ -725,10 +603,10 @@
       <div id="videoReactYoutube" style="width:100%;height:calc(100% - 40px);display:none;"></div>
       <div id="reactDragHandle">DRAG</div>
       <div class="reactControls">
-        <button id="reactPlayPauseInner">⏵</button>
-        <input type="range" id="reactSeekBar" min="0" max="100" value="0" step="any" title="React Video Time">
-        <div id="reactTimeDisplay" class="timeDisplay">0:00 / 0:00</div>
-        <input type="range" id="reactVolumeSlider" min="0" max="1" value="1" step="any" title="React Video Volume">
+        <button id="reactPlayPauseInner" title="Play or pause the reaction video">⏵</button>
+        <input type="range" id="reactSeekBar" min="0" max="100" value="0" step="any" title="Drag to jump to any time in the reaction video">
+        <div id="reactTimeDisplay" class="timeDisplay" title="Current time / Total duration">0:00 / 0:00</div>
+        <input type="range" id="reactVolumeSlider" min="0" max="1" value="1" step="any" title="Adjust reaction video volume">
       </div>
     </div>
     <div id="videoBaseContainer" style="width:100%;height:100%;position:relative;">
@@ -740,47 +618,47 @@
     <div id="baseVideoControls">
       <!-- Ultra-compact left controls -->
       <div class="video-source-dropdown">
-        <button id="baseVideoSourceBtn" class="compact-btn ultra-compact">Base</button>
+        <button id="baseVideoSourceBtn" class="compact-btn ultra-compact" title="Load main video (local file or web link)">Base</button>
         <div id="baseVideoSourceMenu" class="video-source-menu">
-          <button class="video-source-option" id="addBaseVideoLocal">Local</button>
-          <button class="video-source-option" id="addBaseVideoLink">Link</button>
+          <button class="video-source-option" id="addBaseVideoLocal" title="Select a video file from your computer">Local</button>
+          <button class="video-source-option" id="addBaseVideoLink" title="Enter YouTube URL or direct video link">Link</button>
         </div>
       </div>
       
-      <button id="basePlayPause">⏵</button>
+      <button id="basePlayPause" title="Play or pause the main video">⏵</button>
       
       <!-- MAXIMIZED SEEK BAR - This gets the most space now -->
-      <input type="range" id="baseSeekBar" min="0" max="100" value="0" step="any" title="Base Video Time">
+      <input type="range" id="baseSeekBar" min="0" max="100" value="0" step="any" title="Drag to jump to any time in the main video">
       
       <!-- Ultra-compact delay controls -->
       <div style="display: flex; align-items: center; gap: 2px;">
         <span style="color: #b0b0b0; font-size: 9px;">D:</span>
-        <button id="decreaseDelayBtn" class="compact-btn ultra-compact">-</button>
-        <span id="delay" style="color: #e0e0e0; min-width: 45px; text-align: center; font-size: 9px; font-family: 'Courier New', monospace;">?</span>
+        <button id="decreaseDelayBtn" class="compact-btn ultra-compact" title="Make reaction video play earlier">-</button>
+        <span id="delay" style="color: #e0e0e0; min-width: 45px; text-align: center; font-size: 9px; font-family: 'Courier New', monospace;" title="Time difference between videos">?</span>
         <span id="delayValue" style="display: none;">0.0</span>
-        <button id="increaseDelayBtn" class="compact-btn ultra-compact">+</button>
+        <button id="increaseDelayBtn" class="compact-btn ultra-compact" title="Make reaction video play later">+</button>
       </div>
       
-      <button id="youtubeQuality" class="compact-btn ultra-compact">Q</button>
-      <div id="baseTimeDisplay" class="compact-time">0:00/0:00</div>
-      <button id="addSubBtn" class="compact-btn ultra-compact">CC</button>
+      <button id="youtubeQuality" class="compact-btn ultra-compact" title="Change YouTube video quality">Q</button>
+      <div id="baseTimeDisplay" class="compact-time" title="Current time / Total duration">0:00/0:00</div>
+      <button id="addSubBtn" class="compact-btn ultra-compact" title="Load subtitle file (.srt format)">CC</button>
       
       <div class="video-source-dropdown">
-        <button id="reactVideoSourceBtn" class="compact-btn ultra-compact">React</button>
+        <button id="reactVideoSourceBtn" class="compact-btn ultra-compact" title="Load reaction video (local file or web link)">React</button>
         <div id="reactVideoSourceMenu" class="video-source-menu">
-          <button class="video-source-option" id="addReactVidLocal">Local</button>
-          <button class="video-source-option" id="addReactVidLink">Link</button>
+          <button class="video-source-option" id="addReactVidLocal" title="Select a reaction video file from your computer">Local</button>
+          <button class="video-source-option" id="addReactVidLink" title="Enter YouTube URL or direct reaction video link">Link</button>
         </div>
       </div>
       
-      <input type="range" id="baseVolumeSlider" min="0" max="1" value="1" step="any" title="Base Video Volume" style="width: 40px; margin: 0 2px;">
+      <input type="range" id="baseVolumeSlider" min="0" max="1" value="1" step="any" title="Adjust main video volume" style="width: 40px; margin: 0 2px;">
       
       <!-- Ultra-compact sync controls -->
       <div style="display: flex; gap: 1px;">
-        <button id="syncButton" class="compact-btn ultra-compact" title="Sync Videos">S</button>
-        <button id="desyncButton" class="compact-btn ultra-compact" title="Desync Videos">D</button>
-        <button id="forceResyncButton" class="compact-btn ultra-compact" title="Force Resync">FR</button>
-        <button id="debugButton" class="compact-btn ultra-compact" title="Toggle Debug Mode">🐛</button>
+        <button id="syncButton" class="compact-btn ultra-compact" title="Start syncing both videos together">S</button>
+        <button id="desyncButton" class="compact-btn ultra-compact" title="Stop syncing - videos play independently">D</button>
+        <button id="forceResyncButton" class="compact-btn ultra-compact" title="Force videos to sync again">FR</button>
+        <button id="debugButton" class="compact-btn ultra-compact" title="Show technical info for troubleshooting">🐛</button>
       </div>
     </div>
     <div id="tipsScreen">
