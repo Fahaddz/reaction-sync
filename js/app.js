@@ -134,6 +134,67 @@ async function selectVideo(videoSelector, callback, isLink = false) {
           updateYouTubePlayers();
         }, 2000);
       }
+    } else {
+      // Handle direct video links (non-YouTube)
+      if (videoSelector === "#videoBaseLocal") {
+        // Reset YouTube state for base video
+        isBaseYoutubeVideo = false;
+        $("#videoBaseYoutube").hide();
+        $("#videoBaseLocal").show();
+        
+        // Set the video source directly
+        $(videoSelector).attr("src", videoUrl);
+        $(videoSelector)[0].load();
+        
+        // Set document title to URL filename
+        try {
+          const urlObj = new URL(videoUrl);
+          const filename = urlObj.pathname.split('/').pop() || 'Direct Video Link';
+          document.title = filename;
+        } catch (e) {
+          document.title = 'Direct Video Link';
+        }
+        
+        $(videoSelector).trigger("loadedmetadata");
+      } else {
+        // Handle reaction video direct link
+        isReactYoutubeVideo = false;
+        $("#videoReactYoutube").hide();
+        $("#videoReact").show();
+        
+        // Set the video source directly
+        $(videoSelector).attr("src", videoUrl);
+        $(videoSelector)[0].load();
+        
+        $(videoSelector).trigger("loadedmetadata");
+        
+        // Check for delay token in filename (same as local files)
+        try {
+          const urlObj = new URL(videoUrl);
+          const filename = urlObj.pathname.split('/').pop() || '';
+          let tokens = filename.split(".");
+          let num = tokens.find(
+            (token) => token.split("dt")[0] == "" && !isNaN(token.split("dt")[1])
+          );
+          if (num) {
+            num = num.split("dt")[1];
+            setDelay(Number(num) / 10);
+          }
+        } catch (e) {
+          console.log('Could not parse filename for delay token:', e);
+        }
+      }
+      
+      // Call callback if provided
+      if (callback) {
+        try {
+          const urlObj = new URL(videoUrl);
+          const filename = urlObj.pathname.split('/').pop() || videoUrl;
+          callback({ name: filename, url: videoUrl });
+        } catch (e) {
+          callback({ name: videoUrl, url: videoUrl });
+        }
+      }
     }
   } else {
     selectLocalVideo(videoSelector, callback);
