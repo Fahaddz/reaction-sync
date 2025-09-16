@@ -68,7 +68,17 @@ function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0) {
             } catch (e) { console.error("Error setting base volume or initializing controls:", e); }
           }
           try {
-            setTimeout(() => { setHighestQuality(player, isReaction); retryYouTubeCommand(player,'playVideo',s=>s===YT.PlayerState.PLAYING||s===YT.PlayerState.BUFFERING); }, 500);
+            const suppress = (window._suppressYouTubeAutoplay === true) || (isReaction ? window._suppressYouTubeAutoplayReact === true : window._suppressYouTubeAutoplayBase === true);
+            setTimeout(() => {
+              setHighestQuality(player, isReaction);
+              if (suppress) {
+                try { if (typeof player.pauseVideo === 'function') player.pauseVideo(); } catch (pe) {}
+                if (isReaction) { window._suppressYouTubeAutoplayReact = false; } else { window._suppressYouTubeAutoplayBase = false; }
+                window._suppressYouTubeAutoplay = false;
+              } else {
+                retryYouTubeCommand(player,'playVideo',s=>s===YT.PlayerState.PLAYING||s===YT.PlayerState.BUFFERING);
+              }
+            }, 500);
           } catch (e) {
             console.error('Initial player setup failed:', e);
             setTimeout(() => initializeYouTubePlayer(videoId, isReaction, retryCount + 1), 2000 * (retryCount + 1));
