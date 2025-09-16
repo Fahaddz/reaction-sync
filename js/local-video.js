@@ -38,6 +38,8 @@ async function selectLocalVideo(videoX, callBack) {
     $(videoX)[0].load();
     document.title = files[0].name;
 
+    try { if (window.Progress && typeof window.Progress.recordLocalFile==='function') window.Progress.recordLocalFile(videoX, file); } catch(e) {}
+
     if (videoX === "#videoBaseLocal") {
       $("#videoBaseLocal").trigger("loadedmetadata");
     } else if (videoX === "#videoReact") {

@@ -107,6 +107,7 @@ async function selectVideo(videoSelector, callback, isLink = false) {
           display: "block"
         });
         initializeYouTubePlayer(youtubeId, false);
+        try { if (window.Progress && typeof window.Progress.recordNetworkSource==='function') window.Progress.recordNetworkSource(videoSelector, {type:'yt', id: youtubeId}); } catch(e) {}
         isBaseYoutubeVideo = true;
         setTimeout(() => {
           if (typeof window.setupYouTubeBaseControls === 'function') {
@@ -122,6 +123,7 @@ async function selectVideo(videoSelector, callback, isLink = false) {
           display: "block"
         });
         initializeYouTubePlayer(youtubeId, true);
+        try { if (window.Progress && typeof window.Progress.recordNetworkSource==='function') window.Progress.recordNetworkSource(videoSelector, {type:'yt', id: youtubeId}); } catch(e) {}
         isReactYoutubeVideo = true;
         setTimeout(() => {
           updateYouTubePlayers();
@@ -138,6 +140,7 @@ async function selectVideo(videoSelector, callback, isLink = false) {
         // Set the video source directly
         $(videoSelector).attr("src", videoUrl);
         $(videoSelector)[0].load();
+        try { if (window.Progress && typeof window.Progress.recordNetworkSource==='function') window.Progress.recordNetworkSource(videoSelector, {url: videoUrl}); } catch(e) {}
         
         // Set document title to URL filename
         try {
@@ -158,6 +161,7 @@ async function selectVideo(videoSelector, callback, isLink = false) {
         // Set the video source directly
         $(videoSelector).attr("src", videoUrl);
         $(videoSelector)[0].load();
+        try { if (window.Progress && typeof window.Progress.recordNetworkSource==='function') window.Progress.recordNetworkSource(videoSelector, {url: videoUrl}); } catch(e) {}
         
         $(videoSelector).trigger("loadedmetadata");
         
