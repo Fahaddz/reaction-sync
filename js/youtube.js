@@ -68,6 +68,7 @@ function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0) {
             } catch (e) { console.error("Error setting base volume or initializing controls:", e); }
           }
           try {
+            try { if (typeof player.pauseVideo === 'function') player.pauseVideo(); } catch (pe) {}
             const suppress = (window._suppressYouTubeAutoplay === true) || (isReaction ? window._suppressYouTubeAutoplayReact === true : window._suppressYouTubeAutoplayBase === true);
             setTimeout(() => {
               setHighestQuality(player, isReaction);
