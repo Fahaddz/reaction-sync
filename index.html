@@ -149,6 +149,8 @@
         });
         const tipsCloseBtn = document.getElementById('tipsClose');
         if (tipsCloseBtn) tipsCloseBtn.addEventListener('click', function(){ document.getElementById('tipsScreen').style.display = 'none'; });
+        const loadLastBtn = document.getElementById('loadLastPairBtn');
+        if (loadLastBtn) loadLastBtn.addEventListener('click', function(){ if (window.Progress && typeof window.Progress.loadLastPair==='function') window.Progress.loadLastPair(); });
       });
     </script>
     <style>
@@ -644,7 +646,7 @@
       </div>
     </div>
     <div id="tipsScreen">
-      <div id="tipsHeader"><span>reaction-sync v0.0.7 • Quick Start</span><button id="tipsClose">Close</button></div>
+      <div id="tipsHeader"><span>reaction-sync v0.0.7 • Quick Start</span><div style="display:flex;gap:6px;align-items:center;"><button id="loadLastPairBtn">Load Last</button><button id="tipsClose">Close</button></div></div>
       <div id="tipsBody">
         <ul>
           <li>Load <b>Base</b> and <b>React</b> videos from Local or Link (YouTube/direct/Real‑Debrid).</li>
