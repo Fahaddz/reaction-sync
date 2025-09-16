@@ -164,3 +164,15 @@ This section focuses on ensuring that user interactions like seeking and play/pa
 ---
 
 By systematically addressing these additional improvements, the reaction-sync project will gain higher robustness, test coverage, and usability. Good luck!
+
+## Completed on 2025-09-16
+
+### ✅ Codebase Cleanups & Reliability Fixes
+- Fixed base volume down-arrow bug in `js/app.js` (variable typo → `newVolume`).
+- Removed redundant continuous sync loop from `js/app.js`; rely on `js/sync.js` loop.
+- Removed legacy global keydown handler from `index.html` to avoid duplication with `js/sync.js`.
+- Hardened `areVideosReady()` in `js/sync.js` to return false on error.
+- Removed unused `#baseTime` update in `updateBaseUI()` in `js/sync.js`.
+- Prevented duplicate resize handles by guarding `#customResizeHandle` in `js/custom-controls.js`.
+- Removed unused imports and no-op listeners/aliases in `js/app.js` (`srt2webvtt`, `checkCodecSupport`, unused YouTube handlers, `window.trytoSync`, `youtube-api-ready`).
+- Removed unused locals from `updateVideoContainers()` in `js/app.js`.

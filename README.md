@@ -11,15 +11,16 @@ reaction-sync is a web application that allows users to synchronize and display 
   - Local video files
   - YouTube videos
   - Direct video links
-  - Real-Debrid streams
+  - Real-Debrid streams (treated as direct links)
 - Adjustable delay between videos
 - Subtitle support (SRT format)
 - Resizable and draggable reaction video window
 - Video quality selection for YouTube videos
 - Volume controls for both videos
 - Automatic codec compatibility checking
-- + Universal codec support via ffmpeg.wasm fallback (transcodes any container/codec to MP4/H.264 client-side)
-  - Universal codec support via ffmpeg.wasm fallback (transcodes any container/codec to MP4/H.264 client-side)
+- Hold-to-adjust delay buttons with progressively faster increments
+- Optional on-screen debug overlay and verbose logs (enable with `?debug=true`)
+- Keyboard shortcuts: Space (play/pause), S (sync), D (desync), Arrow keys (seek), Shift+Arrows (seek base)
 
 ## Project Structure
 
@@ -30,6 +31,8 @@ reaction-sync is a web application that allows users to synchronize and display 
 - **js/youtube.js**: Handles all YouTube-specific functionality.
 - **js/local-video.js**: Manages local video file handling and synchronization.
 - **js/utils.js**: Contains utility functions used throughout the application.
+- **js/sync.js**: Core synchronization engine (timing, play/pause/seek coordination, drift correction, status updates, keyboard shortcuts).
+- **js/custom-controls.js**: Custom drag/resize for the reaction window and lightweight styles for the custom resize handle.
 
 ## Detailed File Descriptions
 
@@ -62,6 +65,8 @@ This is the main application file that integrates all components and handles the
 - Initializing the application
 
 The file serves as the central hub that connects all the different components of the application.
+
+Note: The continuous sync loop is centralized in `js/sync.js`. `js/app.js` no longer runs its own sync interval.
 
 ### js/youtube.js
 
@@ -192,7 +197,6 @@ Potential future enhancements for the application include:
 - Recording functionality
 - More streaming service integrations
 - Mobile device support
-- Keyboard shortcuts for common actions
 
 ## Contributing
 

@@ -74,10 +74,13 @@ function setupCustomResize() {
   }
   $('.ui-resizable-handle').remove();
 
-  const resizeHandle = document.createElement('div');
-  resizeHandle.id = 'customResizeHandle';
-  resizeHandle.className = 'custom-resize-handle';
-  container.appendChild(resizeHandle);
+  let resizeHandle = document.getElementById('customResizeHandle');
+  if (!resizeHandle) {
+    resizeHandle = document.createElement('div');
+    resizeHandle.id = 'customResizeHandle';
+    resizeHandle.className = 'custom-resize-handle';
+    container.appendChild(resizeHandle);
+  }
 
   let isResizing = false;
   let startX, startY, startWidth, startHeight;

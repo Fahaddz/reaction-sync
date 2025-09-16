@@ -494,30 +494,6 @@
       }
     </style>
     <script>
-      window.keydownHandler = function(event) {
-        try {
-          if (event.key === 's' || event.key === 'S') {
-            if (window.syncNow) window.syncNow();
-            event.preventDefault(); event.stopPropagation(); return true;
-          }
-          if (event.key === 'd' || event.key === 'D') {
-            if (window.disableSync) window.disableSync();
-            event.preventDefault(); event.stopPropagation(); return true;
-          }
-          if (event.key === ' ' || event.key === 'Spacebar') {
-            if (window.isBasePlaying && window.isBasePlaying()) {
-              window.pauseBase && window.pauseBase();
-            } else {
-              window.playBase && window.playBase();
-            }
-            event.preventDefault(); event.stopPropagation(); return true;
-          }
-        } catch (e) {
-          console.error('Error in keydown handler:', e);
-        }
-        return false;
-      };
-      document.addEventListener('keydown', window.keydownHandler);
       document.addEventListener('DOMContentLoaded', function() {
         let delayInterval = null;
         let isHolding = false;

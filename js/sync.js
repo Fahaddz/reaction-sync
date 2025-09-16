@@ -470,7 +470,7 @@ function areVideosReady() {
     }
     
     return allReady;
-  } catch (e) { console.error("Error checking if videos are ready:", e); return true; }
+  } catch (e) { console.error("Error checking if videos are ready:", e); return false; }
 }
 
 function getBaseDuration() {
@@ -713,7 +713,7 @@ function updateBaseUI(time = null) {
       const percent = (currentTime / duration) * 100;
       $("#baseSeekBar").val(isNaN(percent) ? 0 : Math.min(100, Math.max(0, percent)));
     }
-    $("#baseTime").text(secondsToTime(currentTime)); // This might be for an old UI element
+    
     if (duration > 0) {
       $("#baseTimeDisplay").text(`${secondsToTime(currentTime)} / ${secondsToTime(duration)}`);
     }

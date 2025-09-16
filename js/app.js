@@ -1,16 +1,10 @@
 import {
   secondsToTime,
-  srt2webvtt,
-  getYoutubeId,
-  checkCodecSupport
+  getYoutubeId
 } from './utils.js';
 
 import {
-  initializeYouTubePlayer,
-  handleYouTubeError,
-  onYoutubeStateChange,
-  onQualityChange,
-  setupYouTubeReactControls
+  initializeYouTubePlayer
 } from './youtube.js';
 
 import {
@@ -32,7 +26,6 @@ import {
   updateReactUI,
   syncVideos,
   isVideosSynced,
-  videoReactDelay,
   markUserInteraction,
   syncPlay,
   syncPause,
@@ -213,35 +206,13 @@ export {
 
 document.addEventListener('DOMContentLoaded', function() {
   window.selectVideo = selectVideo;
-  window.trytoSync = trySyncVideos;
-
-  window.addEventListener('youtube-api-ready', function() {
-  });
+  
 
   document.addEventListener('syncStateChange', function() {
     trySyncVideos();
-    startContinuousSync();
   });
 
-  document.addEventListener('desyncVideos', function() {
-    stopContinuousSync();
-  });
-
-  let syncInterval = null;
-
-  function startContinuousSync() {
-    stopContinuousSync();
-    syncInterval = setInterval(function() {
-      syncVideos();
-    }, 1000);
-  }
-
-  function stopContinuousSync() {
-    if (syncInterval) {
-      clearInterval(syncInterval);
-      syncInterval = null;
-    }
-  }
+  
 
   window.setDelay = function(delay) {
     setDelay(delay);
@@ -445,7 +416,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (isBaseYoutubeVideo && baseYoutubePlayer && typeof baseYoutubePlayer.setVolume === 'function') {
             baseYoutubePlayer.setVolume(newVolume * 100);
           } else if ($("#videoBaseLocal")[0]) {
-            $("#videoBaseLocal")[0].volume = newVolfixume;
+            $("#videoBaseLocal")[0].volume = newVolume;
           }
         } else {
           if (isReactYoutubeVideo && reactYoutubePlayer && typeof reactYoutubePlayer.setVolume === 'function') {
@@ -555,8 +526,6 @@ window.addEventListener('DOMContentLoaded', function() {
 
 function updateVideoContainers() {
   try {
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
     const baseContainer = $("#videoBaseContainer");
     if (baseContainer.length) {
       if (isBaseYoutubeVideo && baseYoutubePlayer && typeof baseYoutubePlayer.setSize === 'function') {
