@@ -21,6 +21,7 @@ reaction-sync is a web application that allows users to synchronize and display 
 - Hold-to-adjust delay buttons with progressively faster increments
 - Optional on-screen debug overlay and verbose logs (enable with `?debug=true`)
 - Keyboard shortcuts: Space (play/pause), S (sync), D (desync), Arrow keys (seek), Shift+Arrows (seek base)
+- Resume last session (per pair): delay, time, volumes, react window position/size with 7-day retention
 
 ## Project Structure
 
@@ -33,6 +34,7 @@ reaction-sync is a web application that allows users to synchronize and display 
 - **js/utils.js**: Contains utility functions used throughout the application.
 - **js/sync.js**: Core synchronization engine (timing, play/pause/seek coordination, drift correction, status updates, keyboard shortcuts).
 - **js/custom-controls.js**: Custom drag/resize for the reaction window and lightweight styles for the custom resize handle.
+- **js/progress.js**: LocalStorage-based resume/continue system for any two videos (YouTube/direct/local), with TTL and LRU pruning.
 
 ## Detailed File Descriptions
 
@@ -128,6 +130,25 @@ These functions provide common functionality that is used by multiple components
 3. The subtitles will be loaded and displayed on the base video
 
 ### Adjusting Video Quality
+### Resuming Where You Left Off
+
+The app remembers your last two video pairs for 7 days. Saved data includes:
+
+- Pair identity (YouTube ID, normalized URL, or local file signature)
+- Delay between videos
+- Base time position
+- Reaction window position/size
+- Base and reaction volumes
+
+How to use:
+
+1. Load your Base and React sources and sync as usual.
+2. When you return, click "Load Last" in the Quick Start header to load the most recent pair, or load the same pair manually to see a Resume prompt.
+   - For YouTube/direct links, the app now reliably restores the exact time by initializing players, seeking, briefly play-pausing to commit the seek, then re-seeking before syncing.
+3. For local files, the browser will ask you to re-select the files (required by browser security). After selection, resume will apply.
+4. Click "Clear Saved" to remove stored progress.
+
+Retention & limits: up to 2 pairs, auto-pruned after 7 days.
 
 For YouTube videos, you can adjust the quality by:
 

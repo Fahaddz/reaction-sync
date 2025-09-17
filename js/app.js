@@ -528,6 +528,10 @@ window.addEventListener('DOMContentLoaded', function() {
   updateVideoContainers();
 });
 
+// Expose helpers for resume/load-last flows
+try { if (!window.trySyncVideos) window.trySyncVideos = trySyncVideos; } catch(e) {}
+try { if (!window.updateYouTubePlayers) window.updateYouTubePlayers = updateYouTubePlayers; } catch(e) {}
+
 function updateVideoContainers() {
   try {
     const baseContainer = $("#videoBaseContainer");

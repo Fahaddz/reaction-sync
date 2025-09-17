@@ -165,6 +165,34 @@ This section focuses on ensuring that user interactions like seeking and play/pa
 
 By systematically addressing these additional improvements, the reaction-sync project will gain higher robustness, test coverage, and usability. Good luck!
 
+## Completed on 2025-09-17
+
+### ✅ UI Improvements
+- Updated tips overlay to modern "Quick Start" with sticky header and always-visible Close.
+- Added "Load Last" and "Clear Saved" buttons to the tips header.
+- Restyled reaction drag handle: moved inside container, smaller footprint, always visible; default opacity ~0.35 and ~0.6 on hover.
+
+### ✅ Resume/Progress Feature (Local Storage)
+- Added `js/progress.js` with localStorage-based resume for any two videos (YouTube/direct/local pair):
+  - Identifiers: YouTube (`yt:VIDEO_ID`), direct link (normalized URL), local file (`name|size|lastModified`).
+  - Stores: delay, base time, reaction window position/size, base/react volumes.
+  - TTL: 7 days; Capacity: keep last 2 pairs (LRU); automatic pruning.
+- Integrated recording points:
+  - `js/app.js`: records YouTube IDs and direct URLs when selected.
+  - `js/local-video.js`: records local file signature when selected.
+- Resume UX:
+  - On loading the same pair, prompts to resume from saved time with saved delay.
+  - "Load Last" loads most recent pair and triggers resume flow (local files still require user re-selection by browser design).
+  - "Clear Saved" clears all stored progress keys.
+
+### ✅ Load Last reliability improvements (YT and direct links)
+- During Load Last and Resume flows:
+  - Initialize sync recognition early by exposing and calling `window.updateYouTubePlayers()`.
+  - Gate seeks on solid readiness (duration > 0) and use `canplay` for HTML5 videos.
+  - After seeking, briefly play-then-pause YouTube players to commit the seek, then re-seek.
+  - Apply saved delay and volumes, then force a single `trySyncVideos()` and `syncVideos(true)`.
+  - Wrap the whole flow with `isSeeking` + `clearSeekingAfterDelay()` to avoid sync race conditions.
+
 ## Completed on 2025-09-16
 
 ### ✅ Codebase Cleanups & Reliability Fixes
