@@ -136,17 +136,8 @@
             console.error('disableSync function not available');
           }
         });
-        document.getElementById('debugButton').addEventListener('click', function() {
-          const debugOverlay = document.getElementById('debugOverlay');
-          if (debugOverlay.style.display === 'none') {
-            debugOverlay.style.display = 'block';
-            console.log('Debug mode enabled. Check console for detailed sync information.');
-            window.DEBUG_SYNC = true;
-          } else {
-            debugOverlay.style.display = 'none';
-            window.DEBUG_SYNC = false;
-          }
-        });
+        const saveNowBtn = document.getElementById('saveNowButton');
+        if (saveNowBtn) saveNowBtn.addEventListener('click', function(){ try { if (window.Progress && typeof window.Progress.saveNow==='function') window.Progress.saveNow(); } catch(e) {} });
         const tipsCloseBtn = document.getElementById('tipsClose');
         if (tipsCloseBtn) tipsCloseBtn.addEventListener('click', function(){ document.getElementById('tipsScreen').style.display = 'none'; });
         const loadLastBtn = document.getElementById('loadLastPairBtn');
@@ -650,7 +641,7 @@
         <button id="syncButton" class="compact-btn ultra-compact" title="Start syncing both videos together">S</button>
         <button id="desyncButton" class="compact-btn ultra-compact" title="Stop syncing - videos play independently">D</button>
         <button id="forceResyncButton" class="compact-btn ultra-compact" title="Force videos to sync again">FR</button>
-        <button id="debugButton" class="compact-btn ultra-compact" title="Show technical info for troubleshooting">🐛</button>
+        <button id="saveNowButton" class="compact-btn ultra-compact" title="Save current position, delay, volumes">💾</button>
       </div>
     </div>
     <div id="tipsScreen">
