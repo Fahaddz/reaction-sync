@@ -198,10 +198,7 @@ async function selectVideo(videoSelector, callback, isLink = false) {
   }
 }
 
-function trySyncVideos() {
-  updateYouTubePlayers();
-  syncVideos(true);
-}
+function trySyncVideos() { syncVideos(true); }
 
 export {
   selectVideo,

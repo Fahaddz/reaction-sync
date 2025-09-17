@@ -26,7 +26,7 @@ const qualityLabels = {
 
 function retryYouTubeCommand(player,command,verifyFn,attempt=1){if(attempt>MAX_YOUTUBE_RETRIES)return;try{player[command]()}catch(e){}setTimeout(()=>{const s=player.getPlayerState&&player.getPlayerState();if(!verifyFn(s))retryYouTubeCommand(player,command,verifyFn,attempt+1)},500)}
 
-function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0) {
+function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0, startSeconds = null) {
   if (retryCount > MAX_YOUTUBE_RETRIES) { // Changed from 3 to MAX_YOUTUBE_RETRIES
     alert('Failed to initialize YouTube player after ' + MAX_YOUTUBE_RETRIES + ' attempts');
     return;
@@ -51,21 +51,14 @@ function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0) {
       },
       events: {
         onReady: () => {
+          if (isReaction) { reactYoutubePlayer = player; isReactYoutubeVideo = true; isReactYoutubePlayerReady = true; } else { baseYoutubePlayer = player; isBaseYoutubeVideo = true; isBaseYoutubePlayerReady = true; }
+          try { if (startSeconds!=null && isFinite(startSeconds) && startSeconds>=0 && typeof player.cueVideoById==='function') { player.cueVideoById({ videoId: videoId, startSeconds: startSeconds }); } } catch(e) {}
           if (isReaction) {
-            reactYoutubePlayer = player; isReactYoutubeVideo = true; isReactYoutubePlayerReady = true;
-            try {
-              reactYoutubePlayer.setVolume($("#reactVolumeSlider").val() * 100);
-              reactYoutubePlayer.setSize($("#videoReactContainer").width(), $("#videoReactContainer").height() - 40);
-              setupYouTubeReactControls();
-            } catch (e) { console.error("Error setting reaction volume/size:", e); }
+            try { reactYoutubePlayer.setVolume($("#reactVolumeSlider").val() * 100); reactYoutubePlayer.setSize($("#videoReactContainer").width(), $("#videoReactContainer").height() - 40); setupYouTubeReactControls(); } catch (e) { console.error("Error setting reaction volume/size:", e); }
           } else {
-            baseYoutubePlayer = player; isBaseYoutubeVideo = true; isBaseYoutubePlayerReady = true;
             try { baseYoutubePlayer.addEventListener('onPlaybackQualityChange', onQualityChange); } catch (e) { console.error('Error adding quality change listener:', e); }
             setTimeout(() => { createQualityButton(); setupQualityMenu(); }, 1000);
-            try {
-              baseYoutubePlayer.setVolume($("#baseVolumeSlider").val() * 100);
-              setupYouTubeBaseControls();
-            } catch (e) { console.error("Error setting base volume or initializing controls:", e); }
+            try { baseYoutubePlayer.setVolume($("#baseVolumeSlider").val() * 100); setupYouTubeBaseControls(); } catch (e) { console.error("Error setting base volume or initializing controls:", e); }
           }
           try {
             try { if (typeof player.pauseVideo === 'function') player.pauseVideo(); } catch (pe) {}
@@ -77,7 +70,7 @@ function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0) {
             }, 500);
           } catch (e) {
             console.error('Initial player setup failed:', e);
-            setTimeout(() => initializeYouTubePlayer(videoId, isReaction, retryCount + 1), 2000 * (retryCount + 1));
+            setTimeout(() => initializeYouTubePlayer(videoId, isReaction, retryCount + 1, startSeconds), 2000 * (retryCount + 1));
           }
           exposeYoutubeFunctions(); // Update window variables after player is ready
         },
@@ -102,7 +95,7 @@ function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0) {
     }, 1000);
   } catch (e) {
     console.error('Player creation error:', e);
-    setTimeout(() => initializeYouTubePlayer(videoId, isReaction, retryCount + 1), 2000 * (retryCount + 1));
+    setTimeout(() => initializeYouTubePlayer(videoId, isReaction, retryCount + 1, startSeconds), 2000 * (retryCount + 1));
   }
 }
 
