@@ -19,7 +19,7 @@ reaction-sync is a web application that allows users to synchronize and display 
 - Volume controls for both videos
 - Automatic codec compatibility checking
 - Hold-to-adjust delay buttons with progressively faster increments
-- Optional on-screen debug overlay and verbose logs (enable with `?debug=true`)
+- Optional verbose logs (enable with `?debug=true`)
 - Keyboard shortcuts: Space (play/pause), S (sync), D (desync), Arrow keys (seek), Shift+Arrows (seek base)
 - Resume last session (per pair): delay, time, volumes, react window position/size with 7-day retention
 
@@ -144,9 +144,10 @@ How to use:
 
 1. Load your Base and React sources and sync as usual.
 2. When you return, click "Load Last" in the Quick Start header to load the most recent pair, or load the same pair manually to see a Resume prompt.
-   - For YouTube/direct links, the app now reliably restores the exact time by initializing players, seeking, briefly play-pausing to commit the seek, then re-seeking before syncing.
-3. For local files, the browser will ask you to re-select the files (required by browser security). After selection, resume will apply.
-4. Click "Clear Saved" to remove stored progress.
+   - For YouTube/direct links, restore is reliable via start-time cueing and a single post-init sync.
+3. For local files, a small overlay lists the exact filenames to pick and offers “Choose Base/React” buttons. Select the files to continue (browser requirement).
+4. Use the 💾 button (next to FR) to manually save the current time/delay/volume/position at any moment.
+5. Click "Clear Saved" to remove stored progress.
 
 Retention & limits: up to 2 pairs, auto-pruned after 7 days.
 

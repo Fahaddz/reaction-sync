@@ -193,6 +193,24 @@ By systematically addressing these additional improvements, the reaction-sync pr
   - Apply saved delay and volumes, then force a single `trySyncVideos()` and `syncVideos(true)`.
   - Wrap the whole flow with `isSeeking` + `clearSeekingAfterDelay()` to avoid sync race conditions.
 
+## Completed on 2025-09-18
+
+### ✅ Resume/Load Last reliability (YouTube + direct/local)
+- Added start time cueing to YouTube init: `initializeYouTubePlayer(id, isReaction, retry, startSeconds)` and pass saved times from `progress.js`.
+- Reordered resume sequence: set delay first, seek to saved times, update YouTube references once, then force a single sync tick. The Sync button now shows “Synced” automatically after Load Last.
+
+### ✅ Manual Save and auto-save robustness
+- Replaced the Debug button with a minimal Save button (💾) that immediately persists the current pair’s snapshot (time, delay, volumes, react window pos/size).
+- Hardened `saveNow()` to refresh missing IDs from active players/elements, ensuring it always writes to the correct pair key.
+- Ensured auto-save interval starts after resume (`ensureAutoSaveNow()`), and record network sources during Load Last so subsequent saves hit the same pair key.
+
+### ✅ Clearer Load Last UX for local files
+- When at least one local file is needed, show an overlay listing the exact filenames to choose and provide “Choose Base” / “Choose React” buttons.
+- Removed automatic file-picker invocation; the user triggers selection from the overlay. Overlay auto-closes once files load.
+
+### ✅ Stability while seeking
+- Removed fragile flows that could re-trigger source selection during Load Last; seeking on the base/react bars no longer causes reinit or closes.
+
 ## Completed on 2025-09-16
 
 ### ✅ Codebase Cleanups & Reliability Fixes
