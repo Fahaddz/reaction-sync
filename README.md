@@ -2,7 +2,7 @@
 
 ## Overview
 
-reaction-sync is a web application that allows users to synchronize and display two videos simultaneously - a base video and a reaction video. It's designed for content creators who want to create reaction videos where their reaction is perfectly timed with the original content. The application supports both local video files and YouTube videos, as well as direct video links and Real-Debrid streams.
+reaction-sync is a web application that allows users to synchronize and display two videos simultaneously - a base video and a reaction video. It's designed for users who want to create sync videos where their videos are perfectly timed with the original content. The application supports both local video files and YouTube videos, as well as direct video links and Real-Debrid streams.
 
 ## Features
 
