@@ -12,8 +12,8 @@ export default {
       strict: true
     }),
     paths: {
-      base: '/reaction-sync-v2',
-      assets: '/reaction-sync-v2'
+      base: '/reaction-sync',
+      assets: '/reaction-sync'
     }
   }
 };

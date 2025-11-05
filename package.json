@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "npm run build:wasm && vite build",
+    "build": "bun run build:wasm && vite build",
     "build:wasm": "cd src/lib/sync-engine-wasm && wasm-pack build --target web --out-dir ../../../src/lib/sync-engine-wasm/pkg",
     "build:wasm:local": "cd src/lib/sync-engine-wasm && PATH=\"/home/fahad/.cargo/bin:/usr/bin:/bin:$PATH\" CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=/usr/bin/cc /home/fahad/.cargo/bin/wasm-pack build --target web --out-dir ../../../src/lib/sync-engine-wasm/pkg",
     "preview": "vite preview",
