@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%sveltekit.assets%/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>reaction-sync</title>
+    <script>
+      function onYouTubeIframeAPIReady() {
+        window.youtubeAPIReady = true;
+        const event = new CustomEvent('youtube-api-ready');
+        window.dispatchEvent(event);
+      }
+      var tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      tag.onerror = function() {
+        setTimeout(function() {
+          var newTag = document.createElement('script');
+          newTag.src = "https://www.youtube.com/iframe_api";
+          document.head.appendChild(newTag);
+        }, 2000);
+      };
+      var firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    </script>
+    %sveltekit.head%
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    %sveltekit.body%
+  </body>
+</html>
+
