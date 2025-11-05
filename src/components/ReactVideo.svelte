@@ -376,13 +376,14 @@
     height: 24px;
     cursor: se-resize;
     z-index: 1002;
-    background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.8) 40%, rgba(0,255,255,0.6) 41%, rgba(0,255,255,0.6) 60%, rgba(255,255,255,0.8) 61%, rgba(255,255,255,0.8) 100%);
+    background: rgba(0, 0, 0, 0.4);
     border-radius: 3px 0 0 0;
-    opacity: 0.8;
+    opacity: 0.6;
+    backdrop-filter: blur(4px);
   }
   .resize-handle:hover {
-    opacity: 1;
-    background: rgba(255,255,255,0.9);
+    opacity: 0.8;
+    background: rgba(0, 0, 0, 0.5);
   }
   .controls-wrapper {
     position: absolute;

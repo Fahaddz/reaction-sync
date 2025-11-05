@@ -205,53 +205,51 @@
     <button class="btn text-btn" on:click={(e) => handleButtonClick(onLoadLast, e)} title="Load Last Session">Load Last</button>
     <button class="btn text-btn" on:click={(e) => handleButtonClick(onClearSaved, e)} title="Clear Saved Progress">Clear</button>
   {:else}
-    <div class="controls-group">
-      <div class="source-dropdown">
-        <button id="reactSourceBtn" class="btn source-btn" on:click={handleSourceMenuToggle}>
-          React
-        </button>
-        {#if showSourceMenu}
-          <div class="source-menu">
-            <button class="menu-item" on:click={(e) => handleSourceSelect('local', e)}>Local</button>
-            <button class="menu-item" on:click={(e) => handleSourceSelect('link', e)}>Link</button>
-          </div>
-        {/if}
-      </div>
-      
-      <button class="btn play-pause" on:click={handlePlayPauseClick} title="Play/Pause">
-        {#if isPlaying}
-          <span class="icon">⏸</span>
-        {:else}
-          <span class="icon">⏵</span>
-        {/if}
+    <div class="source-dropdown">
+      <button id="reactSourceBtn" class="btn source-btn" on:click={handleSourceMenuToggle}>
+        React
       </button>
-      
-      <div class="seek-container">
-        <input
-          type="range"
-          class="seek-bar"
-          min="0"
-          max="100"
-          value={seekPercent}
-          step="any"
-          on:input={handleSeek}
-        />
-      </div>
-      
-      <span class="time" title="Time">{timeDisplay}</span>
-      
-      <div class="volume-container">
-        <span class="volume-icon" title="Volume">🔊</span>
-        <input
-          type="range"
-          class="volume"
-          min="0"
-          max="1"
-          value={video.volume}
-          step="any"
-          on:input={handleVolumeChange}
-        />
-      </div>
+      {#if showSourceMenu}
+        <div class="source-menu">
+          <button class="menu-item" on:click={(e) => handleSourceSelect('local', e)}>Local</button>
+          <button class="menu-item" on:click={(e) => handleSourceSelect('link', e)}>Link</button>
+        </div>
+      {/if}
+    </div>
+    
+    <button class="btn play-pause" on:click={handlePlayPauseClick} title="Play/Pause">
+      {#if isPlaying}
+        <span class="icon">⏸</span>
+      {:else}
+        <span class="icon">⏵</span>
+      {/if}
+    </button>
+    
+    <div class="seek-container">
+      <input
+        type="range"
+        class="seek-bar"
+        min="0"
+        max="100"
+        value={seekPercent}
+        step="any"
+        on:input={handleSeek}
+      />
+    </div>
+    
+    <span class="time" title="Time">{timeDisplay}</span>
+    
+    <div class="volume-container">
+      <span class="volume-icon" title="Volume">🔊</span>
+      <input
+        type="range"
+        class="volume"
+        min="0"
+        max="1"
+        value={video.volume}
+        step="any"
+        on:input={handleVolumeChange}
+      />
     </div>
   {/if}
 </div>
