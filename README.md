@@ -121,13 +121,13 @@ Output: `build/` directory (static files)
 
 ### GitHub Pages
 
-This project is configured for automatic deployment to GitHub Pages at `https://<username>.github.io/reaction-sync-v2/`.
+This project is configured for automatic deployment to GitHub Pages at `https://<username>.github.io/reaction-sync/`.
 
 #### Setup Instructions
 
-1. **Push to GitHub**: Create a repository named `reaction-sync-v2` and push your code:
+1. **Push to GitHub**: Create a repository named `reaction-sync` and push your code:
    ```bash
-   git remote add origin https://github.com/<username>/reaction-sync-v2.git
+   git remote add origin https://github.com/<username>/reaction-sync.git
    git branch -M main
    git push -u origin main
    ```
@@ -139,7 +139,7 @@ This project is configured for automatic deployment to GitHub Pages at `https://
 
 3. **Access your site**: Once deployed, your app will be available at:
    ```
-   https://<username>.github.io/reaction-sync-v2/
+   https://<username>.github.io/reaction-sync/
    ```
 
 #### Automatic Deployment
