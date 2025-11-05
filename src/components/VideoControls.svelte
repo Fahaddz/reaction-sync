@@ -122,92 +122,88 @@
 
 <div class="controls">
   {#if isBase}
-    <div class="controls-group">
-      <div class="source-dropdown">
-        <button id="sourceBtn" class="btn source-btn" on:click={handleSourceMenuToggle}>
-          Base
-        </button>
-        {#if showSourceMenu}
-          <div class="source-menu">
-            <button class="menu-item" on:click={(e) => handleSourceSelect('local', e)}>Local</button>
-            <button class="menu-item" on:click={(e) => handleSourceSelect('link', e)}>Link</button>
-          </div>
-        {/if}
-      </div>
-      
-      <button class="btn play-pause" on:click={handlePlayPauseClick} title="Play/Pause">
-        {#if isPlaying}
-          <span class="icon">⏸</span>
-        {:else}
-          <span class="icon">⏵</span>
-        {/if}
+    <div class="source-dropdown">
+      <button id="sourceBtn" class="btn source-btn" on:click={handleSourceMenuToggle}>
+        Base
       </button>
-      
-      <div class="seek-container">
-        <input
-          type="range"
-          class="seek-bar"
-          min="0"
-          max="100"
-          value={seekPercent}
-          step="any"
-          on:input={handleSeek}
-        />
-      </div>
-      
-      <DelayControls />
-      
-      {#if video.source === 'youtube'}
-        <button id="qualityBtn" class="btn icon-btn" on:click={handleQualityMenuToggle} title="Quality">
-          Q
-        </button>
-        {#if showQualityMenu}
-          <QualityMenu
-            qualities={availableQualities}
-            currentQuality={currentQuality}
-            position={qualityMenuPos}
-            onSelect={selectQuality}
-            onClose={() => showQualityMenu = false}
-          />
-        {/if}
+      {#if showSourceMenu}
+        <div class="source-menu">
+          <button class="menu-item" on:click={(e) => handleSourceSelect('local', e)}>Local</button>
+          <button class="menu-item" on:click={(e) => handleSourceSelect('link', e)}>Link</button>
+        </div>
       {/if}
-      
-      <span class="time" title="Time">{timeDisplay}</span>
-      
-      <button class="btn icon-btn" on:click={(e) => handleButtonClick(onLoadSubtitles, e)} title="Subtitles">CC</button>
-      
-      <div class="volume-container">
-        <span class="volume-icon" title="Volume">🔊</span>
-        <input
-          type="range"
-          class="volume"
-          min="0"
-          max="1"
-          value={video.volume}
-          step="any"
-          on:input={handleVolumeChange}
-        />
-      </div>
-      
-      <div class="sync-buttons">
-        <button 
-          class="btn sync-btn" 
-          class:synced={$syncState.isSynced}
-          on:click={(e) => handleButtonClick(onEnableSync, e)} 
-          title="Sync Videos"
-        >
-          S
-        </button>
-        <button class="btn icon-btn" on:click={(e) => handleButtonClick(onDisableSync, e)} title="Desync">D</button>
-        <button class="btn icon-btn" on:click={(e) => handleButtonClick(onForceResync, e)} title="Force Resync">FR</button>
-        <button class="btn icon-btn" on:click={(e) => handleButtonClick(onSave, e)} title="Save Progress">💾</button>
-      </div>
-      
-      <div class="controls-group">
-        <button class="btn text-btn" on:click={(e) => handleButtonClick(onLoadLast, e)} title="Load Last Session">Load Last</button>
-        <button class="btn text-btn" on:click={(e) => handleButtonClick(onClearSaved, e)} title="Clear Saved Progress">Clear</button>
-      </div>
     </div>
+    
+    <button class="btn play-pause" on:click={handlePlayPauseClick} title="Play/Pause">
+      {#if isPlaying}
+        <span class="icon">⏸</span>
+      {:else}
+        <span class="icon">⏵</span>
+      {/if}
+    </button>
+    
+    <div class="seek-container">
+      <input
+        type="range"
+        class="seek-bar"
+        min="0"
+        max="100"
+        value={seekPercent}
+        step="any"
+        on:input={handleSeek}
+      />
+    </div>
+    
+    <span class="time" title="Time">{timeDisplay}</span>
+    
+    <div class="volume-container">
+      <span class="volume-icon" title="Volume">🔊</span>
+      <input
+        type="range"
+        class="volume"
+        min="0"
+        max="1"
+        value={video.volume}
+        step="any"
+        on:input={handleVolumeChange}
+      />
+    </div>
+    
+    <DelayControls />
+    
+    {#if video.source === 'youtube'}
+      <button id="qualityBtn" class="btn icon-btn" on:click={handleQualityMenuToggle} title="Quality">
+        Q
+      </button>
+      {#if showQualityMenu}
+        <QualityMenu
+          qualities={availableQualities}
+          currentQuality={currentQuality}
+          position={qualityMenuPos}
+          onSelect={selectQuality}
+          onClose={() => showQualityMenu = false}
+        />
+      {/if}
+    {/if}
+    
+    <button class="btn icon-btn" on:click={(e) => handleButtonClick(onLoadSubtitles, e)} title="Subtitles">CC</button>
+    
+    <div class="sync-buttons">
+      <button 
+        class="btn sync-btn" 
+        class:synced={$syncState.isSynced}
+        on:click={(e) => handleButtonClick(onEnableSync, e)} 
+        title="Sync Videos"
+      >
+        S
+      </button>
+      <button class="btn icon-btn" on:click={(e) => handleButtonClick(onDisableSync, e)} title="Desync">D</button>
+      <button class="btn icon-btn" on:click={(e) => handleButtonClick(onForceResync, e)} title="Force Resync">FR</button>
+      <button class="btn icon-btn" on:click={(e) => handleButtonClick(onSave, e)} title="Save Progress">💾</button>
+    </div>
+    
+    <button class="btn text-btn" on:click={(e) => handleButtonClick(onLoadLast, e)} title="Load Last Session">Load Last</button>
+    <button class="btn text-btn" on:click={(e) => handleButtonClick(onClearSaved, e)} title="Clear Saved Progress">Clear</button>
   {:else}
     <div class="controls-group">
       <div class="source-dropdown">
@@ -275,11 +271,6 @@
     border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 
-  .controls-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
 
   .btn {
     padding: 8px 12px;
@@ -352,9 +343,9 @@
   }
 
   .seek-container {
-    flex: 1;
-    min-width: 200px;
-    max-width: 600px;
+    flex: 1 1 auto;
+    min-width: 300px;
+    max-width: none;
   }
 
   .seek-bar {

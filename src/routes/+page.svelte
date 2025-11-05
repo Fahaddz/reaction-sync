@@ -438,8 +438,121 @@
       alert('No saved progress found');
       return;
     }
-    loadLastRecord = record;
-    showLoadLastPrompt = true;
+    
+    const needBaseFile = record.baseMeta?.type === 'file';
+    const needReactFile = record.reactMeta?.type === 'file';
+    
+    if (needBaseFile || needReactFile) {
+      loadLastRecord = record;
+      showLoadLastPrompt = true;
+      return;
+    }
+    
+    await loadLastRecordVideos(record);
+  }
+  
+  async function loadLastRecordVideos(record: any) {
+    if (!record) return;
+    
+    if (record.baseMeta) {
+      if (record.baseMeta.type === 'youtube' && record.baseMeta.id) {
+        await waitForYouTubeAPI();
+        try {
+          const player = await initializePlayer(record.baseMeta.id, false);
+          baseMeta = record.baseMeta;
+          baseId = sigForYouTube(player);
+          loadBase(null, player, baseMeta, 'youtube');
+        } catch (e) {
+          console.error('Failed to load YouTube base video:', e);
+        }
+      } else if (record.baseMeta.type === 'url' && record.baseMeta.url) {
+        const metadata = getMetadataForUrl(record.baseMeta.url);
+        baseMeta = metadata;
+        baseId = sigForUrl(record.baseMeta.url);
+        if (!baseVideoElement) {
+          baseVideoElement = document.querySelector('#baseVideo') as HTMLVideoElement;
+        }
+        if (baseVideoElement) {
+          loadDirectLink(baseVideoElement, record.baseMeta.url);
+          loadBase(baseVideoElement, null, baseMeta, record.baseMeta.url.includes('real-debrid') ? 'realdebrid' : 'direct');
+        }
+      }
+    }
+    
+    if (record.reactMeta) {
+      if (record.reactMeta.type === 'youtube' && record.reactMeta.id) {
+        await waitForYouTubeAPI();
+        try {
+          const player = await initializePlayer(record.reactMeta.id, true);
+          reactMeta = record.reactMeta;
+          reactId = sigForYouTube(player);
+          loadReact(reactVideoElement, player, reactMeta, 'youtube');
+        } catch (e) {
+          console.error('Failed to load YouTube react video:', e);
+        }
+      } else if (record.reactMeta.type === 'url' && record.reactMeta.url) {
+        const metadata = getMetadataForUrl(record.reactMeta.url);
+        reactMeta = metadata;
+        reactId = sigForUrl(record.reactMeta.url);
+        if (!reactVideoElement) {
+          reactVideoElement = document.querySelector('#reactVideo') as HTMLVideoElement;
+        }
+        if (reactVideoElement) {
+          loadDirectLink(reactVideoElement, record.reactMeta.url);
+          loadReact(reactVideoElement, null, reactMeta, record.reactMeta.url.includes('real-debrid') ? 'realdebrid' : 'direct');
+        }
+      }
+    }
+    
+    if (record.delay != null) {
+      setDelay(record.delay);
+    }
+    
+    if (record.pos) {
+      const container = document.getElementById('videoReactContainer');
+      if (container) {
+        container.style.left = `${record.pos.l}px`;
+        container.style.top = `${record.pos.t}px`;
+        if (record.pos.w) container.style.width = `${record.pos.w}px`;
+        if (record.pos.h) container.style.height = `${record.pos.h}px`;
+      }
+    }
+    
+    if (record.baseVol != null) {
+      updateBaseVolume(record.baseVol);
+      setTimeout(() => {
+        if ($baseVideo.source === 'youtube' && $baseVideo.youtubePlayer) {
+          setYTVolume($baseVideo.youtubePlayer, record.baseVol * 100);
+        } else if ($baseVideo.element) {
+          setVolume($baseVideo.element, record.baseVol);
+        }
+      }, 500);
+    }
+    
+    if (record.reactVol != null) {
+      updateReactVolume(record.reactVol);
+      setTimeout(() => {
+        if ($reactVideo.source === 'youtube' && $reactVideo.youtubePlayer) {
+          setYTVolume($reactVideo.youtubePlayer, record.reactVol * 100);
+        } else if ($reactVideo.element) {
+          setVolume($reactVideo.element, record.reactVol);
+        }
+      }, 500);
+    }
+    
+    setTimeout(() => {
+      if (record.baseTime != null) {
+        markSeeking('resume');
+        syncSeek(true, record.baseTime);
+        const baseTime = getBaseCurrentTime();
+        const reactTime = getReactCurrentTime();
+        enableSync(baseTime, reactTime);
+        startSyncLoop();
+        setTimeout(() => {
+          clearSeeking();
+        }, 600);
+      }
+    }, 1000);
   }
 
   function handleClearSaved() {
@@ -676,8 +789,104 @@
   {#if showLoadLastPrompt && loadLastRecord}
     <LoadLastPrompt
       record={loadLastRecord}
-      onChooseBase={() => handleBaseSourceSelect('local')}
-      onChooseReact={() => handleReactSourceSelect('local')}
+      onChooseBase={async () => {
+        await handleBaseSourceSelect('local');
+        const record = loadLastRecord;
+        if (record) {
+          setTimeout(async () => {
+            if (record.delay != null) setDelay(record.delay);
+            if (record.pos) {
+              const container = document.getElementById('videoReactContainer');
+              if (container) {
+                container.style.left = `${record.pos.l}px`;
+                container.style.top = `${record.pos.t}px`;
+                if (record.pos.w) container.style.width = `${record.pos.w}px`;
+                if (record.pos.h) container.style.height = `${record.pos.h}px`;
+              }
+            }
+            if (record.baseVol != null) {
+              updateBaseVolume(record.baseVol);
+              setTimeout(() => {
+                if ($baseVideo.element) {
+                  setVolume($baseVideo.element, record.baseVol);
+                }
+              }, 100);
+            }
+            if (record.reactVol != null) {
+              updateReactVolume(record.reactVol);
+              setTimeout(() => {
+                if ($reactVideo.element) {
+                  setVolume($reactVideo.element, record.reactVol);
+                }
+              }, 100);
+            }
+            if (record.baseTime != null) {
+              setTimeout(() => {
+                markSeeking('resume');
+                syncSeek(true, record.baseTime);
+                const baseTime = getBaseCurrentTime();
+                const reactTime = getReactCurrentTime();
+                enableSync(baseTime, reactTime);
+                startSyncLoop();
+                setTimeout(() => {
+                  clearSeeking();
+                }, 600);
+              }, 500);
+            }
+          }, 300);
+          showLoadLastPrompt = false;
+          loadLastRecord = null;
+        }
+      }}
+      onChooseReact={async () => {
+        await handleReactSourceSelect('local');
+        const record = loadLastRecord;
+        if (record) {
+          setTimeout(async () => {
+            if (record.delay != null) setDelay(record.delay);
+            if (record.pos) {
+              const container = document.getElementById('videoReactContainer');
+              if (container) {
+                container.style.left = `${record.pos.l}px`;
+                container.style.top = `${record.pos.t}px`;
+                if (record.pos.w) container.style.width = `${record.pos.w}px`;
+                if (record.pos.h) container.style.height = `${record.pos.h}px`;
+              }
+            }
+            if (record.baseVol != null) {
+              updateBaseVolume(record.baseVol);
+              setTimeout(() => {
+                if ($baseVideo.element) {
+                  setVolume($baseVideo.element, record.baseVol);
+                }
+              }, 100);
+            }
+            if (record.reactVol != null) {
+              updateReactVolume(record.reactVol);
+              setTimeout(() => {
+                if ($reactVideo.element) {
+                  setVolume($reactVideo.element, record.reactVol);
+                }
+              }, 100);
+            }
+            if (record.baseTime != null) {
+              setTimeout(() => {
+                markSeeking('resume');
+                syncSeek(true, record.baseTime);
+                const baseTime = getBaseCurrentTime();
+                const reactTime = getReactCurrentTime();
+                enableSync(baseTime, reactTime);
+                startSyncLoop();
+                setTimeout(() => {
+                  clearSeeking();
+                }, 600);
+              }, 500);
+            }
+          }, 300);
+          showLoadLastPrompt = false;
+          loadLastRecord = null;
+        }
+      }}
       onClose={() => { showLoadLastPrompt = false; loadLastRecord = null; }}
     />
   {/if}

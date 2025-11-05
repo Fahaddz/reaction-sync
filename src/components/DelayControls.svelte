@@ -18,7 +18,7 @@
         }
       }
       const change = direction * increment;
-      const newDelay = Math.max(-300, Math.min(300, currentDelay + change));
+      const newDelay = currentDelay + change;
       setDelay(newDelay);
       return { ...s, delay: newDelay };
     });

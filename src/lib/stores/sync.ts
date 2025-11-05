@@ -25,7 +25,6 @@ export function enableSync(baseTime?: number, reactTime?: number): void {
     let newDelay = s.delay;
     if (baseTime !== undefined && reactTime !== undefined) {
       newDelay = reactTime - baseTime;
-      newDelay = Math.max(-300, Math.min(300, newDelay));
     }
     return { ...s, isSynced: true, delay: newDelay };
   });
@@ -36,7 +35,7 @@ export function disableSync(): void {
 }
 
 export function setDelay(delay: number): void {
-  syncState.update(s => ({ ...s, delay: Math.max(-300, Math.min(300, delay)) }));
+  syncState.update(s => ({ ...s, delay }));
 }
 
 export function markSeeking(source: 'base' | 'react' | 'sync'): void {

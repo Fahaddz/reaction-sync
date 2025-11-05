@@ -105,7 +105,7 @@ impl SyncEngine {
 
     #[wasm_bindgen]
     pub fn set_delay(&mut self, delay: f64) {
-        self.delay = delay.max(-300.0).min(300.0);
+        self.delay = delay;
     }
 
     #[wasm_bindgen]

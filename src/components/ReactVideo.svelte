@@ -29,6 +29,7 @@
   let updateInterval: ReturnType<typeof setInterval> | null = null;
   let stateChangeListener: ((e: YT.OnStateChangeEvent) => void) | null = null;
   let listenerAdded = false;
+  let showControls = false;
 
   $: video = $reactVideo;
   $: showYoutube = video.source === 'youtube';
@@ -275,6 +276,8 @@
   id="videoReactContainer"
   class="react-container"
   class:resizing={isResizing}
+  on:mouseenter={() => showControls = true}
+  on:mouseleave={() => showControls = false}
 >
   {#if showLocal}
     <!-- svelte-ignore a11y-media-has-caption -->
@@ -293,13 +296,19 @@
   />
   <div bind:this={dragHandle} class="drag-handle">DRAG</div>
   <div class="resize-handle" bind:this={resizeHandle}></div>
-  <VideoControls
-    isBase={false}
-    onPlayPause={handlePlayPause}
-    onSeek={handleSeek}
-    onVolumeChange={handleVolumeChange}
-    {onSourceSelect}
-  />
+  <div
+    class="controls-wrapper"
+    class:visible={showControls}
+    role="presentation"
+  >
+    <VideoControls
+      isBase={false}
+      onPlayPause={handlePlayPause}
+      onSeek={handleSeek}
+      onVolumeChange={handleVolumeChange}
+      {onSourceSelect}
+    />
+  </div>
 </div>
 
 <style>
@@ -314,7 +323,7 @@
     background: transparent;
     min-width: 200px;
     min-height: 112px;
-    overflow: visible;
+    overflow: hidden;
     touch-action: none;
   }
   .react-container.resizing {
@@ -374,6 +383,20 @@
   .resize-handle:hover {
     opacity: 1;
     background: rgba(255,255,255,0.9);
+  }
+  .controls-wrapper {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+  }
+  .controls-wrapper.visible {
+    opacity: 1;
+    pointer-events: auto;
   }
 </style>
 
