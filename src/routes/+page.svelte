@@ -29,6 +29,10 @@
   let reactMeta: any = null;
   let seekingTimeout: ReturnType<typeof setTimeout> | null = null;
   const SEEK_COOLDOWN = 800;
+  const MAX_RESYNC_ATTEMPTS = 3;
+  const RESYNC_DELAY = 250;
+  let resyncToken = 0;
+  let lastBufferHold = 0;
 
   async function initWASM() {
     if (typeof window === 'undefined') return;
@@ -38,6 +42,32 @@
       syncEngine = new wasm.SyncEngine();
     } catch (e) {
       console.error('Failed to initialize WASM:', e);
+    }
+  }
+
+  function startTightSyncSequence() {
+    if (!syncEngine || !$syncState.isSynced) return;
+    resyncToken += 1;
+    const token = resyncToken;
+    queueTightSync(0, token);
+  }
+
+  function queueTightSync(attempt: number, token: number) {
+    if (!syncEngine || !$syncState.isSynced) return;
+    if (token !== resyncToken) return;
+    if (attempt >= MAX_RESYNC_ATTEMPTS) return;
+    const threshold = typeof syncEngine.get_sync_threshold === 'function' ? syncEngine.get_sync_threshold() : 0.35;
+    const desiredReactTime = getBaseCurrentTime() + $syncState.delay;
+    const reactTime = getReactCurrentTime();
+    const diff = Math.abs(reactTime - desiredReactTime);
+    const ratio = attempt === 0 ? 0.75 : 0.5;
+
+    if (diff > threshold * ratio) {
+      setTimeout(() => {
+        if (!$syncState.isSynced || token !== resyncToken) return;
+        syncVideos(true);
+        queueTightSync(attempt + 1, token);
+      }, RESYNC_DELAY * (attempt + 1));
     }
   }
 
@@ -171,6 +201,9 @@
         seekingTimeout = setTimeout(() => {
           clearSeeking();
           syncVideos(true);
+          if ($syncState.isSynced) {
+            startTightSyncSequence();
+          }
         }, SEEK_COOLDOWN);
       }
     } catch (e) {
@@ -193,6 +226,9 @@
         seekingTimeout = setTimeout(() => {
           clearSeeking();
           syncVideos(true);
+          if ($syncState.isSynced) {
+            startTightSyncSequence();
+          }
         }, SEEK_COOLDOWN);
       }
     } catch (e) {
@@ -210,7 +246,9 @@
           if (!isBasePlaying()) playBase(true);
           if (!isReactPlaying()) playReact(true);
         }
+        startTightSyncSequence();
       }, 300);
+      startTightSyncSequence();
     } else {
       if (sourceIsBase) playBase(false);
       else playReact(false);
@@ -262,6 +300,7 @@
     seekingTimeout = setTimeout(() => {
       clearSeeking();
       syncVideos(true);
+      startTightSyncSequence();
     }, SEEK_COOLDOWN);
   }
 
@@ -275,6 +314,10 @@
     const reactTime = getReactCurrentTime();
     const baseIsPlaying = isBasePlaying();
     const reactIsPlaying = isReactPlaying();
+    const reactInfo = $reactVideo;
+    const threshold = typeof syncEngine.get_sync_threshold === 'function' ? syncEngine.get_sync_threshold() : 0.35;
+    const desiredReactTime = baseTime + $syncState.delay;
+    const absDiff = Math.abs(reactTime - desiredReactTime);
 
     if (baseIsPlaying !== reactIsPlaying) {
       if (baseIsPlaying) playReact(true);
@@ -287,6 +330,27 @@
       }, 150);
     }
 
+    if (baseIsPlaying && reactInfo.state === 'buffering' && absDiff > threshold * 1.2) {
+      const now = Date.now();
+      if (now - lastBufferHold > 400) {
+        lastBufferHold = now;
+        pauseBase(true);
+        setTimeout(() => {
+          if (!$syncState.isSynced) return;
+          const latestReact = $reactVideo;
+          if (!isReactPlaying() && latestReact.state !== 'buffering') {
+            playReact(true);
+          }
+          const newDiff = Math.abs(getReactCurrentTime() - (getBaseCurrentTime() + $syncState.delay));
+          if (newDiff <= threshold * 0.9 && !isBasePlaying()) {
+            playBase(true);
+          } else if (latestReact.state !== 'buffering') {
+            playBase(true);
+          }
+        }, 220);
+      }
+    }
+
     syncEngine.set_delay($syncState.delay);
     syncEngine.set_synced($syncState.isSynced);
     syncEngine.mark_seeking($syncState.isSeeking ? ($syncState.seekingSource || 'sync') : '');
@@ -296,6 +360,12 @@
     if (adjustment !== 0 && (force || (baseIsPlaying && reactIsPlaying))) {
       markSeeking('sync');
       seekReact(adjustment, true);
+      setTimeout(() => {
+        clearSeeking();
+      }, 500);
+    } else if (force && adjustment === 0 && absDiff > threshold * 0.75) {
+      markSeeking('sync');
+      seekReact(desiredReactTime, true);
       setTimeout(() => {
         clearSeeking();
       }, 500);

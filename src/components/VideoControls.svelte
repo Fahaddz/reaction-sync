@@ -120,7 +120,7 @@
   });
 </script>
 
-<div class="controls">
+<div class="controls" class:overlay={isBase} class:detached={!isBase}>
   {#if isBase}
     <div class="source-dropdown">
       <button id="sourceBtn" class="btn source-btn" on:click={handleSourceMenuToggle}>
@@ -256,19 +256,36 @@
 
 <style>
   .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .controls.overlay {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
     padding: 10px 12px;
     background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.75) 70%, transparent 100%);
     backdrop-filter: blur(12px);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 
+  .controls.detached {
+    position: static;
+    padding: 12px;
+    background: rgba(12, 14, 24, 0.92);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(18px);
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 10px;
+  }
 
   .btn {
     padding: 8px 12px;
@@ -341,9 +358,18 @@
   }
 
   .seek-container {
-    flex: 1 1 auto;
-    min-width: 300px;
+    flex: 1 1 160px;
+    min-width: 160px;
     max-width: none;
+  }
+
+  .controls.overlay .seek-container {
+    min-width: 300px;
+  }
+
+  .controls.detached .seek-container {
+    flex: 1 1 140px;
+    min-width: 140px;
   }
 
   .seek-bar {
@@ -403,8 +429,12 @@
     font-family: 'Courier New', monospace;
     font-weight: 500;
     padding: 0 4px;
-    min-width: 100px;
+    min-width: 84px;
     text-align: center;
+  }
+
+  .controls.overlay .time {
+    min-width: 100px;
   }
 
   .volume-container {
@@ -419,13 +449,17 @@
   }
 
   .volume {
-    width: 60px;
+    width: 70px;
     height: 4px;
     border-radius: 2px;
     background: rgba(255, 255, 255, 0.15);
     outline: none;
     cursor: pointer;
     transition: height 0.2s ease;
+  }
+
+  .controls.overlay .volume {
+    width: 60px;
   }
 
   .volume:hover {
@@ -511,6 +545,11 @@
     overflow: hidden;
   }
 
+  .controls.detached .source-menu {
+    bottom: auto;
+    top: calc(100% + 8px);
+  }
+
   .menu-item {
     padding: 10px 14px;
     text-align: left;
@@ -541,5 +580,14 @@
     padding: 0 4px;
     border-left: 1px solid rgba(255, 255, 255, 0.1);
     border-right: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .controls.detached .sync-buttons {
+    border: none;
+    padding: 0;
+  }
+
+  .controls.detached .btn {
+    min-height: 34px;
   }
 </style>
