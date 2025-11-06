@@ -46,11 +46,7 @@ impl SyncEngine {
         let threshold = self.get_sync_threshold();
 
         if force || (time_diff > threshold && !self.is_seeking) {
-            if force {
-                target_react_time
-            } else {
-                react_time + (target_react_time - react_time) * 0.5
-            }
+            target_react_time
         } else {
             0.0
         }
@@ -67,10 +63,7 @@ impl SyncEngine {
     }
 
     #[wasm_bindgen]
-    pub fn get_sync_threshold(&self) -> f64 {
-        let base = (self.delay.abs() * 0.05).max(0.3);
-        base.min(1.0)
-    }
+    pub fn get_sync_threshold(&self) -> f64 { 0.5 }
 
     #[wasm_bindgen]
     pub fn get_sync_interval(&self) -> u32 {

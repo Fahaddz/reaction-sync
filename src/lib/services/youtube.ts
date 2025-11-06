@@ -132,21 +132,8 @@ function handleStateChange(event: YT.OnStateChangeEvent, isReaction: boolean): v
     } else {
       baseRetryCount = 0;
     }
-    if (window.isVideosSynced && window.syncPlay && !window.isSeeking) {
-      setTimeout(() => {
-        if (window.isVideosSynced && !window.isSeeking) {
-          window.syncPlay(isReaction);
-        }
-      }, 50);
-    }
   } else if (state === YT.PlayerState.PAUSED) {
-    if (window.isVideosSynced && window.syncPause && !window.isSeeking) {
-      setTimeout(() => {
-        if (window.isVideosSynced && !window.isSeeking) {
-          window.syncPause(isReaction);
-        }
-      }, 50);
-    }
+    
   }
 }
 

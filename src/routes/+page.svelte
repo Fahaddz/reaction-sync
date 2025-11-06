@@ -99,6 +99,26 @@
     return false;
   }
 
+  function isBaseBuffering(): boolean {
+    try {
+      const video = $baseVideo;
+      if (video.source === 'youtube' && video.youtubePlayer) {
+        return getPlayerState(video.youtubePlayer) === YT.PlayerState.BUFFERING;
+      }
+    } catch {}
+    return false;
+  }
+
+  function isReactBuffering(): boolean {
+    try {
+      const video = $reactVideo;
+      if (video.source === 'youtube' && video.youtubePlayer) {
+        return getPlayerState(video.youtubePlayer) === YT.PlayerState.BUFFERING;
+      }
+    } catch {}
+    return false;
+  }
+
   function playBase(internal: boolean = false) {
     try {
       const video = $baseVideo;
@@ -205,12 +225,6 @@
     if ($syncState.isSynced) {
       playBase(true);
       playReact(true);
-      setTimeout(() => {
-        if ($syncState.isSynced && (!isBasePlaying() || !isReactPlaying())) {
-          if (!isBasePlaying()) playBase(true);
-          if (!isReactPlaying()) playReact(true);
-        }
-      }, 300);
     } else {
       if (sourceIsBase) playBase(false);
       else playReact(false);
@@ -222,12 +236,6 @@
     if ($syncState.isSynced) {
       pauseBase(true);
       pauseReact(true);
-      setTimeout(() => {
-        if ($syncState.isSynced && (isBasePlaying() || isReactPlaying())) {
-          if (isBasePlaying()) pauseBase(true);
-          if (isReactPlaying()) pauseReact(true);
-        }
-      }, 300);
     } else {
       if (sourceIsBase) pauseBase(false);
       else pauseReact(false);
@@ -236,69 +244,44 @@
 
   function syncSeek(sourceIsBase: boolean, targetTime: number) {
     markSeeking(sourceIsBase ? 'base' : 'react');
-    if ($syncState.isSynced && syncEngine) {
-      if (sourceIsBase) {
-        const reactTarget = syncEngine.sync_seek_base(targetTime);
-        seekBase(targetTime, true);
-        setTimeout(() => {
-          if ($syncState.isSeeking && $syncState.isSynced) {
-            seekReact(reactTarget, true);
-          }
-        }, 150);
-      } else {
-        const baseTarget = syncEngine.sync_seek_react(targetTime);
-        seekReact(targetTime, true);
-        setTimeout(() => {
-          if ($syncState.isSeeking && $syncState.isSynced) {
-            seekBase(baseTarget, true);
-          }
-        }, 150);
-      }
-    } else {
-      if (sourceIsBase) seekBase(targetTime, false);
-      else seekReact(targetTime, false);
-    }
     if (seekingTimeout) clearTimeout(seekingTimeout);
-    seekingTimeout = setTimeout(() => {
-      clearSeeking();
-      syncVideos(true);
-    }, SEEK_COOLDOWN);
+    const apply = () => {
+      if ($syncState.isSynced && syncEngine) {
+        if (sourceIsBase) {
+          seekBase(targetTime, true);
+          seekReact(syncEngine.sync_seek_base(targetTime), true);
+        } else {
+          seekReact(targetTime, true);
+          seekBase(syncEngine.sync_seek_react(targetTime), true);
+        }
+      } else {
+        sourceIsBase ? seekBase(targetTime, false) : seekReact(targetTime, false);
+      }
+      setTimeout(() => { clearSeeking(); syncVideos(true); }, SEEK_COOLDOWN);
+    };
+    seekingTimeout = setTimeout(apply, 160);
   }
 
   function syncVideos(force: boolean = false) {
     if (!syncEngine || !$syncState.isSynced) return;
     if ($syncState.isSeeking && !force) return;
+    if (isBaseBuffering() || isReactBuffering()) return;
     const timeSinceInteraction = Date.now() - $syncState.lastInteractionTime;
     if (!force && $syncState.isUserInteracting && timeSinceInteraction < SEEK_COOLDOWN * 2) return;
-
     const baseTime = getBaseCurrentTime();
     const reactTime = getReactCurrentTime();
     const baseIsPlaying = isBasePlaying();
     const reactIsPlaying = isReactPlaying();
-
-    if (baseIsPlaying !== reactIsPlaying) {
-      if (baseIsPlaying) playReact(true);
-      else pauseReact(true);
-      setTimeout(() => {
-        if ($syncState.isSynced && (isBasePlaying() !== isReactPlaying())) {
-          if (baseIsPlaying) playReact(true);
-          else pauseReact(true);
-        }
-      }, 150);
-    }
-
+    if (baseIsPlaying !== reactIsPlaying) return;
     syncEngine.set_delay($syncState.delay);
     syncEngine.set_synced($syncState.isSynced);
     syncEngine.mark_seeking($syncState.isSeeking ? ($syncState.seekingSource || 'sync') : '');
     syncEngine.mark_user_interaction();
     const adjustment = syncEngine.sync_videos(baseTime, reactTime, force);
-
-    if (adjustment !== 0 && (force || (baseIsPlaying && reactIsPlaying))) {
+    if (adjustment !== 0) {
       markSeeking('sync');
       seekReact(adjustment, true);
-      setTimeout(() => {
-        clearSeeking();
-      }, 500);
+      setTimeout(clearSeeking, 400);
     }
   }
 
