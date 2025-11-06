@@ -18,6 +18,7 @@
   let youtubeContainer: HTMLDivElement | null = null;
   let dragHandle: HTMLDivElement | null = null;
   let resizeHandle: HTMLDivElement | null = null;
+  let videoSurface: HTMLDivElement | null = null;
   let isDragging = false;
   let isResizing = false;
   let startX = 0;
@@ -25,11 +26,11 @@
   let startLeft = 0;
   let startTop = 0;
   let startWidth = 0;
-  let startHeight = 0;
   let updateInterval: ReturnType<typeof setInterval> | null = null;
   let stateChangeListener: ((e: YT.OnStateChangeEvent) => void) | null = null;
   let listenerAdded = false;
-  let showControls = false;
+  let showControls = true;
+  let resizeObserver: ResizeObserver | null = null;
 
   $: video = $reactVideo;
   $: showYoutube = video.source === 'youtube';
@@ -137,7 +138,6 @@
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     startX = clientX;
     startWidth = container.offsetWidth;
-    startHeight = container.offsetHeight;
     document.addEventListener('mousemove', resize);
     document.addEventListener('mouseup', stopResize);
     document.addEventListener('touchmove', resize);
@@ -147,16 +147,12 @@
   function resize(e: MouseEvent | TouchEvent) {
     if (!isResizing || !container) return;
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const width = Math.max(200, startWidth + (clientX - startX));
-    const aspectRatio = 16 / 9;
-    const height = Math.round(width / aspectRatio);
+    const minWidth = 220;
+    const rawWidth = startWidth + (clientX - startX);
+    const maxWidth = typeof window !== 'undefined' ? Math.min(rawWidth, window.innerWidth - container.offsetLeft - 16) : rawWidth;
+    const width = Math.max(minWidth, maxWidth);
     container.style.width = `${width}px`;
-    container.style.height = `${height}px`;
-    if (video.source === 'youtube' && video.youtubePlayer) {
-      try {
-        video.youtubePlayer.setSize(width, height - 60);
-      } catch {}
-    }
+    syncPlayerSize();
   }
 
   function stopResize() {
@@ -166,14 +162,22 @@
     document.removeEventListener('mouseup', stopResize);
     document.removeEventListener('touchmove', resize);
     document.removeEventListener('touchend', stopResize);
-    if (video.source === 'youtube' && video.youtubePlayer) {
-      setTimeout(() => {
-        try {
-          if (container) {
-            video.youtubePlayer?.setSize(container.offsetWidth, container.offsetHeight - 60);
-          }
-        } catch {}
-      }, 100);
+    setTimeout(() => {
+      syncPlayerSize();
+    }, 100);
+  }
+
+  function syncPlayerSize() {
+    if (!container) return;
+    const currentVideo = $reactVideo;
+    if (currentVideo.source === 'youtube' && currentVideo.youtubePlayer) {
+      const width = container.offsetWidth;
+      const height = videoSurface ? videoSurface.clientHeight : Math.round(width / (16 / 9));
+      try {
+        currentVideo.youtubePlayer.setSize(width, height);
+      } catch (e) {
+        console.error('Error syncing YouTube player size:', e);
+      }
     }
   }
 
@@ -203,6 +207,12 @@
   onMount(() => {
     if (!updateInterval) {
       updateInterval = setInterval(updateTime, 1000);
+    }
+    if (container && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        syncPlayerSize();
+      });
+      resizeObserver.observe(container);
     }
     setTimeout(() => {
       if (videoElement) {
@@ -242,6 +252,9 @@
           }
         }, 100);
       }
+      setTimeout(() => {
+        syncPlayerSize();
+      }, 50);
     }, 0);
   });
 
@@ -268,7 +281,17 @@
       document.removeEventListener('touchmove', resize);
       document.removeEventListener('touchend', stopResize);
     }
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+    }
   });
+
+  $: if (video.source === 'youtube' && video.youtubePlayer) {
+    setTimeout(() => {
+      syncPlayerSize();
+    }, 0);
+  }
 </script>
 
 <div
@@ -276,26 +299,30 @@
   id="videoReactContainer"
   class="react-container"
   class:resizing={isResizing}
+  role="group"
   on:mouseenter={() => showControls = true}
   on:mouseleave={() => showControls = false}
+  on:focusin={() => showControls = true}
 >
-  {#if showLocal}
-    <!-- svelte-ignore a11y-media-has-caption -->
-    <video
-      id="reactVideo"
-      bind:this={videoElement}
-      class="react-video"
-      aria-label="Reaction video player"
+  <div class="video-shell" bind:this={videoSurface}>
+    {#if showLocal}
+      <!-- svelte-ignore a11y-media-has-caption -->
+      <video
+        id="reactVideo"
+        bind:this={videoElement}
+        class="react-video"
+        aria-label="Reaction video player"
+      />
+    {/if}
+    <div
+      bind:this={youtubeContainer}
+      id="videoReactYoutube"
+      class="youtube-container"
+      style="display: {showYoutube ? 'block' : 'none'}"
     />
-  {/if}
-  <div
-    bind:this={youtubeContainer}
-    id="videoReactYoutube"
-    class="youtube-container"
-    style="display: {showYoutube ? 'block' : 'none'}"
-  />
-  <div bind:this={dragHandle} class="drag-handle">DRAG</div>
-  <div class="resize-handle" bind:this={resizeHandle}></div>
+    <div bind:this={dragHandle} class="drag-handle">DRAG</div>
+    <div class="resize-handle" bind:this={resizeHandle}></div>
+  </div>
   <div
     class="controls-wrapper"
     class:visible={showControls}
@@ -317,42 +344,57 @@
     z-index: 100;
     top: 1vw;
     left: 1vw;
-    border-radius: 8px;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    background: transparent;
-    min-width: 200px;
-    min-height: 112px;
-    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    background: rgba(14, 16, 24, 0.85);
+    backdrop-filter: blur(16px);
+    min-width: 220px;
+    max-width: min(520px, 42vw);
     touch-action: none;
+    padding: 10px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
   .react-container.resizing {
     border-color: rgba(0, 255, 255, 0.6);
     box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
   }
+  .video-shell {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+  }
   .react-video {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
-    border-radius: 8px;
+    border-radius: 10px;
     object-fit: contain;
     background: #000;
   }
   .youtube-container {
-    width: 100%;
-    height: calc(100% - 60px);
-    border-radius: 8px 8px 0 0;
-    background: #000;
     position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    background: #000;
     z-index: 4;
   }
   .drag-handle {
     position: absolute;
     top: 50%;
-    left: 6px;
+    left: 8px;
     transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.5);
-    color: rgba(255, 255, 255, 0.9);
-    padding: 6px 4px;
+    background: rgba(0, 0, 0, 0.55);
+    color: rgba(255, 255, 255, 0.85);
+    padding: 6px 5px;
     border-radius: 6px;
     font-size: 10px;
     cursor: move;
@@ -370,15 +412,15 @@
   }
   .resize-handle {
     position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 24px;
-    height: 24px;
+    bottom: 6px;
+    right: 6px;
+    width: 22px;
+    height: 22px;
     cursor: se-resize;
     z-index: 1002;
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 3px 0 0 0;
-    opacity: 0.6;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 6px;
+    opacity: 0.65;
     backdrop-filter: blur(4px);
   }
   .resize-handle:hover {
@@ -386,14 +428,9 @@
     background: rgba(0, 0, 0, 0.5);
   }
   .controls-wrapper {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease;
-    z-index: 10;
   }
   .controls-wrapper.visible {
     opacity: 1;
