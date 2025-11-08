@@ -833,9 +833,18 @@
 
 <div>
   <BaseVideo
-    on:playPause={() => {
-      if ($baseVideo.state === 'playing') syncPause(true);
-      else syncPlay(true);
+    on:playPause={async () => {
+      if ($syncState.isSynced) {
+        const actuallyPlaying = isBasePlaying();
+        if (actuallyPlaying) {
+          syncPause(true);
+        } else {
+          await syncPlay(true);
+        }
+      } else {
+        if (isBasePlaying()) pauseBase(false);
+        else playBase(false);
+      }
     }}
     on:seek={(e) => syncSeek(true, e.detail)}
     on:volumeChange={(e) => updateBaseVolume(e.detail)}
@@ -850,9 +859,18 @@
   />
 
   <ReactVideo
-    on:playPause={() => {
-      if ($reactVideo.state === 'playing') syncPause(false);
-      else syncPlay(false);
+    on:playPause={async () => {
+      if ($syncState.isSynced) {
+        const actuallyPlaying = isReactPlaying();
+        if (actuallyPlaying) {
+          syncPause(false);
+        } else {
+          await syncPlay(false);
+        }
+      } else {
+        if (isReactPlaying()) pauseReact(false);
+        else playReact(false);
+      }
     }}
     on:seek={(e) => syncSeek(false, e.detail)}
     on:volumeChange={(e) => updateReactVolume(e.detail)}
