@@ -21,7 +21,8 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
-    "@types/node": "^20.10.0"
+    "@types/node": "^20.10.0",
+    "hls.js": "^1.5.8"
   }
 }
 

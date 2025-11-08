@@ -1,4 +1,6 @@
 import { checkCodecSupport, showCodecError } from '../utils/codec';
+import Hls from 'hls.js';
+import { isJellyfinDownload, jellyfinManifest } from './jellyfin';
 import type { VideoMetadata } from '../types/video';
 
 export async function selectFile(): Promise<File | null> {
@@ -25,15 +27,55 @@ export async function selectFile(): Promise<File | null> {
   });
 }
 
+const hlsStore = new WeakMap<HTMLVideoElement, Hls>();
+
+function destroyHls(element: HTMLVideoElement) {
+  const instance = hlsStore.get(element);
+  if (instance) {
+    instance.destroy();
+    hlsStore.delete(element);
+  }
+}
+
 export function loadVideo(element: HTMLVideoElement, file: File): void {
+  destroyHls(element);
   element.src = URL.createObjectURL(file);
   element.load();
   document.title = file.name;
 }
 
-export function loadDirectLink(element: HTMLVideoElement, url: string): void {
-  element.src = url;
-  element.load();
+function supportsNativeHls(element: HTMLVideoElement) {
+  return element.canPlayType('application/vnd.apple.mpegurl');
+}
+
+async function tryAttachHls(element: HTMLVideoElement, src: string) {
+  destroyHls(element);
+  if (supportsNativeHls(element)) {
+    element.src = src;
+    element.load();
+    return true;
+  }
+  if (Hls.isSupported()) {
+    const instance = new Hls();
+    instance.loadSource(src);
+    instance.attachMedia(element);
+    hlsStore.set(element, instance);
+    return true;
+  }
+  return false;
+}
+
+export async function loadDirectLink(element: HTMLVideoElement, url: string): Promise<string> {
+  destroyHls(element);
+  let target = url;
+  if (isJellyfinDownload(url)) {
+    const manifest = await jellyfinManifest(url);
+    if (manifest) target = manifest;
+  }
+  if (!(target.endsWith('.m3u8') ? await tryAttachHls(element, target) : false)) {
+    element.src = target;
+    element.load();
+  }
   try {
     const urlObj = new URL(url);
     const filename = urlObj.pathname.split('/').pop() || 'Direct Video Link';
@@ -41,6 +83,7 @@ export function loadDirectLink(element: HTMLVideoElement, url: string): void {
   } catch {
     document.title = 'Direct Video Link';
   }
+  return target;
 }
 
 export function getCurrentTime(element: HTMLVideoElement): number {

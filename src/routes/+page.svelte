@@ -343,6 +343,11 @@
     });
   }
 
+  function urlSource(original: string, resolved: string) {
+    if (resolved.toLowerCase().includes('.m3u8')) return 'hls';
+    return original.includes('real-debrid') ? 'realdebrid' : 'direct';
+  }
+
   async function handleBaseSourceSelect(type: 'local' | 'link') {
     if (type === 'local') {
       const file = await selectFile();
@@ -375,15 +380,15 @@
           console.error('Failed to initialize YouTube player:', e);
         }
       } else {
-        const metadata = getMetadataForUrl(url);
+        const metadata = { ...getMetadataForUrl(url), type: 'url' };
         baseMeta = metadata;
         baseId = sigForUrl(url);
         if (!baseVideoElement) {
           baseVideoElement = document.querySelector('#baseVideo') as HTMLVideoElement;
         }
         if (baseVideoElement) {
-          loadDirectLink(baseVideoElement, url);
-          loadBase(baseVideoElement, null, metadata, url.includes('real-debrid') ? 'realdebrid' : 'direct');
+          const resolved = await loadDirectLink(baseVideoElement, url);
+          loadBase(baseVideoElement, null, metadata, urlSource(url, resolved));
           const delay = extractDelayFromFilename(url);
           if (delay !== null) setDelay(delay);
         }
@@ -424,15 +429,15 @@
           console.error('Failed to initialize YouTube player:', e);
         }
       } else {
-        const metadata = getMetadataForUrl(url);
+        const metadata = { ...getMetadataForUrl(url), type: 'url' };
         reactMeta = metadata;
         reactId = sigForUrl(url);
         if (!reactVideoElement) {
           reactVideoElement = document.querySelector('#reactVideo') as HTMLVideoElement;
         }
         if (reactVideoElement) {
-          loadDirectLink(reactVideoElement, url);
-          loadReact(reactVideoElement, null, metadata, url.includes('real-debrid') ? 'realdebrid' : 'direct');
+          const resolved = await loadDirectLink(reactVideoElement, url);
+          loadReact(reactVideoElement, null, metadata, urlSource(url, resolved));
           const delay = extractDelayFromFilename(url);
           if (delay !== null) setDelay(delay);
         }
@@ -490,16 +495,17 @@
         } catch (e) {
           console.error('Failed to load YouTube base video:', e);
         }
-      } else if (record.baseMeta.type === 'url' && record.baseMeta.url) {
-        const metadata = getMetadataForUrl(record.baseMeta.url);
+      } else if ((record.baseMeta.type === 'url' || record.baseMeta.type === 'hls') && record.baseMeta.url) {
+        const url = record.baseMeta.url;
+        const metadata = { ...getMetadataForUrl(url), type: 'url' };
         baseMeta = metadata;
-        baseId = sigForUrl(record.baseMeta.url);
+        baseId = sigForUrl(url);
         if (!baseVideoElement) {
           baseVideoElement = document.querySelector('#baseVideo') as HTMLVideoElement;
         }
         if (baseVideoElement) {
-          loadDirectLink(baseVideoElement, record.baseMeta.url);
-          loadBase(baseVideoElement, null, baseMeta, record.baseMeta.url.includes('real-debrid') ? 'realdebrid' : 'direct');
+          const resolved = await loadDirectLink(baseVideoElement, url);
+          loadBase(baseVideoElement, null, baseMeta, urlSource(url, resolved));
         }
       }
     }
@@ -515,16 +521,17 @@
         } catch (e) {
           console.error('Failed to load YouTube react video:', e);
         }
-      } else if (record.reactMeta.type === 'url' && record.reactMeta.url) {
-        const metadata = getMetadataForUrl(record.reactMeta.url);
+      } else if ((record.reactMeta.type === 'url' || record.reactMeta.type === 'hls') && record.reactMeta.url) {
+        const url = record.reactMeta.url;
+        const metadata = { ...getMetadataForUrl(url), type: 'url' };
         reactMeta = metadata;
-        reactId = sigForUrl(record.reactMeta.url);
+        reactId = sigForUrl(url);
         if (!reactVideoElement) {
           reactVideoElement = document.querySelector('#reactVideo') as HTMLVideoElement;
         }
         if (reactVideoElement) {
-          loadDirectLink(reactVideoElement, record.reactMeta.url);
-          loadReact(reactVideoElement, null, reactMeta, record.reactMeta.url.includes('real-debrid') ? 'realdebrid' : 'direct');
+          const resolved = await loadDirectLink(reactVideoElement, url);
+          loadReact(reactVideoElement, null, reactMeta, urlSource(url, resolved));
         }
       }
     }

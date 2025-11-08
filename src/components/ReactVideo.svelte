@@ -33,7 +33,7 @@
 
   $: video = $reactVideo;
   $: showYoutube = video.source === 'youtube';
-  $: showLocal = video.source === 'local' || video.source === 'direct' || video.source === 'realdebrid';
+  $: showLocal = video.source === 'local' || video.source === 'direct' || video.source === 'realdebrid' || video.source === 'hls';
 
   function updateTime() {
     try {

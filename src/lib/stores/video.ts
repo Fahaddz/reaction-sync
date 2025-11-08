@@ -37,7 +37,7 @@ export const isReactReady = derived(reactVideo, ($video) => {
   return $video.element !== null && $video.element.readyState >= 1;
 });
 
-export function loadBase(element: HTMLVideoElement | null, youtubePlayer: YT.Player | null, metadata: VideoMetadata, source: 'local' | 'youtube' | 'direct' | 'realdebrid'): void {
+export function loadBase(element: HTMLVideoElement | null, youtubePlayer: YT.Player | null, metadata: VideoMetadata, source: 'local' | 'youtube' | 'direct' | 'realdebrid' | 'hls'): void {
   baseVideo.set({
     element,
     youtubePlayer,
@@ -50,7 +50,7 @@ export function loadBase(element: HTMLVideoElement | null, youtubePlayer: YT.Pla
   });
 }
 
-export function loadReact(element: HTMLVideoElement | null, youtubePlayer: YT.Player | null, metadata: VideoMetadata, source: 'local' | 'youtube' | 'direct' | 'realdebrid'): void {
+export function loadReact(element: HTMLVideoElement | null, youtubePlayer: YT.Player | null, metadata: VideoMetadata, source: 'local' | 'youtube' | 'direct' | 'realdebrid' | 'hls'): void {
   reactVideo.set({
     element,
     youtubePlayer,

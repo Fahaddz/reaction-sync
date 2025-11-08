@@ -1,4 +1,4 @@
-export type VideoSource = 'local' | 'youtube' | 'direct' | 'realdebrid';
+export type VideoSource = 'local' | 'youtube' | 'direct' | 'realdebrid' | 'hls';
 
 export type VideoState = 'playing' | 'paused' | 'buffering' | 'ended' | 'unstarted';
 
