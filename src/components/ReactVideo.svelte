@@ -213,11 +213,14 @@
         videoElement.addEventListener('timeupdate', () => {
           updateTime();
         });
-        videoElement.addEventListener('play', () => {
-          updateReactState('playing');
-        });
         videoElement.addEventListener('pause', () => {
           updateReactState('paused');
+        });
+        videoElement.addEventListener('waiting', () => {
+          updateReactState('buffering');
+        });
+        videoElement.addEventListener('playing', () => {
+          updateReactState('playing');
         });
       }
       if (dragHandle) {

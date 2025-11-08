@@ -693,11 +693,18 @@
     }, 400);
   }
 
-  function handleEnableSync() {
+  async function handleEnableSync() {
     const baseTime = getBaseCurrentTime();
     const reactTime = getReactCurrentTime();
+    const wasPlaying = isBasePlaying() || isReactPlaying();
     enableSync(baseTime, reactTime);
     startSyncLoop();
+    if (wasPlaying) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      playBase(true);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      playReact(true);
+    }
   }
 
   function handleDisableSync() {

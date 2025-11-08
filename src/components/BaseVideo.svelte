@@ -120,11 +120,14 @@
       videoElement.addEventListener('timeupdate', () => {
         updateTime();
       });
-      videoElement.addEventListener('play', () => {
-        updateBaseState('playing');
-      });
       videoElement.addEventListener('pause', () => {
         updateBaseState('paused');
+      });
+      videoElement.addEventListener('waiting', () => {
+        updateBaseState('buffering');
+      });
+      videoElement.addEventListener('playing', () => {
+        updateBaseState('playing');
       });
     }
   });
