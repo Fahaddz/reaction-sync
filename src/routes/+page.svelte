@@ -105,6 +105,10 @@
       if (video.source === 'youtube' && video.youtubePlayer) {
         return getPlayerState(video.youtubePlayer) === YT.PlayerState.BUFFERING;
       }
+      if (video.element) {
+        const el = video.element;
+        return el.readyState < 3 || (el.networkState === 2 && !el.paused && el.currentTime === el.currentTime);
+      }
     } catch {}
     return false;
   }
@@ -115,22 +119,48 @@
       if (video.source === 'youtube' && video.youtubePlayer) {
         return getPlayerState(video.youtubePlayer) === YT.PlayerState.BUFFERING;
       }
+      const el = video.element || reactVideoElement;
+      if (el) {
+        return el.readyState < 3 || (el.networkState === 2 && !el.paused && el.currentTime === el.currentTime);
+      }
     } catch {}
     return false;
   }
 
   function playBase(internal: boolean = false) {
-    try {
-      const video = $baseVideo;
-      if (video.source === 'youtube' && video.youtubePlayer) {
-        playVideo(video.youtubePlayer);
-      } else if (video.element) {
-        play(video.element);
+    const attemptPlay = async (retries = 3) => {
+      try {
+        const video = $baseVideo;
+        if (video.source === 'youtube' && video.youtubePlayer) {
+          playVideo(video.youtubePlayer);
+        } else if (video.element) {
+          const el = video.element;
+          if (el.readyState < 2 && retries > 0) {
+            await new Promise((resolve) => {
+              const onReady = () => {
+                el.removeEventListener('canplay', onReady);
+                resolve(null);
+              };
+              el.addEventListener('canplay', onReady);
+              setTimeout(() => {
+                el.removeEventListener('canplay', onReady);
+                resolve(null);
+              }, 200);
+            });
+            return attemptPlay(retries - 1);
+          }
+          await play(el);
+        }
+        if (!internal) markUserInteraction();
+      } catch (e) {
+        if (retries > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          return attemptPlay(retries - 1);
+        }
+        console.error('Error playing base video:', e);
       }
-      if (!internal) markUserInteraction();
-    } catch (e) {
-      console.error('Error playing base video:', e);
-    }
+    };
+    attemptPlay();
   }
 
   function pauseBase(internal: boolean = false) {
@@ -148,18 +178,39 @@
   }
 
   function playReact(internal: boolean = false) {
-    try {
-      const video = $reactVideo;
-      const el = video.element || reactVideoElement;
-      if (video.source === 'youtube' && video.youtubePlayer) {
-        playVideo(video.youtubePlayer);
-      } else if (el) {
-        play(el);
+    const attemptPlay = async (retries = 3) => {
+      try {
+        const video = $reactVideo;
+        const el = video.element || reactVideoElement;
+        if (video.source === 'youtube' && video.youtubePlayer) {
+          playVideo(video.youtubePlayer);
+        } else if (el) {
+          if (el.readyState < 2 && retries > 0) {
+            await new Promise((resolve) => {
+              const onReady = () => {
+                el.removeEventListener('canplay', onReady);
+                resolve(null);
+              };
+              el.addEventListener('canplay', onReady);
+              setTimeout(() => {
+                el.removeEventListener('canplay', onReady);
+                resolve(null);
+              }, 200);
+            });
+            return attemptPlay(retries - 1);
+          }
+          await play(el);
+        }
+        if (!internal) markUserInteraction();
+      } catch (e) {
+        if (retries > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          return attemptPlay(retries - 1);
+        }
+        console.error('Error playing react video:', e);
       }
-      if (!internal) markUserInteraction();
-    } catch (e) {
-      console.error('Error playing react video:', e);
-    }
+    };
+    attemptPlay();
   }
 
   function pauseReact(internal: boolean = false) {
@@ -220,10 +271,17 @@
     }
   }
 
-  function syncPlay(sourceIsBase: boolean) {
+  async function syncPlay(sourceIsBase: boolean) {
     markUserInteraction();
     if ($syncState.isSynced) {
+      const baseReady = $baseVideo.source === 'youtube' ? !!$baseVideo.youtubePlayer : ($baseVideo.element?.readyState ?? 0) >= 2;
+      const reactEl = $reactVideo.element || reactVideoElement;
+      const reactReady = $reactVideo.source === 'youtube' ? !!$reactVideo.youtubePlayer : (reactEl?.readyState ?? 0) >= 2;
+      if (!baseReady || !reactReady) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
       playBase(true);
+      await new Promise(resolve => setTimeout(resolve, 50));
       playReact(true);
     } else {
       if (sourceIsBase) playBase(false);

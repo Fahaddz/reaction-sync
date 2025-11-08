@@ -80,7 +80,7 @@
     try {
       const el = video.element || videoElement;
       if (video.source === 'youtube' && video.youtubePlayer) {
-        setYTVolume(video.youtubePlayer, volume);
+        setYTVolume(video.youtubePlayer, volume * 100);
       } else if (el) {
         setVolume(el, volume);
       }

@@ -39,10 +39,9 @@ export async function jellyfinManifest(url: string) {
     if (!target.searchParams.get('api_key')) target.searchParams.set('api_key', apiKey);
     if (mediaSource?.Id && !target.searchParams.get('MediaSourceId')) target.searchParams.set('MediaSourceId', mediaSource.Id);
     if (playSessionId && !target.searchParams.get('PlaySessionId')) target.searchParams.set('PlaySessionId', playSessionId);
-    target.searchParams.set('AllowVideoStreamCopy', 'true');
-    target.searchParams.set('AllowAudioStreamCopy', 'true');
-    target.searchParams.delete('MaxStreamingBitrate');
-    target.searchParams.delete('VideoBitrate');
+    if (!target.searchParams.has('VideoCodec')) target.searchParams.set('VideoCodec', 'h264');
+    if (!target.searchParams.has('AudioCodec')) target.searchParams.set('AudioCodec', 'aac');
+    if (!target.searchParams.has('MaxStreamingBitrate')) target.searchParams.set('MaxStreamingBitrate', '20000000');
     return target;
   };
   if (mediaSource?.TranscodingUrl) {

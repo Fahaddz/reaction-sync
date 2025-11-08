@@ -73,7 +73,7 @@
   function handleVolumeChange(volume: number) {
     try {
       if (video.source === 'youtube' && video.youtubePlayer) {
-        setYTVolume(video.youtubePlayer, volume);
+        setYTVolume(video.youtubePlayer, volume * 100);
       } else if (video.element) {
         setVolume(video.element, volume);
       }

@@ -48,19 +48,53 @@ function supportsNativeHls(element: HTMLVideoElement) {
   return element.canPlayType('application/vnd.apple.mpegurl');
 }
 
-async function tryAttachHls(element: HTMLVideoElement, src: string) {
+async function tryAttachHls(element: HTMLVideoElement, src: string): Promise<boolean> {
   destroyHls(element);
   if (supportsNativeHls(element)) {
     element.src = src;
     element.load();
-    return true;
+    return new Promise((resolve) => {
+      const onReady = () => {
+        element.removeEventListener('loadedmetadata', onReady);
+        element.removeEventListener('error', onError);
+        resolve(true);
+      };
+      const onError = () => {
+        element.removeEventListener('loadedmetadata', onReady);
+        element.removeEventListener('error', onError);
+        resolve(false);
+      };
+      element.addEventListener('loadedmetadata', onReady);
+      element.addEventListener('error', onError);
+      setTimeout(() => {
+        element.removeEventListener('loadedmetadata', onReady);
+        element.removeEventListener('error', onError);
+        resolve(element.readyState >= 1);
+      }, 5000);
+    });
   }
   if (Hls.isSupported()) {
-    const instance = new Hls();
-    instance.loadSource(src);
-    instance.attachMedia(element);
-    hlsStore.set(element, instance);
-    return true;
+    return new Promise((resolve) => {
+      const instance = new Hls();
+      let resolved = false;
+      const finish = (success: boolean) => {
+        if (resolved) return;
+        resolved = true;
+        if (success) {
+          hlsStore.set(element, instance);
+        } else {
+          instance.destroy();
+        }
+        resolve(success);
+      };
+      instance.on(Hls.Events.MANIFEST_PARSED, () => finish(true));
+      instance.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) finish(false);
+      });
+      instance.loadSource(src);
+      instance.attachMedia(element);
+      setTimeout(() => finish(instance.media !== null), 10000);
+    });
   }
   return false;
 }
@@ -69,13 +103,42 @@ export async function loadDirectLink(element: HTMLVideoElement, url: string): Pr
   destroyHls(element);
   let target = url;
   if (isJellyfinDownload(url)) {
-    const manifest = await jellyfinManifest(url);
+    const manifestPromise = jellyfinManifest(url);
+    const timeoutPromise = new Promise<string | null>((resolve) => setTimeout(() => resolve(null), 10000));
+    const manifest = await Promise.race([manifestPromise, timeoutPromise]);
     if (manifest) target = manifest;
+    else if (url !== target) console.warn('Jellyfin manifest fetch timed out, using original URL');
   }
-  if (!(target.endsWith('.m3u8') ? await tryAttachHls(element, target) : false)) {
+  if (target.toLowerCase().endsWith('.m3u8')) {
+    const attached = await tryAttachHls(element, target);
+    if (!attached) {
+      console.warn('HLS attachment failed, falling back to direct src');
+      element.src = target;
+      element.load();
+    }
+  } else {
     element.src = target;
     element.load();
   }
+  await new Promise<void>((resolve) => {
+    if (element.readyState >= 2) {
+      resolve();
+      return;
+    }
+    const onReady = () => {
+      element.removeEventListener('loadeddata', onReady);
+      element.removeEventListener('canplay', onReady);
+      clearTimeout(timeout);
+      resolve();
+    };
+    element.addEventListener('loadeddata', onReady);
+    element.addEventListener('canplay', onReady);
+    const timeout = setTimeout(() => {
+      element.removeEventListener('loadeddata', onReady);
+      element.removeEventListener('canplay', onReady);
+      resolve();
+    }, 8000);
+  });
   try {
     const urlObj = new URL(url);
     const filename = urlObj.pathname.split('/').pop() || 'Direct Video Link';

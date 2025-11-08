@@ -8,6 +8,8 @@ pub struct SyncEngine {
     is_user_interacting: bool,
     last_interaction_time: f64,
     seeking_source: Option<String>,
+    cumulative_drift: f64,
+    last_sync_time: f64,
 }
 
 #[wasm_bindgen]
@@ -22,6 +24,8 @@ impl SyncEngine {
             is_user_interacting: false,
             last_interaction_time: 0.0,
             seeking_source: None,
+            cumulative_drift: 0.0,
+            last_sync_time: 0.0,
         }
     }
 
@@ -42,10 +46,21 @@ impl SyncEngine {
         }
 
         let target_react_time = base_time + self.delay;
-        let time_diff = (react_time - target_react_time).abs();
+        let time_diff = react_time - target_react_time;
+        let abs_diff = time_diff.abs();
         let threshold = self.get_sync_threshold();
 
-        if force || (time_diff > threshold && !self.is_seeking) {
+        if now - self.last_sync_time > 1000.0 {
+            self.cumulative_drift += time_diff;
+            self.last_sync_time = now;
+        }
+
+        let should_sync = force || abs_diff > threshold || self.cumulative_drift.abs() > 1.0;
+
+        if should_sync && !self.is_seeking {
+            if abs_diff > threshold {
+                self.cumulative_drift = 0.0;
+            }
             target_react_time
         } else {
             0.0
@@ -63,14 +78,10 @@ impl SyncEngine {
     }
 
     #[wasm_bindgen]
-    pub fn get_sync_threshold(&self) -> f64 { 0.5 }
+    pub fn get_sync_threshold(&self) -> f64 { 0.15 }
 
     #[wasm_bindgen]
-    pub fn get_sync_interval(&self) -> u32 {
-        let threshold = self.get_sync_threshold();
-        let interval = (threshold * 1000.0) as u32;
-        interval.max(200).min(1000)
-    }
+    pub fn get_sync_interval(&self) -> u32 { 250 }
 
     #[wasm_bindgen]
     pub fn mark_seeking(&mut self, source: String) {
