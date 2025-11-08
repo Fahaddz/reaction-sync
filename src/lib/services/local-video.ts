@@ -29,6 +29,10 @@ export async function selectFile(): Promise<File | null> {
 
 const hlsStore = new WeakMap<HTMLVideoElement, Hls>();
 
+export function isHlsAttached(element: HTMLVideoElement): boolean {
+  return hlsStore.has(element);
+}
+
 function destroyHls(element: HTMLVideoElement) {
   const instance = hlsStore.get(element);
   if (instance) {

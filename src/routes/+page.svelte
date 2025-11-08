@@ -7,7 +7,7 @@
   import DebugOverlay from '../components/DebugOverlay.svelte';
   import { syncState, syncInterval, enableSync, disableSync, setDelay, markSeeking, clearSeeking, markUserInteraction } from '$lib/stores/sync';
   import { baseVideo, reactVideo, loadBase, loadReact, updateBaseVolume, updateReactVolume } from '$lib/stores/video';
-  import { selectFile, loadVideo, loadDirectLink, getCurrentTime, getDuration, isPlaying, play, pause, seek, setVolume, extractDelayFromFilename, getMetadataForFile, getMetadataForUrl } from '$lib/services/local-video';
+  import { selectFile, loadVideo, loadDirectLink, getCurrentTime, getDuration, isPlaying, play, pause, seek, setVolume, extractDelayFromFilename, getMetadataForFile, getMetadataForUrl, isHlsAttached } from '$lib/services/local-video';
   import { initializePlayer, getCurrentTime as getYTTime, getDuration as getYTDuration, getPlayerState, playVideo, pauseVideo, seekTo, setVolume as setYTVolume, getMetadataForYouTube } from '$lib/services/youtube';
   import { getYoutubeId } from '$lib/utils/youtube';
   import { loadSRT, srt2webvtt, attachSubtitles } from '$lib/services/subtitles';
@@ -29,6 +29,34 @@
   let reactMeta: any = null;
   let seekingTimeout: ReturnType<typeof setTimeout> | null = null;
   const SEEK_COOLDOWN = 800;
+
+  function isHlsVideo(video: any, element: HTMLVideoElement | null): boolean {
+    if (video.source === 'hls') return true;
+    if (element && isHlsAttached(element)) return true;
+    if (element && element.src && element.src.toLowerCase().includes('.m3u8')) return true;
+    return false;
+  }
+
+  async function waitForHlsReady(element: HTMLVideoElement, timeout = 15000): Promise<void> {
+    if (element.readyState >= 3) return;
+    return new Promise((resolve) => {
+      const onReady = () => {
+        cleanup();
+        resolve();
+      };
+      const cleanup = () => {
+        element.removeEventListener('canplay', onReady);
+        element.removeEventListener('canplaythrough', onReady);
+        clearTimeout(timer);
+      };
+      element.addEventListener('canplay', onReady);
+      element.addEventListener('canplaythrough', onReady);
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve();
+      }, timeout);
+    });
+  }
 
   async function initWASM() {
     if (typeof window === 'undefined') return;
@@ -303,8 +331,9 @@
   function syncSeek(sourceIsBase: boolean, targetTime: number) {
     markSeeking(sourceIsBase ? 'base' : 'react');
     if (seekingTimeout) clearTimeout(seekingTimeout);
-    const apply = () => {
+    const apply = async () => {
       if ($syncState.isSynced && syncEngine) {
+        const wasPlaying = isBasePlaying();
         if (sourceIsBase) {
           seekBase(targetTime, true);
           seekReact(syncEngine.sync_seek_base(targetTime), true);
@@ -312,10 +341,33 @@
           seekReact(targetTime, true);
           seekBase(syncEngine.sync_seek_react(targetTime), true);
         }
+        const baseIsHls = isHlsVideo($baseVideo, $baseVideo.element);
+        const reactEl = $reactVideo.element || reactVideoElement;
+        const reactIsHls = isHlsVideo($reactVideo, reactEl);
+        if (baseIsHls || reactIsHls) {
+          pauseBase(true);
+          pauseReact(true);
+          const promises: Promise<void>[] = [];
+          if (baseIsHls && $baseVideo.element) {
+            promises.push(waitForHlsReady($baseVideo.element));
+          }
+          if (reactIsHls && reactEl) {
+            promises.push(waitForHlsReady(reactEl));
+          }
+          await Promise.all(promises);
+          if (wasPlaying) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            playBase(true);
+            await new Promise(resolve => setTimeout(resolve, 50));
+            playReact(true);
+          }
+        }
+        clearSeeking();
+        syncVideos(true);
       } else {
         sourceIsBase ? seekBase(targetTime, false) : seekReact(targetTime, false);
+        setTimeout(() => clearSeeking(), SEEK_COOLDOWN);
       }
-      setTimeout(() => { clearSeeking(); syncVideos(true); }, SEEK_COOLDOWN);
     };
     seekingTimeout = setTimeout(apply, 160);
   }
@@ -782,7 +834,7 @@
 <div>
   <BaseVideo
     on:playPause={() => {
-      if (isBasePlaying()) syncPause(true);
+      if ($baseVideo.state === 'playing') syncPause(true);
       else syncPlay(true);
     }}
     on:seek={(e) => syncSeek(true, e.detail)}
@@ -799,7 +851,7 @@
 
   <ReactVideo
     on:playPause={() => {
-      if (isReactPlaying()) syncPause(false);
+      if ($reactVideo.state === 'playing') syncPause(false);
       else syncPlay(false);
     }}
     on:seek={(e) => syncSeek(false, e.detail)}
