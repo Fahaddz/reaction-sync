@@ -682,7 +682,15 @@
   }
 
   function handleForceResync() {
-    syncVideos(true);
+    if (!syncEngine || !$syncState.isSynced) return;
+    const reactTime = getReactCurrentTime();
+    const targetBaseTime = reactTime - $syncState.delay;
+    markSeeking('sync');
+    seekBase(Math.max(0, targetBaseTime), true);
+    setTimeout(() => {
+      clearSeeking();
+      syncVideos(true);
+    }, 400);
   }
 
   function handleEnableSync() {
