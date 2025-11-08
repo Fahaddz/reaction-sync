@@ -372,7 +372,7 @@
         await waitForYouTubeAPI();
         try {
           const player = await initializePlayer(youtubeId, false);
-          const metadata = getMetadataForYouTube(youtubeId);
+          const metadata = { ...getMetadataForYouTube(youtubeId), originalUrl: url };
           baseMeta = metadata;
           baseId = sigForYouTube(player);
           loadBase(null, player, metadata, 'youtube');
@@ -380,15 +380,17 @@
           console.error('Failed to initialize YouTube player:', e);
         }
       } else {
-        const metadata = { ...getMetadataForUrl(url), type: 'url' };
-        baseMeta = metadata;
+        let metadata = getMetadataForUrl(url);
         baseId = sigForUrl(url);
         if (!baseVideoElement) {
           baseVideoElement = document.querySelector('#baseVideo') as HTMLVideoElement;
         }
         if (baseVideoElement) {
           const resolved = await loadDirectLink(baseVideoElement, url);
-          loadBase(baseVideoElement, null, metadata, urlSource(url, resolved));
+          const source = urlSource(url, resolved);
+          metadata = { ...metadata, originalUrl: url, resolvedUrl: resolved, type: source, source };
+          baseMeta = metadata;
+          loadBase(baseVideoElement, null, metadata, source);
           const delay = extractDelayFromFilename(url);
           if (delay !== null) setDelay(delay);
         }
@@ -421,7 +423,7 @@
         await waitForYouTubeAPI();
         try {
           const player = await initializePlayer(youtubeId, true);
-          const metadata = getMetadataForYouTube(youtubeId);
+          const metadata = { ...getMetadataForYouTube(youtubeId), originalUrl: url };
           reactMeta = metadata;
           reactId = sigForYouTube(player);
           loadReact(reactVideoElement, player, metadata, 'youtube');
@@ -429,15 +431,17 @@
           console.error('Failed to initialize YouTube player:', e);
         }
       } else {
-        const metadata = { ...getMetadataForUrl(url), type: 'url' };
-        reactMeta = metadata;
+        let metadata = getMetadataForUrl(url);
         reactId = sigForUrl(url);
         if (!reactVideoElement) {
           reactVideoElement = document.querySelector('#reactVideo') as HTMLVideoElement;
         }
         if (reactVideoElement) {
           const resolved = await loadDirectLink(reactVideoElement, url);
-          loadReact(reactVideoElement, null, metadata, urlSource(url, resolved));
+          const source = urlSource(url, resolved);
+          metadata = { ...metadata, originalUrl: url, resolvedUrl: resolved, type: source, source };
+          reactMeta = metadata;
+          loadReact(reactVideoElement, null, metadata, source);
           const delay = extractDelayFromFilename(url);
           if (delay !== null) setDelay(delay);
         }
@@ -469,8 +473,8 @@
       return;
     }
     
-    const needBaseFile = record.baseMeta?.type === 'file';
-    const needReactFile = record.reactMeta?.type === 'file';
+    const needBaseFile = record.baseMeta?.type === 'local';
+    const needReactFile = record.reactMeta?.type === 'local';
     
     if (needBaseFile || needReactFile) {
       loadLastRecord = record;
@@ -485,53 +489,67 @@
     if (!record) return;
     
     if (record.baseMeta) {
-      if (record.baseMeta.type === 'youtube' && record.baseMeta.id) {
+      const meta = record.baseMeta;
+      if (meta.type === 'youtube') {
+        const videoId = meta.videoId || (typeof meta.id === 'string' ? meta.id.replace(/^yt:/, '') : '');
+        if (videoId) {
         await waitForYouTubeAPI();
         try {
-          const player = await initializePlayer(record.baseMeta.id, false);
-          baseMeta = record.baseMeta;
+          const player = await initializePlayer(videoId, false);
+          baseMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
           baseId = sigForYouTube(player);
           loadBase(null, player, baseMeta, 'youtube');
         } catch (e) {
           console.error('Failed to load YouTube base video:', e);
         }
-      } else if ((record.baseMeta.type === 'url' || record.baseMeta.type === 'hls') && record.baseMeta.url) {
-        const url = record.baseMeta.url;
-        const metadata = { ...getMetadataForUrl(url), type: 'url' };
-        baseMeta = metadata;
-        baseId = sigForUrl(url);
-        if (!baseVideoElement) {
-          baseVideoElement = document.querySelector('#baseVideo') as HTMLVideoElement;
         }
-        if (baseVideoElement) {
-          const resolved = await loadDirectLink(baseVideoElement, url);
-          loadBase(baseVideoElement, null, baseMeta, urlSource(url, resolved));
+      } else if (meta.type === 'direct' || meta.type === 'realdebrid' || meta.type === 'hls') {
+        const sourceUrl = meta.originalUrl || meta.url || meta.resolvedUrl;
+        if (sourceUrl) {
+          baseId = sigForUrl(sourceUrl);
+          if (!baseVideoElement) {
+            baseVideoElement = document.querySelector('#baseVideo') as HTMLVideoElement;
+          }
+          if (baseVideoElement) {
+            const resolved = await loadDirectLink(baseVideoElement, sourceUrl);
+            const source = urlSource(sourceUrl, resolved);
+            const metadata = { ...meta, originalUrl: sourceUrl, resolvedUrl: resolved, type: source, source };
+            baseMeta = metadata;
+            loadBase(baseVideoElement, null, metadata, source);
+          }
         }
       }
     }
     
     if (record.reactMeta) {
-      if (record.reactMeta.type === 'youtube' && record.reactMeta.id) {
+      const meta = record.reactMeta;
+      if (meta.type === 'youtube') {
+        const videoId = meta.videoId || (typeof meta.id === 'string' ? meta.id.replace(/^yt:/, '') : '');
+        if (videoId) {
         await waitForYouTubeAPI();
         try {
-          const player = await initializePlayer(record.reactMeta.id, true);
-          reactMeta = record.reactMeta;
+          const player = await initializePlayer(videoId, true);
+          reactMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
           reactId = sigForYouTube(player);
           loadReact(reactVideoElement, player, reactMeta, 'youtube');
         } catch (e) {
           console.error('Failed to load YouTube react video:', e);
         }
-      } else if ((record.reactMeta.type === 'url' || record.reactMeta.type === 'hls') && record.reactMeta.url) {
-        const url = record.reactMeta.url;
-        const metadata = { ...getMetadataForUrl(url), type: 'url' };
-        reactMeta = metadata;
-        reactId = sigForUrl(url);
-        if (!reactVideoElement) {
-          reactVideoElement = document.querySelector('#reactVideo') as HTMLVideoElement;
         }
-        if (reactVideoElement) {
-          const resolved = await loadDirectLink(reactVideoElement, url);
-          loadReact(reactVideoElement, null, reactMeta, urlSource(url, resolved));
+      } else if (meta.type === 'direct' || meta.type === 'realdebrid' || meta.type === 'hls') {
+        const sourceUrl = meta.originalUrl || meta.url || meta.resolvedUrl;
+        if (sourceUrl) {
+          reactId = sigForUrl(sourceUrl);
+          if (!reactVideoElement) {
+            reactVideoElement = document.querySelector('#reactVideo') as HTMLVideoElement;
+          }
+          if (reactVideoElement) {
+            const resolved = await loadDirectLink(reactVideoElement, sourceUrl);
+            const source = urlSource(sourceUrl, resolved);
+            const metadata = { ...meta, originalUrl: sourceUrl, resolvedUrl: resolved, type: source, source };
+            reactMeta = metadata;
+            loadReact(reactVideoElement, null, metadata, source);
+          }
         }
       }
     }

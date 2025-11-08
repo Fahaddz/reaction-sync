@@ -1,7 +1,7 @@
 import { checkCodecSupport, showCodecError } from '../utils/codec';
 import Hls from 'hls.js';
 import { isJellyfinDownload, jellyfinManifest } from './jellyfin';
-import type { VideoMetadata } from '../types/video';
+import type { VideoMetadata, VideoSource } from '../types/video';
 
 export async function selectFile(): Promise<File | null> {
   return new Promise((resolve) => {
@@ -142,17 +142,28 @@ export function getMetadataForFile(file: File): VideoMetadata {
   return {
     id: `file:${file.name}|${file.size}|${file.lastModified}`,
     type: 'local',
+    source: 'local',
     name: file.name,
     size: file.size,
     lastModified: file.lastModified
   };
 }
 
+function urlType(url: string): VideoSource {
+  if (url.includes('real-debrid')) return 'realdebrid';
+  if (url.toLowerCase().includes('.m3u8')) return 'hls';
+  return 'direct';
+}
+
 export function getMetadataForUrl(url: string): VideoMetadata {
+  const type = urlType(url);
   return {
     id: `url:${url}`,
-    type: url.includes('real-debrid') ? 'realdebrid' : 'direct',
-    url: url
+    type,
+    source: type,
+    url,
+    originalUrl: url,
+    resolvedUrl: url
   };
 }
 

@@ -9,6 +9,10 @@ export interface VideoMetadata {
   name?: string;
   size?: number;
   lastModified?: number;
+  originalUrl?: string;
+  resolvedUrl?: string;
+  videoId?: string;
+  source?: VideoSource;
 }
 
 export interface VideoInfo {

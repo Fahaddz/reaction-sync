@@ -6,8 +6,8 @@
   export let onChooseReact: () => void = () => {};
   export let onClose: () => void = () => {};
 
-  $: needBase = record?.baseMeta?.type === 'file';
-  $: needReact = record?.reactMeta?.type === 'file';
+  $: needBase = record?.baseMeta?.type === 'local';
+  $: needReact = record?.reactMeta?.type === 'local';
 </script>
 
 {#if record && (needBase || needReact)}

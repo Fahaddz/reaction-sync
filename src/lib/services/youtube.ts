@@ -261,7 +261,9 @@ export function getQualityLabel(quality: string): string {
 export function getMetadataForYouTube(videoId: string): VideoMetadata {
   return {
     id: `yt:${videoId}`,
-    type: 'youtube'
+    type: 'youtube',
+    source: 'youtube',
+    videoId
   };
 }
 

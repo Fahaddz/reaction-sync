@@ -1,8 +1,10 @@
+import type { VideoMetadata } from './video';
+
 export interface ProgressRecord {
   baseId: string;
   reactId: string;
-  baseMeta: { type: string; name?: string; id?: string; url?: string } | null;
-  reactMeta: { type: string; name?: string; id?: string; url?: string } | null;
+  baseMeta: VideoMetadata | null;
+  reactMeta: VideoMetadata | null;
   delay: number;
   baseTime: number;
   pos: { l: number; t: number; w: number; h: number } | null;
