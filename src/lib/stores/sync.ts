@@ -62,12 +62,3 @@ export function markUserInteraction(): void {
     lastInteractionTime: Date.now()
   }));
 }
-
-export function clearUserInteraction(): void {
-  syncState.update(s => ({
-    ...s,
-    isUserInteracting: false
-  }));
-}
-
-

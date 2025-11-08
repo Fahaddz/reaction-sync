@@ -8,7 +8,6 @@ export interface ProgressRecord {
   pos: { l: number; t: number; w: number; h: number } | null;
   baseVol: number | null;
   reactVol: number | null;
-  updatedAt: number;
 }
 
 export interface ProgressIndexEntry {

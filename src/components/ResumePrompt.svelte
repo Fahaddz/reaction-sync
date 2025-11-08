@@ -5,13 +5,6 @@
   export let record: ProgressRecord | null = null;
   export let onResume: () => void = () => {};
   export let onStartNew: () => void = () => {};
-
-  function msToTime(ms: number): string {
-    const s = Math.floor(ms);
-    const m = Math.floor(s / 60);
-    const ss = String(s % 60).padStart(2, '0');
-    return `${m}:${ss}`;
-  }
 </script>
 
 {#if record}
@@ -19,7 +12,7 @@
     <div class="modal">
       <div class="title">Resume where you left off?</div>
       <div class="message">
-        Last time at {msToTime(record.baseTime)} with delay {record.delay >= 0 ? '+' : ''}{record.delay.toFixed(1)}s
+        Last time at {secondsToTime(record.baseTime)} with delay {record.delay >= 0 ? '+' : ''}{record.delay.toFixed(1)}s
       </div>
       <div class="buttons">
         <button on:click={onStartNew}>Start New</button>

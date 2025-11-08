@@ -280,7 +280,6 @@
   on:mouseleave={() => showControls = false}
 >
   {#if showLocal}
-    <!-- svelte-ignore a11y-media-has-caption -->
     <video
       id="reactVideo"
       bind:this={videoElement}

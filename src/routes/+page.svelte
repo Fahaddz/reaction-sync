@@ -285,6 +285,48 @@
     }
   }
 
+  function applyPosition(pos?: { l: number; t: number; w?: number; h?: number } | null) {
+    if (!pos) return;
+    const container = document.getElementById('videoReactContainer');
+    if (!container) return;
+    container.style.left = `${pos.l}px`;
+    container.style.top = `${pos.t}px`;
+    if (pos.w) container.style.width = `${pos.w}px`;
+    if (pos.h) container.style.height = `${pos.h}px`;
+  }
+
+  function applyVolume(target: 'base' | 'react', volume?: number | null, delay = 0) {
+    if (volume == null) return;
+    if (target === 'base') {
+      updateBaseVolume(volume);
+    } else {
+      updateReactVolume(volume);
+    }
+    const apply = () => {
+      const state = target === 'base' ? $baseVideo : $reactVideo;
+      if (state.source === 'youtube' && state.youtubePlayer) {
+        setYTVolume(state.youtubePlayer, volume * 100);
+      } else if (state.element) {
+        setVolume(state.element, volume);
+      }
+    };
+    if (delay > 0) setTimeout(apply, delay);
+    else apply();
+  }
+
+  function scheduleResume(time: number | null | undefined, delay: number) {
+    if (time == null) return;
+    setTimeout(() => {
+      markSeeking('resume');
+      syncSeek(true, time);
+      const baseTime = getBaseCurrentTime();
+      const reactTime = getReactCurrentTime();
+      enableSync(baseTime, reactTime);
+      startSyncLoop();
+      setTimeout(clearSeeking, 600);
+    }, delay);
+  }
+
   function startSyncLoop() {
     if (syncLoopInterval) clearInterval(syncLoopInterval);
     if (syncIntervalUnsubscribe) {
@@ -491,51 +533,10 @@
       setDelay(record.delay);
     }
     
-    if (record.pos) {
-      const container = document.getElementById('videoReactContainer');
-      if (container) {
-        container.style.left = `${record.pos.l}px`;
-        container.style.top = `${record.pos.t}px`;
-        if (record.pos.w) container.style.width = `${record.pos.w}px`;
-        if (record.pos.h) container.style.height = `${record.pos.h}px`;
-      }
-    }
-    
-    if (record.baseVol != null) {
-      updateBaseVolume(record.baseVol);
-      setTimeout(() => {
-        if ($baseVideo.source === 'youtube' && $baseVideo.youtubePlayer) {
-          setYTVolume($baseVideo.youtubePlayer, record.baseVol * 100);
-        } else if ($baseVideo.element) {
-          setVolume($baseVideo.element, record.baseVol);
-        }
-      }, 500);
-    }
-    
-    if (record.reactVol != null) {
-      updateReactVolume(record.reactVol);
-      setTimeout(() => {
-        if ($reactVideo.source === 'youtube' && $reactVideo.youtubePlayer) {
-          setYTVolume($reactVideo.youtubePlayer, record.reactVol * 100);
-        } else if ($reactVideo.element) {
-          setVolume($reactVideo.element, record.reactVol);
-        }
-      }, 500);
-    }
-    
-    setTimeout(() => {
-      if (record.baseTime != null) {
-        markSeeking('resume');
-        syncSeek(true, record.baseTime);
-        const baseTime = getBaseCurrentTime();
-        const reactTime = getReactCurrentTime();
-        enableSync(baseTime, reactTime);
-        startSyncLoop();
-        setTimeout(() => {
-          clearSeeking();
-        }, 600);
-      }
-    }, 1000);
+    applyPosition(record.pos);
+    applyVolume('base', record.baseVol, 500);
+    applyVolume('react', record.reactVol, 500);
+    scheduleResume(record.baseTime, 1000);
   }
 
   function handleClearSaved() {
@@ -583,42 +584,10 @@
   function handleResume() {
     if (!resumeRecord) return;
     setDelay(resumeRecord.delay);
-    if (resumeRecord.pos) {
-      const container = document.getElementById('videoReactContainer');
-      if (container) {
-        container.style.left = `${resumeRecord.pos.l}px`;
-        container.style.top = `${resumeRecord.pos.t}px`;
-        if (resumeRecord.pos.w) container.style.width = `${resumeRecord.pos.w}px`;
-        if (resumeRecord.pos.h) container.style.height = `${resumeRecord.pos.h}px`;
-      }
-    }
-    if (resumeRecord.baseVol != null) {
-      updateBaseVolume(resumeRecord.baseVol);
-      if ($baseVideo.source === 'youtube' && $baseVideo.youtubePlayer) {
-        setYTVolume($baseVideo.youtubePlayer, resumeRecord.baseVol * 100);
-      } else if ($baseVideo.element) {
-        setVolume($baseVideo.element, resumeRecord.baseVol);
-      }
-    }
-    if (resumeRecord.reactVol != null) {
-      updateReactVolume(resumeRecord.reactVol);
-      if ($reactVideo.source === 'youtube' && $reactVideo.youtubePlayer) {
-        setYTVolume($reactVideo.youtubePlayer, resumeRecord.reactVol * 100);
-      } else if ($reactVideo.element) {
-        setVolume($reactVideo.element, resumeRecord.reactVol);
-      }
-    }
-    setTimeout(() => {
-      markSeeking('resume');
-      syncSeek(true, resumeRecord.baseTime);
-      const baseTime = getBaseCurrentTime();
-      const reactTime = getReactCurrentTime();
-      enableSync(baseTime, reactTime);
-      startSyncLoop();
-      setTimeout(() => {
-        clearSeeking();
-      }, 600);
-    }, 300);
+    applyPosition(resumeRecord.pos);
+    applyVolume('base', resumeRecord.baseVol);
+    applyVolume('react', resumeRecord.reactVol);
+    scheduleResume(resumeRecord.baseTime, 300);
     showResumePrompt = false;
     resumeRecord = null;
   }
@@ -703,12 +672,6 @@
       baseVol: $baseVideo.volume,
       reactVol: $reactVideo.volume
     }));
-    window.isVideosSynced = false;
-    window.isSeeking = false;
-    window.syncPlay = syncPlay;
-    window.syncPause = syncPause;
-    window.pauseBase = pauseBase;
-    window.pauseReact = pauseReact;
   });
 
   onDestroy(() => {
@@ -776,46 +739,12 @@
         await handleBaseSourceSelect('local');
         const record = loadLastRecord;
         if (record) {
-          setTimeout(async () => {
+          setTimeout(() => {
             if (record.delay != null) setDelay(record.delay);
-            if (record.pos) {
-              const container = document.getElementById('videoReactContainer');
-              if (container) {
-                container.style.left = `${record.pos.l}px`;
-                container.style.top = `${record.pos.t}px`;
-                if (record.pos.w) container.style.width = `${record.pos.w}px`;
-                if (record.pos.h) container.style.height = `${record.pos.h}px`;
-              }
-            }
-            if (record.baseVol != null) {
-              updateBaseVolume(record.baseVol);
-              setTimeout(() => {
-                if ($baseVideo.element) {
-                  setVolume($baseVideo.element, record.baseVol);
-                }
-              }, 100);
-            }
-            if (record.reactVol != null) {
-              updateReactVolume(record.reactVol);
-              setTimeout(() => {
-                if ($reactVideo.element) {
-                  setVolume($reactVideo.element, record.reactVol);
-                }
-              }, 100);
-            }
-            if (record.baseTime != null) {
-              setTimeout(() => {
-                markSeeking('resume');
-                syncSeek(true, record.baseTime);
-                const baseTime = getBaseCurrentTime();
-                const reactTime = getReactCurrentTime();
-                enableSync(baseTime, reactTime);
-                startSyncLoop();
-                setTimeout(() => {
-                  clearSeeking();
-                }, 600);
-              }, 500);
-            }
+            applyPosition(record.pos);
+            applyVolume('base', record.baseVol, 100);
+            applyVolume('react', record.reactVol, 100);
+            scheduleResume(record.baseTime, 500);
           }, 300);
           showLoadLastPrompt = false;
           loadLastRecord = null;
@@ -825,46 +754,12 @@
         await handleReactSourceSelect('local');
         const record = loadLastRecord;
         if (record) {
-          setTimeout(async () => {
+          setTimeout(() => {
             if (record.delay != null) setDelay(record.delay);
-            if (record.pos) {
-              const container = document.getElementById('videoReactContainer');
-              if (container) {
-                container.style.left = `${record.pos.l}px`;
-                container.style.top = `${record.pos.t}px`;
-                if (record.pos.w) container.style.width = `${record.pos.w}px`;
-                if (record.pos.h) container.style.height = `${record.pos.h}px`;
-              }
-            }
-            if (record.baseVol != null) {
-              updateBaseVolume(record.baseVol);
-              setTimeout(() => {
-                if ($baseVideo.element) {
-                  setVolume($baseVideo.element, record.baseVol);
-                }
-              }, 100);
-            }
-            if (record.reactVol != null) {
-              updateReactVolume(record.reactVol);
-              setTimeout(() => {
-                if ($reactVideo.element) {
-                  setVolume($reactVideo.element, record.reactVol);
-                }
-              }, 100);
-            }
-            if (record.baseTime != null) {
-              setTimeout(() => {
-                markSeeking('resume');
-                syncSeek(true, record.baseTime);
-                const baseTime = getBaseCurrentTime();
-                const reactTime = getReactCurrentTime();
-                enableSync(baseTime, reactTime);
-                startSyncLoop();
-                setTimeout(() => {
-                  clearSeeking();
-                }, 600);
-              }, 500);
-            }
+            applyPosition(record.pos);
+            applyVolume('base', record.baseVol, 100);
+            applyVolume('react', record.reactVol, 100);
+            scheduleResume(record.baseTime, 500);
           }, 300);
           showLoadLastPrompt = false;
           loadLastRecord = null;

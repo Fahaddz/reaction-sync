@@ -132,8 +132,7 @@ export function saveNow(
       baseTime,
       pos: getPos(),
       baseVol: isFinite(baseVol ?? NaN) ? baseVol : null,
-      reactVol: isFinite(reactVol ?? NaN) ? reactVol : null,
-      updatedAt: getNow()
+      reactVol: isFinite(reactVol ?? NaN) ? reactVol : null
     };
     writePair(k, obj);
   } catch {}

@@ -147,7 +147,6 @@
 
 <div class="base-container">
   {#if showLocal}
-    <!-- svelte-ignore a11y-media-has-caption -->
     <video
       id="baseVideo"
       bind:this={videoElement}

@@ -18,8 +18,6 @@ const qualityLabels: Record<string, string> = {
 
 let basePlayer: YT.Player | null = null;
 let reactPlayer: YT.Player | null = null;
-let baseReady = false;
-let reactReady = false;
 let baseRetryCount = 0;
 let reactRetryCount = 0;
 
@@ -87,11 +85,9 @@ export function initializePlayer(videoId: string, isReaction: boolean, startSeco
           onReady: (event) => {
             if (isReaction) {
               reactPlayer = event.target;
-              reactReady = true;
               reactRetryCount = 0;
             } else {
               basePlayer = event.target;
-              baseReady = true;
               baseRetryCount = 0;
             }
             if (startSeconds != null && isFinite(startSeconds) && startSeconds >= 0) {
@@ -117,23 +113,12 @@ export function initializePlayer(videoId: string, isReaction: boolean, startSeco
 }
 
 function handleStateChange(event: YT.OnStateChangeEvent, isReaction: boolean): void {
-  const state = event.data;
-  if (state === YT.PlayerState.BUFFERING) {
-    if (window.isVideosSynced) {
-      if (isReaction && window.pauseBase) {
-        window.pauseBase(true);
-      } else if (!isReaction && window.pauseReact) {
-        window.pauseReact(true);
-      }
-    }
-  } else if (state === YT.PlayerState.PLAYING) {
+  if (event.data === YT.PlayerState.PLAYING) {
     if (isReaction) {
       reactRetryCount = 0;
     } else {
       baseRetryCount = 0;
     }
-  } else if (state === YT.PlayerState.PAUSED) {
-    
   }
 }
 
@@ -166,10 +151,8 @@ function handleError(errorCode: number, isReaction: boolean): void {
   }
   alert(`YouTube ${isReaction ? 'Reaction' : 'Base'} Error: ${errors[errorCode] || "Unknown error"} (Failed after ${MAX_RETRIES} retries)`);
   if (isReaction) {
-    reactReady = false;
     reactPlayer = null;
   } else {
-    baseReady = false;
     basePlayer = null;
   }
 }
@@ -271,52 +254,8 @@ export function getCurrentQuality(player: YT.Player): string {
   }
 }
 
-export function setHighestQuality(player: YT.Player): void {
-  const preferredOrder = ['highres', 'hd2160', 'hd1440', 'hd1080', 'hd720', 'large', 'medium', 'small', 'tiny'];
-  const available = getAvailableQualities(player);
-  if (available.length === 0) return;
-  
-  let highestQuality = 'default';
-  for (const quality of preferredOrder) {
-    if (available.includes(quality)) {
-      highestQuality = quality;
-      break;
-    }
-  }
-  
-  let retryCount = 0;
-  const maxRetries = 3;
-  function trySetQuality() {
-    setQuality(player, highestQuality);
-    setTimeout(() => {
-      const current = getCurrentQuality(player);
-      if (current !== highestQuality && available.includes(highestQuality) && retryCount < maxRetries) {
-        retryCount++;
-        trySetQuality();
-      }
-    }, 1000);
-  }
-  trySetQuality();
-}
-
 export function getQualityLabel(quality: string): string {
   return qualityLabels[quality] || quality;
-}
-
-export function getBasePlayer(): YT.Player | null {
-  return basePlayer;
-}
-
-export function getReactPlayer(): YT.Player | null {
-  return reactPlayer;
-}
-
-export function isBaseReady(): boolean {
-  return baseReady && basePlayer !== null;
-}
-
-export function isReactReady(): boolean {
-  return reactReady && reactPlayer !== null;
 }
 
 export function getMetadataForYouTube(videoId: string): VideoMetadata {
@@ -324,16 +263,5 @@ export function getMetadataForYouTube(videoId: string): VideoMetadata {
     id: `yt:${videoId}`,
     type: 'youtube'
   };
-}
-
-declare global {
-  interface Window {
-    isVideosSynced: boolean;
-    isSeeking: boolean;
-    syncPlay: (isReaction: boolean) => void;
-    syncPause: (isReaction: boolean) => void;
-    pauseBase: (internal: boolean) => void;
-    pauseReact: (internal: boolean) => void;
-  }
 }
 
