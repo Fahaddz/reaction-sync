@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { baseVideo, updateBaseTime, updateBaseDuration, updateBaseState, updateBaseVolume, loadBase } from '$lib/stores/video';
-  import { getCurrentTime, getDuration, isPlaying, play, pause, seek, setVolume } from '$lib/services/local-video';
+  import { getCurrentTime, getDuration, isPlaying, play, pause, seek, setVolume, cleanupHls } from '$lib/services/local-video';
   import { getCurrentTime as getYTTime, getDuration as getYTDuration, getPlayerState, playVideo, pauseVideo, seekTo, setVolume as setYTVolume } from '$lib/services/youtube';
   import VideoControls from './VideoControls.svelte';
 
@@ -105,6 +105,11 @@
   }
   
   $: if (video.source !== 'youtube' || !video.youtubePlayer) {
+    if (listenerAdded && video.youtubePlayer && stateChangeListener) {
+      try {
+        video.youtubePlayer.removeEventListener('onStateChange', stateChangeListener);
+      } catch {}
+    }
     listenerAdded = false;
   }
 
@@ -139,12 +144,11 @@
     if (video.youtubePlayer && stateChangeListener) {
       try {
         video.youtubePlayer.removeEventListener('onStateChange', stateChangeListener);
-      } catch (e) {
-        console.error('Error removing YouTube state change listener:', e);
-      }
+      } catch {}
     }
     listenerAdded = false;
     stateChangeListener = null;
+    cleanupHls(videoElement);
   });
 </script>
 

@@ -32,7 +32,16 @@ export function writeIndex(index: ProgressIndex): void {
   if (!isBrowser()) return;
   try {
     localStorage.setItem(INDEX_KEY, JSON.stringify(index));
-  } catch {}
+  } catch (e: any) {
+    if (e.name === 'QuotaExceededError') {
+      if (confirm('Storage quota exceeded. Clear old progress data?')) {
+        clearAll();
+        try {
+          localStorage.setItem(INDEX_KEY, JSON.stringify(index));
+        } catch {}
+      }
+    }
+  }
 }
 
 export function readPair(key: string): ProgressRecord | null {
@@ -53,7 +62,19 @@ export function writePair(key: string, record: ProgressRecord): void {
     idx.unshift({ k: key, t: getNow() });
     writeIndex(idx);
     prune();
-  } catch {}
+  } catch (e: any) {
+    if (e.name === 'QuotaExceededError') {
+      if (confirm('Storage quota exceeded. Clear old progress data?')) {
+        clearAll();
+        try {
+          localStorage.setItem(key, JSON.stringify(record));
+          let idx = readIndex().filter(x => x.k !== key);
+          idx.unshift({ k: key, t: getNow() });
+          writeIndex(idx);
+        } catch {}
+      }
+    }
+  }
 }
 
 export function prune(): void {

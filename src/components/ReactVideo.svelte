@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { reactVideo, updateReactTime, updateReactDuration, updateReactState, updateReactVolume, loadReact } from '$lib/stores/video';
-  import { getCurrentTime, getDuration, isPlaying, play, pause, seek, setVolume } from '$lib/services/local-video';
+  import { getCurrentTime, getDuration, isPlaying, play, pause, seek, setVolume, cleanupHls } from '$lib/services/local-video';
   import { getCurrentTime as getYTTime, getDuration as getYTDuration, getPlayerState, playVideo, pauseVideo, seekTo, setVolume as setYTVolume } from '$lib/services/youtube';
   import VideoControls from './VideoControls.svelte';
 
@@ -177,6 +177,8 @@
     }
   }
 
+  let mountTimeouts: ReturnType<typeof setTimeout>[] = [];
+
   $: if (typeof document !== 'undefined' && youtubeContainer && video.source === 'youtube' && video.youtubePlayer && !listenerAdded) {
     const player = video.youtubePlayer;
     try {
@@ -197,6 +199,11 @@
   }
   
   $: if (video.source !== 'youtube' || !video.youtubePlayer) {
+    if (listenerAdded && video.youtubePlayer && stateChangeListener) {
+      try {
+        video.youtubePlayer.removeEventListener('onStateChange', stateChangeListener);
+      } catch {}
+    }
     listenerAdded = false;
   }
 
@@ -204,7 +211,7 @@
     if (!updateInterval) {
       updateInterval = setInterval(updateTime, 1000);
     }
-    setTimeout(() => {
+    const t1 = setTimeout(() => {
       if (videoElement) {
         loadReact(videoElement, null, { id: null, type: 'local' }, 'local');
         videoElement.addEventListener('loadedmetadata', () => {
@@ -227,40 +234,44 @@
         dragHandle.addEventListener('mousedown', initDrag);
         dragHandle.addEventListener('touchstart', initDrag);
       } else {
-        setTimeout(() => {
+        const t2 = setTimeout(() => {
           if (dragHandle) {
             dragHandle.addEventListener('mousedown', initDrag);
             dragHandle.addEventListener('touchstart', initDrag);
           }
         }, 100);
+        mountTimeouts.push(t2);
       }
       if (resizeHandle) {
         resizeHandle.addEventListener('mousedown', initResize);
         resizeHandle.addEventListener('touchstart', initResize);
       } else {
-        setTimeout(() => {
+        const t3 = setTimeout(() => {
           if (resizeHandle) {
             resizeHandle.addEventListener('mousedown', initResize);
             resizeHandle.addEventListener('touchstart', initResize);
           }
         }, 100);
+        mountTimeouts.push(t3);
       }
     }, 0);
+    mountTimeouts.push(t1);
   });
 
   onDestroy(() => {
+    mountTimeouts.forEach(t => clearTimeout(t));
+    mountTimeouts = [];
     if (updateInterval) {
       clearInterval(updateInterval);
     }
     if (video.youtubePlayer && stateChangeListener) {
       try {
         video.youtubePlayer.removeEventListener('onStateChange', stateChangeListener);
-      } catch (e) {
-        console.error('Error removing YouTube state change listener:', e);
-      }
+      } catch {}
     }
     listenerAdded = false;
     stateChangeListener = null;
+    cleanupHls(videoElement);
     if (typeof document !== 'undefined') {
       document.removeEventListener('mousemove', drag);
       document.removeEventListener('mouseup', stopDrag);

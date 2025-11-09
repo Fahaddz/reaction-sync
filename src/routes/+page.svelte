@@ -66,6 +66,7 @@
       syncEngine = new wasm.SyncEngine();
     } catch (e) {
       console.error('Failed to initialize WASM:', e);
+      alert('Failed to initialize sync engine. Sync functionality will not work. Please refresh the page.');
     }
   }
 
@@ -258,11 +259,14 @@
 
   function seekBase(time: number, internal: boolean = false) {
     try {
+      if (isNaN(time) || !isFinite(time)) return;
       const video = $baseVideo;
+      const duration = video.source === 'youtube' && video.youtubePlayer ? getYTDuration(video.youtubePlayer) : (video.element ? getDuration(video.element) : 0);
+      const clampedTime = Math.max(0, duration > 0 ? Math.min(time, duration) : time);
       if (video.source === 'youtube' && video.youtubePlayer) {
-        seekTo(video.youtubePlayer, time);
+        seekTo(video.youtubePlayer, clampedTime);
       } else if (video.element) {
-        seek(video.element, time);
+        seek(video.element, clampedTime);
       }
       if (!internal) {
         markSeeking('base');
@@ -279,12 +283,15 @@
 
   function seekReact(time: number, internal: boolean = false) {
     try {
+      if (isNaN(time) || !isFinite(time)) return;
       const video = $reactVideo;
       const el = video.element || reactVideoElement;
+      const duration = video.source === 'youtube' && video.youtubePlayer ? getYTDuration(video.youtubePlayer) : (el ? getDuration(el) : 0);
+      const clampedTime = Math.max(0, duration > 0 ? Math.min(time, duration) : time);
       if (video.source === 'youtube' && video.youtubePlayer) {
-        seekTo(video.youtubePlayer, time);
+        seekTo(video.youtubePlayer, clampedTime);
       } else if (el) {
-        seek(el, time);
+        seek(el, clampedTime);
       }
       if (!internal) {
         markSeeking('react');
@@ -427,6 +434,12 @@
   function scheduleResume(time: number | null | undefined, delay: number) {
     if (time == null) return;
     setTimeout(() => {
+      const baseReady = $baseVideo.source === 'youtube' ? !!$baseVideo.youtubePlayer : !!$baseVideo.element;
+      const reactReady = $reactVideo.source === 'youtube' ? !!$reactVideo.youtubePlayer : !!$reactVideo.element;
+      if (!baseReady || !reactReady) {
+        setTimeout(() => scheduleResume(time, 200), 200);
+        return;
+      }
       markSeeking('resume');
       syncSeek(true, time);
       const baseTime = getBaseCurrentTime();
@@ -597,21 +610,26 @@
   
   async function loadLastRecordVideos(record: any) {
     if (!record) return;
+    const baseLoaded = { done: false };
+    const reactLoaded = { done: false };
     
     if (record.baseMeta) {
       const meta = record.baseMeta;
       if (meta.type === 'youtube') {
-        const videoId = meta.videoId || (typeof meta.id === 'string' ? meta.id.replace(/^yt:/, '') : '');
+        const videoId = meta.videoId || (typeof meta.id === 'string' ? meta.id.replace(/^yt:/, '') : null);
         if (videoId) {
-        await waitForYouTubeAPI();
-        try {
-          const player = await initializePlayer(videoId, false);
-          baseMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
-          baseId = sigForYouTube(player);
-          loadBase(null, player, baseMeta, 'youtube');
-        } catch (e) {
-          console.error('Failed to load YouTube base video:', e);
-        }
+          await waitForYouTubeAPI();
+          try {
+            const player = await initializePlayer(videoId, false);
+            baseMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
+            baseId = sigForYouTube(player);
+            loadBase(null, player, baseMeta, 'youtube');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            baseLoaded.done = true;
+          } catch (e) {
+            alert('Failed to load base YouTube video. Please try again.');
+            return;
+          }
         }
       } else if (meta.type === 'direct' || meta.type === 'realdebrid' || meta.type === 'hls') {
         const sourceUrl = meta.originalUrl || meta.url || meta.resolvedUrl;
@@ -626,6 +644,7 @@
             const metadata = { ...meta, originalUrl: sourceUrl, resolvedUrl: resolved, type: source, source };
             baseMeta = metadata;
             loadBase(baseVideoElement, null, metadata, source);
+            baseLoaded.done = true;
           }
         }
       }
@@ -634,17 +653,20 @@
     if (record.reactMeta) {
       const meta = record.reactMeta;
       if (meta.type === 'youtube') {
-        const videoId = meta.videoId || (typeof meta.id === 'string' ? meta.id.replace(/^yt:/, '') : '');
+        const videoId = meta.videoId || (typeof meta.id === 'string' ? meta.id.replace(/^yt:/, '') : null);
         if (videoId) {
-        await waitForYouTubeAPI();
-        try {
-          const player = await initializePlayer(videoId, true);
-          reactMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
-          reactId = sigForYouTube(player);
-          loadReact(reactVideoElement, player, reactMeta, 'youtube');
-        } catch (e) {
-          console.error('Failed to load YouTube react video:', e);
-        }
+          await waitForYouTubeAPI();
+          try {
+            const player = await initializePlayer(videoId, true);
+            reactMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
+            reactId = sigForYouTube(player);
+            loadReact(reactVideoElement, player, reactMeta, 'youtube');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            reactLoaded.done = true;
+          } catch (e) {
+            alert('Failed to load reaction YouTube video. Please try again.');
+            return;
+          }
         }
       } else if (meta.type === 'direct' || meta.type === 'realdebrid' || meta.type === 'hls') {
         const sourceUrl = meta.originalUrl || meta.url || meta.resolvedUrl;
@@ -659,6 +681,7 @@
             const metadata = { ...meta, originalUrl: sourceUrl, resolvedUrl: resolved, type: source, source };
             reactMeta = metadata;
             loadReact(reactVideoElement, null, metadata, source);
+            reactLoaded.done = true;
           }
         }
       }
@@ -669,9 +692,12 @@
     }
     
     applyPosition(record.pos);
-    applyVolume('base', record.baseVol, 500);
-    applyVolume('react', record.reactVol, 500);
-    scheduleResume(record.baseTime, 1000);
+    applyVolume('base', record.baseVol, 800);
+    applyVolume('react', record.reactVol, 800);
+    
+    if (baseLoaded.done && reactLoaded.done) {
+      scheduleResume(record.baseTime, 1500);
+    }
   }
 
   function handleClearSaved() {
@@ -683,13 +709,24 @@
 
   function handleForceResync() {
     if (!syncEngine || !$syncState.isSynced) return;
+    const wasPlaying = isBasePlaying();
     const reactTime = getReactCurrentTime();
-    const targetBaseTime = reactTime - $syncState.delay;
+    const targetBaseTime = syncEngine.sync_seek_react(reactTime);
+    if (wasPlaying) {
+      pauseBase(true);
+      pauseReact(true);
+    }
     markSeeking('sync');
-    seekBase(Math.max(0, targetBaseTime), true);
+    seekBase(targetBaseTime, true);
     setTimeout(() => {
       clearSeeking();
       syncVideos(true);
+      if (wasPlaying) {
+        setTimeout(() => {
+          playBase(true);
+          playReact(true);
+        }, 200);
+      }
     }, 400);
   }
 
@@ -733,11 +770,17 @@
 
   function handleResume() {
     if (!resumeRecord) return;
+    const baseReady = $baseVideo.source === 'youtube' ? !!$baseVideo.youtubePlayer : !!$baseVideo.element;
+    const reactReady = $reactVideo.source === 'youtube' ? !!$reactVideo.youtubePlayer : !!$reactVideo.element;
+    if (!baseReady || !reactReady) {
+      alert('Please wait for both videos to load before resuming.');
+      return;
+    }
     setDelay(resumeRecord.delay);
     applyPosition(resumeRecord.pos);
     applyVolume('base', resumeRecord.baseVol);
     applyVolume('react', resumeRecord.reactVol);
-    scheduleResume(resumeRecord.baseTime, 300);
+    scheduleResume(resumeRecord.baseTime, 500);
     showResumePrompt = false;
     resumeRecord = null;
   }

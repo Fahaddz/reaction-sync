@@ -71,6 +71,7 @@ declare namespace YT {
     setSize(width: number, height: number): void;
     destroy(): void;
     addEventListener(event: string, listener: (event: any) => void): void;
+    removeEventListener(event: string, listener: (event: any) => void): void;
     iframe?: HTMLIFrameElement;
   }
 }

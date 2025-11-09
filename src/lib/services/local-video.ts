@@ -7,7 +7,7 @@ export async function selectFile(): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "video/*";
+    input.accept = "*";
     input.onchange = async () => {
       const files = Array.from(input.files || []);
       if (files.length === 0) {
@@ -38,6 +38,12 @@ function destroyHls(element: HTMLVideoElement) {
   if (instance) {
     instance.destroy();
     hlsStore.delete(element);
+  }
+}
+
+export function cleanupHls(element: HTMLVideoElement | null) {
+  if (element) {
+    destroyHls(element);
   }
 }
 

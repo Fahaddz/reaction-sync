@@ -20,9 +20,25 @@ let basePlayer: YT.Player | null = null;
 let reactPlayer: YT.Player | null = null;
 let baseRetryCount = 0;
 let reactRetryCount = 0;
+let baseInitializing = false;
+let reactInitializing = false;
+let baseInitPromise: Promise<YT.Player> | null = null;
+let reactInitPromise: Promise<YT.Player> | null = null;
 
 export function initializePlayer(videoId: string, isReaction: boolean, startSeconds: number | null = null): Promise<YT.Player> {
-  return new Promise(async (resolve, reject) => {
+  if (isReaction && reactInitializing && reactInitPromise) {
+    return reactInitPromise;
+  }
+  if (!isReaction && baseInitializing && baseInitPromise) {
+    return baseInitPromise;
+  }
+  
+  const promise = new Promise<YT.Player>(async (resolve, reject) => {
+    if (isReaction) {
+      reactInitializing = true;
+    } else {
+      baseInitializing = true;
+    }
     if (typeof window === 'undefined' || typeof document === 'undefined') {
       reject(new Error('YouTube player requires browser environment'));
       return;
@@ -86,9 +102,11 @@ export function initializePlayer(videoId: string, isReaction: boolean, startSeco
             if (isReaction) {
               reactPlayer = event.target;
               reactRetryCount = 0;
+              reactInitializing = false;
             } else {
               basePlayer = event.target;
               baseRetryCount = 0;
+              baseInitializing = false;
             }
             if (startSeconds != null && isFinite(startSeconds) && startSeconds >= 0) {
               try {
@@ -101,15 +119,39 @@ export function initializePlayer(videoId: string, isReaction: boolean, startSeco
             handleStateChange(event, isReaction);
           },
           onError: (event) => {
+            if (isReaction) {
+              reactInitializing = false;
+            } else {
+              baseInitializing = false;
+            }
             handleError(event.data, isReaction);
             reject(new Error(`YouTube error: ${event.data}`));
           }
         }
       });
     } catch (e) {
+      if (isReaction) {
+        reactInitializing = false;
+      } else {
+        baseInitializing = false;
+      }
       reject(new Error(`Failed to create YouTube player: ${e}`));
     }
   });
+  
+  if (isReaction) {
+    reactInitPromise = promise;
+    promise.finally(() => {
+      reactInitPromise = null;
+    });
+  } else {
+    baseInitPromise = promise;
+    promise.finally(() => {
+      baseInitPromise = null;
+    });
+  }
+  
+  return promise;
 }
 
 function handleStateChange(event: YT.OnStateChangeEvent, isReaction: boolean): void {
