@@ -139,11 +139,11 @@ export function saveNow(
   baseTime: number,
   baseVol: number | null,
   reactVol: number | null
-): void {
+): boolean {
   try {
-    if (!baseId || !reactId) return;
+    if (!baseId || !reactId) return false;
     const k = getPairKey(baseId, reactId);
-    if (!k) return;
+    if (!k) return false;
     const obj: ProgressRecord = {
       baseId,
       reactId,
@@ -156,7 +156,10 @@ export function saveNow(
       reactVol: isFinite(reactVol ?? NaN) ? reactVol : null
     };
     writePair(k, obj);
-  } catch {}
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 let autoSaveTimer: ReturnType<typeof setInterval> | null = null;

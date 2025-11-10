@@ -19,6 +19,7 @@
   export let onForceResync: () => void = () => {};
   export let onEnableSync: () => void = () => {};
   export let onDisableSync: () => void = () => {};
+  export let onDelayChange: (delay: number) => void = () => {};
 
   let showQualityMenu = false;
   let qualityMenuPos = { bottom: 0, left: 0 };
@@ -169,7 +170,7 @@
       />
     </div>
     
-    <DelayControls />
+    <DelayControls {onDelayChange} />
     
     {#if video.source === 'youtube'}
       <button id="qualityBtn" class="btn icon-btn" on:click={handleQualityMenuToggle} title="Quality">

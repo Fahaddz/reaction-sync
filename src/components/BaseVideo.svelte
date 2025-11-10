@@ -19,6 +19,7 @@
   export let onForceResync: () => void = () => {};
   export let onEnableSync: () => void = () => {};
   export let onDisableSync: () => void = () => {};
+  export let onDelayChange: (delay: number) => void = () => {};
 
   let videoElement: HTMLVideoElement | null = null;
   let youtubeContainer: HTMLDivElement | null = null;
@@ -181,6 +182,7 @@
     {onForceResync}
     {onEnableSync}
     {onDisableSync}
+    {onDelayChange}
   />
 </div>
 

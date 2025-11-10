@@ -2,6 +2,8 @@
   import { syncState, setDelay } from '$lib/stores/sync';
   import { secondsToTime } from '$lib/utils/time';
 
+  export let onDelayChange: (delay: number) => void = () => {};
+
   let holdInterval: ReturnType<typeof setInterval> | null = null;
   let holdStartTime = 0;
 
@@ -20,6 +22,7 @@
       const change = direction * increment;
       const newDelay = currentDelay + change;
       setDelay(newDelay);
+      onDelayChange(newDelay);
       return { ...s, delay: newDelay };
     });
   }

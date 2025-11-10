@@ -586,7 +586,12 @@
   function handleSave() {
     const baseVol = $baseVideo.volume;
     const reactVol = $reactVideo.volume;
-    saveNow(baseId, reactId, baseMeta, reactMeta, $syncState.delay, getBaseCurrentTime(), baseVol, reactVol);
+    const success = saveNow(baseId, reactId, baseMeta, reactMeta, $syncState.delay, getBaseCurrentTime(), baseVol, reactVol);
+    if (success) {
+      alert('Progress saved successfully!');
+    } else {
+      alert('Failed to save progress. Please try again.');
+    }
   }
 
   async function handleLoadLast() {
@@ -610,6 +615,11 @@
   
   async function loadLastRecordVideos(record: any) {
     if (!record) return;
+    
+    if (record.delay != null) {
+      setDelay(record.delay);
+    }
+    
     const baseLoaded = { done: false };
     const reactLoaded = { done: false };
     
@@ -620,12 +630,19 @@
         if (videoId) {
           await waitForYouTubeAPI();
           try {
-            const player = await initializePlayer(videoId, false);
+            const startTime = record.baseTime || 0;
+            const player = await initializePlayer(videoId, false, startTime);
             baseMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
             baseId = sigForYouTube(player);
             loadBase(null, player, baseMeta, 'youtube');
-            await new Promise(resolve => setTimeout(resolve, 500));
-            baseLoaded.done = true;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const duration = getYTDuration(player);
+            if (duration > 0) {
+              baseLoaded.done = true;
+            } else {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              baseLoaded.done = true;
+            }
           } catch (e) {
             alert('Failed to load base YouTube video. Please try again.');
             return;
@@ -657,12 +674,19 @@
         if (videoId) {
           await waitForYouTubeAPI();
           try {
-            const player = await initializePlayer(videoId, true);
+            const startTime = (record.baseTime || 0) + (record.delay || 0);
+            const player = await initializePlayer(videoId, true, startTime);
             reactMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
             reactId = sigForYouTube(player);
             loadReact(reactVideoElement, player, reactMeta, 'youtube');
-            await new Promise(resolve => setTimeout(resolve, 500));
-            reactLoaded.done = true;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const duration = getYTDuration(player);
+            if (duration > 0) {
+              reactLoaded.done = true;
+            } else {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              reactLoaded.done = true;
+            }
           } catch (e) {
             alert('Failed to load reaction YouTube video. Please try again.');
             return;
@@ -687,16 +711,12 @@
       }
     }
     
-    if (record.delay != null) {
-      setDelay(record.delay);
-    }
-    
     applyPosition(record.pos);
-    applyVolume('base', record.baseVol, 800);
-    applyVolume('react', record.reactVol, 800);
+    applyVolume('base', record.baseVol, 1000);
+    applyVolume('react', record.reactVol, 1000);
     
     if (baseLoaded.done && reactLoaded.done) {
-      scheduleResume(record.baseTime, 1500);
+      scheduleResume(record.baseTime, 2000);
     }
   }
 
@@ -754,6 +774,13 @@
       syncIntervalUnsubscribe();
       syncIntervalUnsubscribe = null;
     }
+  }
+
+  function handleDelayChange(newDelay: number) {
+    if (!$syncState.isSynced) return;
+    const baseTime = getBaseCurrentTime();
+    const newReactTime = baseTime + newDelay;
+    seekReact(newReactTime, true);
   }
 
   async function checkAndShowResumePrompt() {
@@ -914,6 +941,7 @@
     onForceResync={handleForceResync}
     onEnableSync={handleEnableSync}
     onDisableSync={handleDisableSync}
+    onDelayChange={handleDelayChange}
   />
 
   <ReactVideo
@@ -947,31 +975,35 @@
     <LoadLastPrompt
       record={loadLastRecord}
       onChooseBase={async () => {
-        await handleBaseSourceSelect('local');
         const record = loadLastRecord;
+        if (record && record.delay != null) {
+          setDelay(record.delay);
+        }
+        await handleBaseSourceSelect('local');
         if (record) {
           setTimeout(() => {
-            if (record.delay != null) setDelay(record.delay);
             applyPosition(record.pos);
-            applyVolume('base', record.baseVol, 100);
-            applyVolume('react', record.reactVol, 100);
-            scheduleResume(record.baseTime, 500);
-          }, 300);
+            applyVolume('base', record.baseVol, 500);
+            applyVolume('react', record.reactVol, 500);
+            scheduleResume(record.baseTime, 1000);
+          }, 500);
           showLoadLastPrompt = false;
           loadLastRecord = null;
         }
       }}
       onChooseReact={async () => {
-        await handleReactSourceSelect('local');
         const record = loadLastRecord;
+        if (record && record.delay != null) {
+          setDelay(record.delay);
+        }
+        await handleReactSourceSelect('local');
         if (record) {
           setTimeout(() => {
-            if (record.delay != null) setDelay(record.delay);
             applyPosition(record.pos);
-            applyVolume('base', record.baseVol, 100);
-            applyVolume('react', record.reactVol, 100);
-            scheduleResume(record.baseTime, 500);
-          }, 300);
+            applyVolume('base', record.baseVol, 500);
+            applyVolume('react', record.reactVol, 500);
+            scheduleResume(record.baseTime, 1000);
+          }, 500);
           showLoadLastPrompt = false;
           loadLastRecord = null;
         }
