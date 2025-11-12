@@ -23,6 +23,9 @@ const qualityLabels = {
   'default': 'Auto',
   'auto': 'Auto'
 };
+let qualityMenuTarget = 'base';
+let qualityMenuAnchor = null;
+let qualityMenuBound = false;
 
 function retryYouTubeCommand(player,command,verifyFn,attempt=1){if(attempt>MAX_YOUTUBE_RETRIES)return;try{player[command]()}catch(e){}setTimeout(()=>{const s=player.getPlayerState&&player.getPlayerState();if(!verifyFn(s))retryYouTubeCommand(player,command,verifyFn,attempt+1)},500)}
 
@@ -53,11 +56,12 @@ function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0, st
         onReady: () => {
           if (isReaction) { reactYoutubePlayer = player; isReactYoutubeVideo = true; isReactYoutubePlayerReady = true; } else { baseYoutubePlayer = player; isBaseYoutubeVideo = true; isBaseYoutubePlayerReady = true; }
           try { if (startSeconds!=null && isFinite(startSeconds) && startSeconds>=0 && typeof player.cueVideoById==='function') { player.cueVideoById({ videoId: videoId, startSeconds: startSeconds }); } } catch(e) {}
+          createQualityButton();
           if (isReaction) {
+            try { reactYoutubePlayer.addEventListener('onPlaybackQualityChange', onQualityChange); } catch (e) { console.error('Error adding reaction quality change listener:', e); }
             try { reactYoutubePlayer.setVolume($("#reactVolumeSlider").val() * 100); reactYoutubePlayer.setSize($("#videoReactContainer").width(), $("#videoReactContainer").height() - 40); setupYouTubeReactControls(); } catch (e) { console.error("Error setting reaction volume/size:", e); }
           } else {
             try { baseYoutubePlayer.addEventListener('onPlaybackQualityChange', onQualityChange); } catch (e) { console.error('Error adding quality change listener:', e); }
-            setTimeout(() => { createQualityButton(); setupQualityMenu(); }, 1000);
             try { baseYoutubePlayer.setVolume($("#baseVolumeSlider").val() * 100); setupYouTubeBaseControls(); } catch (e) { console.error("Error setting base volume or initializing controls:", e); }
           }
           try {
@@ -68,6 +72,7 @@ function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0, st
               if (isReaction) { window._suppressYouTubeAutoplayReact = false; } else { window._suppressYouTubeAutoplayBase = false; }
               window._suppressYouTubeAutoplay = false;
             }, 500);
+            setTimeout(() => setupQualityMenu(), 800);
           } catch (e) {
             console.error('Initial player setup failed:', e);
             setTimeout(() => initializeYouTubePlayer(videoId, isReaction, retryCount + 1, startSeconds), 2000 * (retryCount + 1));
@@ -114,10 +119,7 @@ function setHighestQuality(player, isReaction) {
     let retryCount = 0; const maxRetries = 3;
     function trySetQuality() {
       player.setPlaybackQuality(highestQuality);
-      if (!isReaction) {
-        const qualityButton = $('#youtubeQuality');
-        if (qualityButton.length) { qualityButton.text(`Quality: ${qualityLabels[highestQuality] || highestQuality}`); }
-      }
+      updateQualityButtonLabel(highestQuality, isReaction ? 'react' : 'base');
       setTimeout(() => {
         const currentQuality = player.getPlaybackQuality();
         if (currentQuality !== highestQuality && availableQualities.includes(highestQuality) && retryCount < maxRetries) {
@@ -132,83 +134,183 @@ function setHighestQuality(player, isReaction) {
 }
 
 function createQualityButton() {
-  if ($('#youtubeQuality').length === 0) {
-    const qualityBtn = $(`<button id="youtubeQuality" class="control-button" style="background-color: rgba(50, 50, 50, 0.9); color: white; border: 1px solid rgba(100, 100, 255, 0.5); padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-left: 10px; position: relative; z-index: 1001;">Quality: Auto</button>`);
+  let qualityBtn = $('#youtubeQuality');
+  if (!qualityBtn.length) {
+    qualityBtn = $(`<button id="youtubeQuality" class="control-button" style="background-color: rgba(50, 50, 50, 0.9); color: white; border: 1px solid rgba(100, 100, 255, 0.5); padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-left: 10px; position: relative; z-index: 1001;">Quality: Auto</button>`);
     $('#baseVideoControls').append(qualityBtn);
-    qualityBtn.on('click', function(e) { e.stopPropagation(); toggleQualityMenu(); });
-    if (!$('#qualityMenuStyle').length) {
-      $('head').append(`<style id="qualityMenuStyle">.quality-menu { position: absolute; bottom: 50px; right: 10px; background-color: rgba(0, 0, 0, 0.9); border-radius: 4px; padding: 10px; z-index: 9999; display: flex; flex-direction: column; gap: 5px; min-width: 180px; border: 1px solid rgba(100, 100, 255, 0.3); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.7); } .quality-option { background-color: rgba(50, 50, 50, 0.8); color: white; border: none; padding: 8px 12px; cursor: pointer; text-align: left; border-radius: 3px; transition: background-color 0.2s; font-size: 13px; } .quality-option:hover { background-color: rgba(80, 80, 80, 0.9); } .quality-option.active { background-color: rgba(60, 60, 180, 0.6); font-weight: bold; }</style>`);
-    }
-    setTimeout(() => {
-      if (baseYoutubePlayer && typeof baseYoutubePlayer.getAvailableQualityLevels === 'function') {
-        try { setHighestQuality(baseYoutubePlayer, false); } catch (e) { console.error('Error setting initial quality:', e); }
-      }
-    }, 2000);
   }
+  qualityBtn.off('click').on('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleQualityMenu();
+  });
+  if (!$('#qualityMenuStyle').length) {
+    $('head').append(`<style id="qualityMenuStyle">.quality-menu { position: fixed; background-color: rgba(0, 0, 0, 0.92); border-radius: 6px; padding: 12px 10px; z-index: 9999; display: none; flex-direction: column; gap: 6px; min-width: 180px; border: 1px solid rgba(100, 100, 255, 0.25); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6); } .quality-option { background-color: rgba(50, 50, 50, 0.85); color: white; border: none; padding: 8px 12px; cursor: pointer; text-align: left; border-radius: 4px; transition: background-color 0.2s; font-size: 13px; } .quality-option:hover { background-color: rgba(80, 80, 80, 0.9); } .quality-option.active { background-color: rgba(60, 60, 180, 0.6); font-weight: bold; } .quality-empty { color: rgba(255,255,255,0.7); text-align: center; font-size: 12px; padding: 6px; }</style>`);
+  }
+  qualityMenuAnchor = qualityBtn;
+  setupQualityMenu();
 }
 
 function toggleQualityMenu() {
-  const menu = $('.quality-menu');
-  if (menu.length) {
-    menu.is(':visible') ? menu.hide() : (updateQualityMenu(), menu.show());
-  } else {
-    setupQualityMenu(); $('.quality-menu').show();
+  const anchor = qualityMenuAnchor && qualityMenuAnchor.length ? qualityMenuAnchor : $('#youtubeQuality');
+  if (!anchor.length) return;
+  const existing = $('.quality-menu');
+  if (existing.length && existing.is(':visible')) {
+    existing.remove();
+    return;
   }
+  const context = resolveQualityContext();
+  if (!context) {
+    console.warn('Quality menu unavailable: no YouTube player ready');
+    return;
+  }
+  qualityMenuTarget = context.key;
+  renderQualityMenu(context, anchor);
 }
 
 function setupQualityMenu() {
-  $('.quality-menu').remove();
-  const qualityMenu = $('<div class="quality-menu"></div>');
-  if (!baseYoutubePlayer || typeof baseYoutubePlayer.getAvailableQualityLevels !== 'function') {
-    console.error('Cannot setup quality menu - Invalid base player'); return;
+  bindQualityMenuEvents();
+  const context = resolveQualityContext();
+  if (context && context.player && typeof context.player.getPlaybackQuality === 'function') {
+    qualityMenuTarget = context.key;
+    updateQualityButtonLabel(context.player.getPlaybackQuality(), context.key);
+  } else {
+    updateQualityButtonLabel('auto', 'base');
   }
-  try {
-    const availableQualities = baseYoutubePlayer.getAvailableQualityLevels();
-    const currentQuality = baseYoutubePlayer.getPlaybackQuality();
-    const allQualities = ['auto', 'highres', 'hd2160', 'hd1440', 'hd1080', 'hd720', 'large', 'medium', 'small', 'tiny'];
-    let availableQualitiesCount = 0;
-    for (const quality of allQualities) {
-      if (quality !== 'auto' && !availableQualities.includes(quality)) continue;
-      availableQualitiesCount++;
-      const isActive = quality === currentQuality || (quality === 'auto' && currentQuality === 'default');
-      const option = $(`<button class="quality-option ${isActive ? 'active' : ''}" data-quality="${quality}">${qualityLabels[quality] || quality}</button>`);
-      option.on('click', function(e) {
-        e.stopPropagation(); const selectedQuality = $(this).data('quality');
-        if (baseYoutubePlayer && typeof baseYoutubePlayer.setPlaybackQuality === 'function') {
-          baseYoutubePlayer.setPlaybackQuality(selectedQuality === 'auto' ? 'default' : selectedQuality);
-          $('#youtubeQuality').text(`Quality: ${qualityLabels[selectedQuality] || selectedQuality}`);
-          $('.quality-option').removeClass('active'); $(this).addClass('active');
-        }
-        $('.quality-menu').hide();
-      });
-      qualityMenu.append(option);
-    }
-    if (availableQualitiesCount === 0) { qualityMenu.append($('<div style="color:white;padding:10px;text-align:center;">No quality options available</div>')); }
-    qualityMenu.append('<hr style="border-color: rgba(255,255,255,0.2); margin: 5px 0;">');
-    const closeButton = $('<button class="quality-option">Close</button>');
-    closeButton.on('click', function(e) { e.stopPropagation(); $('.quality-menu').hide(); });
-    qualityMenu.append(closeButton);
-    document.body.appendChild(qualityMenu[0]);
-    const positionMenu = () => {
-      const qualityButton = $('#youtubeQuality');
-      if (qualityButton.length) {
-        const buttonPos = qualityButton.offset();
-        if (buttonPos) { $(qualityMenu).css({ 'position': 'absolute', 'bottom': (window.innerHeight - buttonPos.top) + 'px', 'left': buttonPos.left + 'px', 'z-index': '10000', 'display': 'none', 'min-width': '200px' }); }
-      }
-    };
-    positionMenu(); $(window).on('resize', positionMenu);
-    $(document).on('click', function(e) { if (!$(e.target).closest('#youtubeQuality').length && !$(e.target).closest('.quality-menu').length) { $('.quality-menu').hide(); } });
-  } catch (e) { console.error('Error setting up quality menu:', e); }
 }
 
 function updateQualityMenu() {
   try {
-    if (!baseYoutubePlayer || typeof baseYoutubePlayer.getPlaybackQuality !== 'function') { return; }
-    const currentQuality = baseYoutubePlayer.getPlaybackQuality();
+    const menu = $('.quality-menu');
+    if (!menu.length) return;
+    const context = resolveQualityContext();
+    if (!context || !context.player || typeof context.player.getPlaybackQuality !== 'function') return;
+    const currentQuality = normalizeQualityValue(context.player.getPlaybackQuality());
     $('.quality-option').removeClass('active');
     $(`.quality-option[data-quality="${currentQuality}"]`).addClass('active');
-    if (currentQuality === 'default') { $('.quality-option[data-quality="auto"]').addClass('active'); }
   } catch (e) { console.error('Error updating quality menu:', e); }
+}
+
+function resolveQualityContext() {
+  const contexts = [];
+  if (isBaseYoutubeVideo && baseYoutubePlayer && typeof baseYoutubePlayer.getAvailableQualityLevels === 'function') {
+    contexts.push({ player: baseYoutubePlayer, key: 'base' });
+  }
+  if (isReactYoutubeVideo && reactYoutubePlayer && typeof reactYoutubePlayer.getAvailableQualityLevels === 'function') {
+    contexts.push({ player: reactYoutubePlayer, key: 'react' });
+  }
+  if (!contexts.length) return null;
+  const preferred = contexts.find(ctx => ctx.key === qualityMenuTarget);
+  return preferred || contexts[0];
+}
+
+function renderQualityMenu(context, anchor) {
+  try {
+    $('.quality-menu').remove();
+    if (!context || !context.player || typeof context.player.getAvailableQualityLevels !== 'function') return null;
+    const menu = $('<div class="quality-menu"></div>');
+    const levels = context.player.getAvailableQualityLevels() || [];
+    const options = buildQualityOptions(levels);
+    const currentQuality = normalizeQualityValue(context.player.getPlaybackQuality ? context.player.getPlaybackQuality() : 'default');
+    if (!options.length) {
+      menu.append('<div class="quality-empty">No quality options available</div>');
+    } else {
+      options.forEach((quality) => {
+        const labelKey = quality === 'auto' ? 'auto' : quality;
+        const option = $(`<button class="quality-option${quality === currentQuality ? ' active' : ''}" data-quality="${quality}">${qualityLabels[labelKey] || labelKey}</button>`);
+        option.on('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          applyQualitySelection(context, quality);
+          $('.quality-menu').remove();
+        });
+        menu.append(option);
+      });
+    }
+    $('body').append(menu);
+    qualityMenuAnchor = anchor;
+    menu.css('display', 'flex');
+    positionQualityMenu(menu, anchor);
+    bindQualityMenuEvents();
+    updateQualityButtonLabel(currentQuality, context.key);
+    return menu;
+  } catch (e) {
+    console.error('Error rendering quality menu:', e);
+    return null;
+  }
+}
+
+function buildQualityOptions(levels) {
+  const available = Array.isArray(levels) ? levels.slice() : [];
+  const unique = Array.from(new Set(available));
+  const ordered = [];
+  if (unique.includes('default') || unique.includes('auto') || unique.length) { ordered.push('auto'); }
+  const preference = ['highres', 'hd2160', 'hd1440', 'hd1080', 'hd720', 'large', 'medium', 'small', 'tiny'];
+  preference.forEach((quality) => {
+    if (unique.includes(quality)) ordered.push(quality);
+  });
+  const filtered = Array.from(new Set(ordered));
+  return filtered;
+}
+
+function applyQualitySelection(context, quality) {
+  try {
+    if (!context || !context.player || typeof context.player.setPlaybackQuality !== 'function') return;
+    const targetQuality = quality === 'auto' ? 'default' : quality;
+    context.player.setPlaybackQuality(targetQuality);
+    updateQualityButtonLabel(targetQuality, context.key);
+    setTimeout(() => {
+      try {
+        const resolved = normalizeQualityValue(context.player.getPlaybackQuality ? context.player.getPlaybackQuality() : targetQuality);
+        updateQualityButtonLabel(resolved, context.key);
+      } catch (innerErr) { console.error('Error confirming quality selection:', innerErr); }
+    }, 250);
+  } catch (e) { console.error('Error applying quality selection:', e); }
+}
+
+function updateQualityButtonLabel(quality, targetKey) {
+  const button = $('#youtubeQuality');
+  if (!button.length) return;
+  const normalized = normalizeQualityValue(quality);
+  const label = qualityLabels[normalized === 'auto' ? 'auto' : normalized] || normalized;
+  const suffix = targetKey === 'react' ? ' (React)' : '';
+  button.text(`Quality: ${label}${suffix}`);
+}
+
+function positionQualityMenu(menu, anchor) {
+  if (!menu || !menu.length || !anchor || !anchor.length) return;
+  const rect = anchor[0].getBoundingClientRect();
+  const menuWidth = menu.outerWidth();
+  const menuHeight = menu.outerHeight();
+  let top = rect.top - menuHeight - 8;
+  if (top < 8) top = rect.bottom + 8;
+  let left = rect.left;
+  const maxLeft = window.innerWidth - menuWidth - 8;
+  if (left > maxLeft) left = maxLeft;
+  if (left < 8) left = 8;
+  menu.css({ top: `${top}px`, left: `${left}px` });
+}
+
+function bindQualityMenuEvents() {
+  if (qualityMenuBound) return;
+  qualityMenuBound = true;
+  $(document).on('click.ytQuality', function(e) {
+    if (!$(e.target).closest('#youtubeQuality').length && !$(e.target).closest('.quality-menu').length) {
+      $('.quality-menu').remove();
+    }
+  });
+  $(window).on('resize.ytQuality', function() {
+    const menu = $('.quality-menu');
+    const anchor = qualityMenuAnchor && qualityMenuAnchor.length ? qualityMenuAnchor : $('#youtubeQuality');
+    if (menu.length && anchor.length) {
+      positionQualityMenu(menu, anchor);
+    }
+  });
+}
+
+function normalizeQualityValue(value) {
+  if (!value) return 'auto';
+  return value === 'default' ? 'auto' : value;
 }
 
 function handleYouTubeError(errorCode, isReaction = false) {
@@ -296,7 +398,8 @@ function onYoutubeStateChange(event, isReaction = false) {
 
 function onQualityChange(event) {
   const newQuality = event.data;
-  $('#youtubeQuality').text(`Quality: ${qualityLabels[newQuality] || newQuality}`); // Ensure button has text property for Quality:
+  const targetKey = event && event.target === reactYoutubePlayer ? 'react' : 'base';
+  updateQualityButtonLabel(newQuality, targetKey);
   updateQualityMenu();
 }
 
