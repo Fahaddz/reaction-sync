@@ -136,16 +136,19 @@ function setHighestQuality(player, isReaction) {
 function createQualityButton() {
   let qualityBtn = $('#youtubeQuality');
   if (!qualityBtn.length) {
-    qualityBtn = $(`<button id="youtubeQuality" class="control-button" style="background-color: rgba(50, 50, 50, 0.9); color: white; border: 1px solid rgba(100, 100, 255, 0.5); padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-left: 10px; position: relative; z-index: 1001;">Quality: Auto</button>`);
+    qualityBtn = $(`<button id="youtubeQuality" class="control-button" style="background-color: rgba(50, 50, 50, 0.9); color: white; border: 1px solid rgba(100, 100, 255, 0.5); padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-left: 10px; position: relative; z-index: 1001; pointer-events: auto;">Quality: Auto</button>`);
     $('#baseVideoControls').append(qualityBtn);
   }
+  qualityBtn.css({'pointer-events': 'auto', 'z-index': '1001', 'position': 'relative'});
   qualityBtn.off('click').on('click', function(e) {
     e.preventDefault();
     e.stopPropagation();
+    e.stopImmediatePropagation();
     toggleQualityMenu();
+    return false;
   });
   if (!$('#qualityMenuStyle').length) {
-    $('head').append(`<style id="qualityMenuStyle">.quality-menu { position: fixed; background-color: rgba(0, 0, 0, 0.92); border-radius: 6px; padding: 12px 10px; z-index: 9999; display: none; flex-direction: column; gap: 6px; min-width: 180px; border: 1px solid rgba(100, 100, 255, 0.25); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6); } .quality-option { background-color: rgba(50, 50, 50, 0.85); color: white; border: none; padding: 8px 12px; cursor: pointer; text-align: left; border-radius: 4px; transition: background-color 0.2s; font-size: 13px; } .quality-option:hover { background-color: rgba(80, 80, 80, 0.9); } .quality-option.active { background-color: rgba(60, 60, 180, 0.6); font-weight: bold; } .quality-empty { color: rgba(255,255,255,0.7); text-align: center; font-size: 12px; padding: 6px; }</style>`);
+    $('head').append(`<style id="qualityMenuStyle">.quality-menu { position: fixed; background-color: rgba(0, 0, 0, 0.92); border-radius: 6px; padding: 12px 10px; z-index: 10000; display: none; flex-direction: column; gap: 6px; min-width: 180px; border: 1px solid rgba(100, 100, 255, 0.25); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6); pointer-events: auto; } .quality-option { background-color: rgba(50, 50, 50, 0.85); color: white; border: none; padding: 8px 12px; cursor: pointer; text-align: left; border-radius: 4px; transition: background-color 0.2s; font-size: 13px; pointer-events: auto; } .quality-option:hover { background-color: rgba(80, 80, 80, 0.9); } .quality-option.active { background-color: rgba(60, 60, 180, 0.6); font-weight: bold; } .quality-empty { color: rgba(255,255,255,0.7); text-align: center; font-size: 12px; padding: 6px; }</style>`);
   }
   qualityMenuAnchor = qualityBtn;
   setupQualityMenu();
@@ -218,11 +221,14 @@ function renderQualityMenu(context, anchor) {
       options.forEach((quality) => {
         const labelKey = quality === 'auto' ? 'auto' : quality;
         const option = $(`<button class="quality-option${quality === currentQuality ? ' active' : ''}" data-quality="${quality}">${qualityLabels[labelKey] || labelKey}</button>`);
+        option.css({'pointer-events': 'auto', 'cursor': 'pointer'});
         option.on('click', function(e) {
           e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation();
           applyQualitySelection(context, quality);
           $('.quality-menu').remove();
+          return false;
         });
         menu.append(option);
       });

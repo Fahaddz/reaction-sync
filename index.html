@@ -185,7 +185,7 @@
       #delayControls { display: inline-flex; align-items: center; gap: 4px; min-width: 128px; justify-content: center; position: relative; }
       #delayControls button { flex: 0 0 auto; }
       .delayLabel { color: #b0b0b0; font-size: 9px; }
-      #delay { width: 74px; display: inline-flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.7); padding: 4px 0; border-radius: 20px; font-size: 10px; font-family: 'Courier New', monospace; color: #e0e0e0; }
+      #delay { width: 78px; min-width: 78px; max-width: 78px; display: inline-flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.7); padding: 4px 0; border-radius: 20px; font-size: 10px; font-family: 'Courier New', monospace; color: #e0e0e0; flex-shrink: 0; }
       #timeRange, #timeRangeBase, #ReactVol, #BaseVol { display: none; }
       input, button { cursor: pointer; }
       input[type="range"] { appearance: none; margin-right: 15px; background: transparent; border-radius: 5px; height: 12px; overflow: hidden; outline: none; position: relative; z-index: 1000; pointer-events: all !important; }
@@ -204,9 +204,9 @@
       #baseVideoControls #basePlayPause { margin-left: 0; margin-right: 0; }
       #baseVideoControls button { position: relative; z-index: 1000; transform: translateZ(0); will-change: transform; }
       #baseVideoControls #baseVolumeSlider { width: 80px; margin-left: 15px; }
-      #youtubeQuality { background-color: rgba(0, 0, 0, 0.5); color: white; border: 1px solid rgba(255, 255, 255, 0.3); padding: 5px 10px; margin-left: 10px; border-radius: 3px; cursor: pointer; position: relative; }
-      .quality-menu { position: fixed; background: rgba(0, 0, 0, 0.92); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; display: none; flex-direction: column; width: 180px; max-height: 260px; overflow-y: auto; z-index: 1300; padding: 12px 10px; box-shadow: 0 12px 24px rgba(0, 0, 0, 0.55); gap: 6px; }
-      .quality-option { padding: 8px 12px; color: white; background: rgba(50, 50, 50, 0.85); border: none; text-align: left; cursor: pointer; transition: background 0.2s; font-size: 13px; border-radius: 4px; }
+      #youtubeQuality { background-color: rgba(0, 0, 0, 0.5); color: white; border: 1px solid rgba(255, 255, 255, 0.3); padding: 5px 10px; margin-left: 10px; border-radius: 3px; cursor: pointer; position: relative; pointer-events: auto !important; z-index: 1001 !important; }
+      .quality-menu { position: fixed; background: rgba(0, 0, 0, 0.92); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; display: none; flex-direction: column; width: 180px; max-height: 260px; overflow-y: auto; z-index: 10000 !important; padding: 12px 10px; box-shadow: 0 12px 24px rgba(0, 0, 0, 0.55); gap: 6px; pointer-events: auto !important; }
+      .quality-option { padding: 8px 12px; color: white; background: rgba(50, 50, 50, 0.85); border: none; text-align: left; cursor: pointer; transition: background 0.2s; font-size: 13px; border-radius: 4px; pointer-events: auto !important; }
       .quality-option:hover { background-color: rgba(80, 80, 80, 0.9); }
       .quality-option.active { background-color: rgba(60, 60, 180, 0.6); font-weight: bold; }
       .quality-empty { color: rgba(255, 255, 255, 0.7); text-align: center; font-size: 12px; padding: 6px; }
@@ -619,7 +619,7 @@
         <button id="increaseDelayBtn" class="compact-btn ultra-compact" title="Make reaction video play later">+</button>
       </div>
       
-      <button id="youtubeQuality" class="compact-btn ultra-compact" title="Change YouTube video quality">Q</button>
+      <button id="youtubeQuality" class="compact-btn ultra-compact" title="Change YouTube video quality" style="pointer-events: auto !important; z-index: 1001;">Q</button>
       <div id="baseTimeDisplay" class="compact-time" title="Current time / Total duration">0:00/0:00</div>
       <button id="addSubBtn" class="compact-btn ultra-compact" title="Load subtitle file (.srt format)">CC</button>
       
