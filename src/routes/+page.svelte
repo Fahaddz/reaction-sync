@@ -614,12 +614,11 @@
   async function loadLastRecordVideos(record: any) {
     if (!record) return;
     
-    if (record.delay != null) {
-      setDelay(record.delay);
-    }
+    const savedDelay = record.delay ?? 0;
+    setDelay(savedDelay);
     
-    const baseLoaded = { done: false };
-    const reactLoaded = { done: false };
+    let basePlayer: YT.Player | null = null;
+    let reactPlayer: YT.Player | null = null;
     
     if (record.baseMeta) {
       const meta = record.baseMeta;
@@ -628,29 +627,12 @@
         if (videoId) {
           await waitForYouTubeAPI();
           try {
-            const player = await initializePlayer(videoId, false, null);
+            basePlayer = await initializePlayer(videoId, false, null);
             baseMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
-            baseId = sigForYouTube(player);
-            loadBase(null, player, baseMeta, 'youtube');
-            await new Promise(resolve => setTimeout(resolve, 500));
-            const startTime = record.baseTime || 0;
-            player.loadVideoById({ videoId: videoId, startSeconds: startTime });
-            let attempts = 0;
-            while (attempts < 20) {
-              await new Promise(resolve => setTimeout(resolve, 200));
-              const duration = getYTDuration(player);
-              if (duration > 0) {
-                pauseVideo(player);
-                baseLoaded.done = true;
-                break;
-              }
-              attempts++;
-            }
-            if (!baseLoaded.done) {
-              baseLoaded.done = true;
-            }
+            baseId = sigForYouTube(basePlayer);
+            loadBase(null, basePlayer, baseMeta, 'youtube');
           } catch (e) {
-            alert('Failed to load base YouTube video. Please try again.');
+            alert('Failed to load base YouTube video: ' + e);
             return;
           }
         }
@@ -667,7 +649,6 @@
             const metadata = { ...meta, originalUrl: sourceUrl, resolvedUrl: resolved, type: source, source };
             baseMeta = metadata;
             loadBase(baseVideoElement, null, metadata, source);
-            baseLoaded.done = true;
           }
         }
       }
@@ -680,29 +661,12 @@
         if (videoId) {
           await waitForYouTubeAPI();
           try {
-            const player = await initializePlayer(videoId, true, null);
+            reactPlayer = await initializePlayer(videoId, true, null);
             reactMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
-            reactId = sigForYouTube(player);
-            loadReact(reactVideoElement, player, reactMeta, 'youtube');
-            await new Promise(resolve => setTimeout(resolve, 500));
-            const startTime = (record.baseTime || 0) + (record.delay || 0);
-            player.loadVideoById({ videoId: videoId, startSeconds: startTime });
-            let attempts = 0;
-            while (attempts < 20) {
-              await new Promise(resolve => setTimeout(resolve, 200));
-              const duration = getYTDuration(player);
-              if (duration > 0) {
-                pauseVideo(player);
-                reactLoaded.done = true;
-                break;
-              }
-              attempts++;
-            }
-            if (!reactLoaded.done) {
-              reactLoaded.done = true;
-            }
+            reactId = sigForYouTube(reactPlayer);
+            loadReact(reactVideoElement, reactPlayer, reactMeta, 'youtube');
           } catch (e) {
-            alert('Failed to load reaction YouTube video. Please try again.');
+            alert('Failed to load react YouTube video: ' + e);
             return;
           }
         }
@@ -719,19 +683,43 @@
             const metadata = { ...meta, originalUrl: sourceUrl, resolvedUrl: resolved, type: source, source };
             reactMeta = metadata;
             loadReact(reactVideoElement, null, metadata, source);
-            reactLoaded.done = true;
           }
         }
       }
     }
     
-    applyPosition(record.pos);
-    applyVolume('base', record.baseVol, 500);
-    applyVolume('react', record.reactVol, 500);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    if (baseLoaded.done && reactLoaded.done) {
-      scheduleResume(record.baseTime, 1000);
+    if (basePlayer) {
+      try {
+        basePlayer.loadVideoById({ videoId: record.baseMeta.videoId || record.baseMeta.id.replace(/^yt:/, ''), startSeconds: record.baseTime || 0 });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (e) {
+        console.error('Error loading base video:', e);
+      }
     }
+    
+    if (reactPlayer) {
+      try {
+        const reactStartTime = (record.baseTime || 0) + savedDelay;
+        reactPlayer.loadVideoById({ videoId: record.reactMeta.videoId || record.reactMeta.id.replace(/^yt:/, ''), startSeconds: reactStartTime });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (e) {
+        console.error('Error loading react video:', e);
+      }
+    }
+    
+    setDelay(savedDelay);
+    applyPosition(record.pos);
+    applyVolume('base', record.baseVol, 100);
+    applyVolume('react', record.reactVol, 100);
+    
+    setTimeout(() => {
+      syncState.update(s => ({ ...s, isSynced: true, delay: savedDelay }));
+      startSyncLoop();
+      if (basePlayer) pauseVideo(basePlayer);
+      if (reactPlayer) pauseVideo(reactPlayer);
+    }, 1500);
   }
 
   function handleClearSaved() {
