@@ -584,7 +584,7 @@
   function handleSave() {
     const baseVol = $baseVideo.volume;
     const reactVol = $reactVideo.volume;
-    const success = saveNow(baseId, reactId, baseMeta, reactMeta, $syncState.delay, getBaseCurrentTime(), baseVol, reactVol);
+    const success = saveNow(baseId, reactId, baseMeta, reactMeta, $syncState.delay, getBaseCurrentTime(), getReactCurrentTime(), baseVol, reactVol);
     if (success) {
       alert('Progress saved successfully!');
     } else {
@@ -613,128 +613,43 @@
   
   async function loadLastRecordVideos(record: any) {
     if (!record) return;
-    
+
     const savedDelay = record.delay ?? 0;
     const savedBaseTime = record.baseTime ?? 0;
-    
-    console.log('Loading with saved delay:', savedDelay, 'base time:', savedBaseTime);
+    const savedReactTime = record.reactTime ?? savedBaseTime + savedDelay;
+
     setDelay(savedDelay);
-    
-    let basePlayer: YT.Player | null = null;
-    let reactPlayer: YT.Player | null = null;
-    let baseVideoId = '';
-    let reactVideoId = '';
-    
-    if (record.baseMeta) {
-      const meta = record.baseMeta;
-      if (meta.type === 'youtube') {
-        baseVideoId = meta.videoId || (meta.id && typeof meta.id === 'string' ? meta.id.replace(/^yt:/, '') : '');
-        if (baseVideoId) {
-          await waitForYouTubeAPI();
-          try {
-            basePlayer = await initializePlayer(baseVideoId, false, null);
-            baseMeta = { ...meta, videoId: baseVideoId, originalUrl: meta.originalUrl || meta.url };
-            baseId = sigForYouTube(basePlayer);
-            loadBase(null, basePlayer, baseMeta, 'youtube');
-          } catch (e) {
-            alert('Failed to load base YouTube video: ' + e);
-            return;
-          }
-        }
-      } else if (meta.type === 'direct' || meta.type === 'realdebrid' || meta.type === 'hls') {
-        const sourceUrl = meta.originalUrl || meta.url || meta.resolvedUrl;
-        if (sourceUrl) {
-          baseId = sigForUrl(sourceUrl);
-          if (!baseVideoElement) {
-            baseVideoElement = document.querySelector('#baseVideo') as HTMLVideoElement;
-          }
-          if (baseVideoElement) {
-            const resolved = await loadDirectLink(baseVideoElement, sourceUrl);
-            const source = urlSource(sourceUrl, resolved);
-            const metadata = { ...meta, originalUrl: sourceUrl, resolvedUrl: resolved, type: source, source };
-            baseMeta = metadata;
-            loadBase(baseVideoElement, null, metadata, source);
-          }
-        }
+
+    let baseReady = false;
+    let reactReady = false;
+
+    if (record.baseMeta && record.baseMeta.type) {
+      if (record.baseMeta.type === 'youtube') {
+        const player = await loadSavedYouTube('base', record.baseMeta, savedBaseTime);
+        baseReady = !!player;
+      } else if (record.baseMeta.type !== 'local') {
+        const element = await loadSavedRemote('base', record.baseMeta, savedBaseTime);
+        baseReady = !!element;
       }
     }
-    
-    if (record.reactMeta) {
-      const meta = record.reactMeta;
-      if (meta.type === 'youtube') {
-        reactVideoId = meta.videoId || (meta.id && typeof meta.id === 'string' ? meta.id.replace(/^yt:/, '') : '');
-        if (reactVideoId) {
-          await waitForYouTubeAPI();
-          try {
-            reactPlayer = await initializePlayer(reactVideoId, true, null);
-            reactMeta = { ...meta, videoId: reactVideoId, originalUrl: meta.originalUrl || meta.url };
-            reactId = sigForYouTube(reactPlayer);
-            loadReact(reactVideoElement, reactPlayer, reactMeta, 'youtube');
-          } catch (e) {
-            alert('Failed to load react YouTube video: ' + e);
-            return;
-          }
-        }
-      } else if (meta.type === 'direct' || meta.type === 'realdebrid' || meta.type === 'hls') {
-        const sourceUrl = meta.originalUrl || meta.url || meta.resolvedUrl;
-        if (sourceUrl) {
-          reactId = sigForUrl(sourceUrl);
-          if (!reactVideoElement) {
-            reactVideoElement = document.querySelector('#reactVideo') as HTMLVideoElement;
-          }
-          if (reactVideoElement) {
-            const resolved = await loadDirectLink(reactVideoElement, sourceUrl);
-            const source = urlSource(sourceUrl, resolved);
-            const metadata = { ...meta, originalUrl: sourceUrl, resolvedUrl: resolved, type: source, source };
-            reactMeta = metadata;
-            loadReact(reactVideoElement, null, metadata, source);
-          }
-        }
+
+    if (record.reactMeta && record.reactMeta.type) {
+      if (record.reactMeta.type === 'youtube') {
+        const player = await loadSavedYouTube('react', record.reactMeta, savedReactTime);
+        reactReady = !!player;
+      } else if (record.reactMeta.type !== 'local') {
+        const element = await loadSavedRemote('react', record.reactMeta, savedReactTime);
+        reactReady = !!element;
       }
     }
-    
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    if (basePlayer && baseVideoId) {
-      console.log('Loading base YouTube video at time:', savedBaseTime);
-      try {
-        basePlayer.loadVideoById({ videoId: baseVideoId, startSeconds: savedBaseTime });
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        pauseVideo(basePlayer);
-      } catch (e) {
-        console.error('Error loading base video:', e);
-        alert('Failed to load base video at saved position');
-      }
-    } else if (baseVideoElement) {
-      seek(baseVideoElement, savedBaseTime);
-    }
-    
-    if (reactPlayer && reactVideoId) {
-      const reactStartTime = savedBaseTime + savedDelay;
-      console.log('Loading react YouTube video at time:', reactStartTime, '(base:', savedBaseTime, '+ delay:', savedDelay, ')');
-      try {
-        reactPlayer.loadVideoById({ videoId: reactVideoId, startSeconds: reactStartTime });
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        pauseVideo(reactPlayer);
-      } catch (e) {
-        console.error('Error loading react video:', e);
-        alert('Failed to load react video at saved position');
-      }
-    } else if (reactVideoElement) {
-      seek(reactVideoElement, savedBaseTime + savedDelay);
-    }
-    
-    console.log('Setting final delay to:', savedDelay);
-    setDelay(savedDelay);
+
     applyPosition(record.pos);
     applyVolume('base', record.baseVol, 100);
     applyVolume('react', record.reactVol, 100);
-    
-    setTimeout(() => {
-      console.log('Enabling sync with delay:', savedDelay);
-      syncState.update(s => ({ ...s, isSynced: true, delay: savedDelay }));
-      startSyncLoop();
-    }, 500);
+
+    if (baseReady && reactReady) {
+      applySavedState(record);
+    }
   }
 
   function handleClearSaved() {
@@ -906,6 +821,7 @@
       reactMeta,
       delay: $syncState.delay,
       baseTime: getBaseCurrentTime(),
+      reactTime: getReactCurrentTime(),
       baseVol: $baseVideo.volume,
       reactVol: $reactVideo.volume
     }));
@@ -929,6 +845,139 @@
       seekingTimeout = null;
     }
   });
+
+  function wait(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function waitForPlayerDuration(player: YT.Player, timeoutMs = 8000): Promise<boolean> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      try {
+        const duration = player.getDuration();
+        if (duration && duration > 0) return true;
+      } catch {}
+      await wait(200);
+    }
+    return false;
+  }
+
+  async function waitForElementReady(element: HTMLVideoElement, timeoutMs = 8000): Promise<boolean> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (element.readyState >= 2) return true;
+      await wait(200);
+    }
+    return false;
+  }
+
+  function getVideoIdFromMeta(meta: any): string | null {
+    if (!meta) return null;
+    if (typeof meta.videoId === 'string' && meta.videoId) return meta.videoId;
+    if (typeof meta.id === 'string' && meta.id.startsWith('yt:')) return meta.id.slice(3);
+    if (typeof meta.originalUrl === 'string') {
+      const id = getYoutubeId(meta.originalUrl);
+      if (id) return id;
+    }
+    if (typeof meta.url === 'string') {
+      const id = getYoutubeId(meta.url);
+      if (id) return id;
+    }
+    return null;
+  }
+
+  async function loadSavedYouTube(target: 'base' | 'react', meta: any, startTime: number): Promise<YT.Player | null> {
+    const videoId = getVideoIdFromMeta(meta);
+    if (!videoId) {
+      alert(`Saved YouTube video information is missing for ${target}. Please re-select the video.`);
+      return null;
+    }
+    await waitForYouTubeAPI();
+    const isReaction = target === 'react';
+    const player = await initializePlayer(videoId, isReaction, null);
+    const normalizedMeta = { ...meta, videoId, originalUrl: meta?.originalUrl ?? meta?.url ?? `https://youtu.be/${videoId}` };
+    if (target === 'base') {
+      baseMeta = normalizedMeta;
+      baseId = sigForYouTube(player);
+      loadBase(null, player, normalizedMeta, 'youtube');
+    } else {
+      reactMeta = normalizedMeta;
+      reactId = sigForYouTube(player);
+      loadReact(reactVideoElement, player, normalizedMeta, 'youtube');
+    }
+    const gotDuration = await waitForPlayerDuration(player);
+    if (!gotDuration) {
+      alert(`Failed to load YouTube video for ${target}. The video might be unavailable. Please re-select it.`);
+    }
+    try {
+      player.loadVideoById({ videoId, startSeconds: Math.max(0, startTime) });
+      await wait(500);
+      player.pauseVideo();
+      player.seekTo(Math.max(0, startTime), true);
+    } catch (e) {
+      console.error('Error preparing YouTube video', target, e);
+    }
+    return player;
+  }
+
+  async function loadSavedRemote(target: 'base' | 'react', meta: any, startTime: number): Promise<HTMLVideoElement | null> {
+    const sourceUrl = meta?.resolvedUrl || meta?.originalUrl || meta?.url;
+    if (!sourceUrl) {
+      alert(`Saved video link is missing for ${target}. Please re-select the video.`);
+      return null;
+    }
+    const element = target === 'base' ? (baseVideoElement ?? document.querySelector('#baseVideo') as HTMLVideoElement | null)
+                                      : (reactVideoElement ?? document.querySelector('#reactVideo') as HTMLVideoElement | null);
+    if (!element) {
+      alert(`Video element for ${target} not found.`);
+      return null;
+    }
+    try {
+      const resolved = await loadDirectLink(element, sourceUrl);
+      const source = urlSource(sourceUrl, resolved);
+      const normalizedMeta = { ...meta, originalUrl: sourceUrl, resolvedUrl: resolved, type: source, source };
+      if (target === 'base') {
+        baseMeta = normalizedMeta;
+        baseId = sigForUrl(sourceUrl);
+        loadBase(element, null, normalizedMeta, source);
+        baseVideoElement = element;
+      } else {
+        reactMeta = normalizedMeta;
+        reactId = sigForUrl(sourceUrl);
+        loadReact(element, null, normalizedMeta, source);
+        reactVideoElement = element;
+      }
+      await waitForElementReady(element);
+      seek(element, Math.max(0, startTime));
+      pause(element);
+    } catch (e) {
+      console.error('Failed to load remote video', target, e);
+      alert(`Failed to load saved video link for ${target}. Please re-select the video.`);
+      return null;
+    }
+    return element;
+  }
+
+  function applySavedState(record: any) {
+    if (!record) return;
+    const savedDelay = record.delay ?? 0;
+    const savedBaseTime = record.baseTime ?? 0;
+    const savedReactTime = record.reactTime ?? savedBaseTime + savedDelay;
+
+    setDelay(savedDelay);
+    applyPosition(record.pos);
+    applyVolume('base', record.baseVol, 100);
+    applyVolume('react', record.reactVol, 100);
+
+    enableSync(savedBaseTime, savedReactTime);
+    syncState.update(s => ({ ...s, isSeeking: false, seekingSource: null }));
+    startSyncLoop();
+
+    seekBase(savedBaseTime);
+    setTimeout(() => {
+      seekReact(savedReactTime);
+    }, 150);
+  }
 </script>
 
 <svelte:window on:resize={() => {}} />
@@ -999,11 +1048,8 @@
         await handleBaseSourceSelect('local');
         if (record) {
           setTimeout(() => {
-            applyPosition(record.pos);
-            applyVolume('base', record.baseVol, 500);
-            applyVolume('react', record.reactVol, 500);
-            scheduleResume(record.baseTime, 1000);
-          }, 500);
+            applySavedState(record);
+          }, 600);
           showLoadLastPrompt = false;
           loadLastRecord = null;
         }
@@ -1016,11 +1062,8 @@
         await handleReactSourceSelect('local');
         if (record) {
           setTimeout(() => {
-            applyPosition(record.pos);
-            applyVolume('base', record.baseVol, 500);
-            applyVolume('react', record.reactVol, 500);
-            scheduleResume(record.baseTime, 1000);
-          }, 500);
+            applySavedState(record);
+          }, 600);
           showLoadLastPrompt = false;
           loadLastRecord = null;
         }

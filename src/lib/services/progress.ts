@@ -137,6 +137,7 @@ export function saveNow(
   reactMeta: any,
   delay: number,
   baseTime: number,
+  reactTime: number | null,
   baseVol: number | null,
   reactVol: number | null
 ): boolean {
@@ -151,9 +152,11 @@ export function saveNow(
       reactMeta,
       delay,
       baseTime,
+      reactTime,
       pos: getPos(),
       baseVol: isFinite(baseVol ?? NaN) ? baseVol : null,
-      reactVol: isFinite(reactVol ?? NaN) ? reactVol : null
+      reactVol: isFinite(reactVol ?? NaN) ? reactVol : null,
+      version: 2
     };
     writePair(k, obj);
     return true;
@@ -172,6 +175,7 @@ export function startAutoSave(
     reactMeta: any;
     delay: number;
     baseTime: number;
+    reactTime: number | null;
     baseVol: number | null;
     reactVol: number | null;
   }
@@ -186,6 +190,7 @@ export function startAutoSave(
       state.reactMeta,
       state.delay,
       state.baseTime,
+      state.reactTime,
       state.baseVol,
       state.reactVol
     );

@@ -7,9 +7,11 @@ export interface ProgressRecord {
   reactMeta: VideoMetadata | null;
   delay: number;
   baseTime: number;
+  reactTime: number | null;
   pos: { l: number; t: number; w: number; h: number } | null;
   baseVol: number | null;
   reactVol: number | null;
+  version?: number;
 }
 
 export interface ProgressIndexEntry {
