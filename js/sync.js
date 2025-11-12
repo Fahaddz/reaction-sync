@@ -16,6 +16,7 @@ function getSyncInterval(){const i=getSyncThreshold()*1000;return Math.min(1000,
 const SEEK_COOLDOWN = 800;
 const DELAY_ADJUSTMENT = 0.1;
 const DEBUG = new URLSearchParams(window.location.search).get('debug') === 'true';
+const DRIFT_RETRY_LIMIT = 3;
 
 let syncIntervalId = null;
 let lastInteractionTime = 0;
@@ -24,6 +25,9 @@ let isSeeking = false;
 let seekingSource = null;
 let lastBaseYTTime = 0;
 let lastReactYTTime = 0;
+let driftRetryCount = 0;
+let lastDriftDirection = 0;
+let pendingSyncCheck = null;
 
 function updateStatus(msg){const e=document.getElementById('syncStatus');if(e)e.textContent=msg;}
 
@@ -94,7 +98,7 @@ function initSync(baseYT, reactYT, isBaseYT, isReactYT) {
         e.preventDefault();
         e.stopPropagation();
       }
-      if (e.target && e.target.id === 'forceResyncButton') { syncVideos(true); updateStatus('Force re-syncing'); setTimeout(()=>updateStatus(''),1000); e.preventDefault(); e.stopPropagation(); }
+      if (e.target && e.target.id === 'forceResyncButton') { forceResyncToReaction(); e.preventDefault(); e.stopPropagation(); }
       if (e.target && (e.target.id === 'desyncButton' ||
           e.target.parentElement && e.target.parentElement.id === 'desyncButton')) {
         disableSync();
@@ -278,10 +282,6 @@ window.syncNow = syncNow;
 
 function setDelay(delay, shouldSeek = false) {
   try {
-    let oldBaseTime = 0, oldReactTime = 0;
-    try { oldBaseTime = getBaseCurrentTime(); } catch (e) { console.warn('Error getting base time in setDelay:', e); }
-    try { oldReactTime = getReactCurrentTime(); } catch (e) { console.warn('Error getting reaction time in setDelay:', e); }
-
     const parsedDelay = parseFloat(delay);
     delay = !isNaN(parsedDelay) ? parsedDelay : 0;
     delay = Math.max(-300, Math.min(300, delay));
@@ -313,16 +313,15 @@ function setDelay(delay, shouldSeek = false) {
 
     if (shouldSeek) {
       markUserInteraction();
-      setTimeout(() => {
+      if (isVideosSynced) {
         try {
-          const targetReactTime = oldBaseTime + videoReactDelay;
-          if (isFinite(targetReactTime) && targetReactTime >= 0) {
-            seekReact(targetReactTime, true);
-          } else {
-            console.warn('Invalid target reaction time calculated:', targetReactTime);
-          }
+          const baseTime = getBaseCurrentTime();
+          const targetReactTime = Math.max(0, baseTime + videoReactDelay);
+          seekReact(targetReactTime, true);
+          updateReactUI(targetReactTime);
+          queueSyncVerification(140);
         } catch (seekErr) { console.error('Error during position adjustment after delay change:', seekErr); }
-      }, 50);
+      }
     }
     return true;
   } catch (e) {
@@ -703,6 +702,7 @@ function syncSeek(sourceIsBase, targetTime) {
     if (sourceIsBase) { seekBase(targetTime, false); } else { seekReact(targetTime, false); }
   }
   clearSeekingAfterDelay();
+  queueSyncVerification(160);
 }
 
 function updateBaseUI(time = null) {
@@ -797,6 +797,7 @@ function syncVideos(force = false) {
     const timeDifference = Math.abs(reactTime - targetReactTime);
     const canPerformTimeSync = !isSeeking && (!isUserInteracting || force);
     const needsTimeSyncDueToDrift = baseIsPlaying && reactIsPlaying && timeDifference > getSyncThreshold();
+    if (timeDifference <= getSyncThreshold() * 0.6) { driftRetryCount = 0; lastDriftDirection = 0; }
     
     if (DEBUG) {
       console.log('SyncVideos:', {
@@ -817,13 +818,75 @@ function syncVideos(force = false) {
       try {
         updateStatus('Correcting drift');
         markSeeking('sync');
+        const driftDirection = Math.sign(targetReactTime - reactTime);
+        if (force) { driftRetryCount = 0; lastDriftDirection = 0; }
+        else if (driftDirection !== 0) {
+          if (driftDirection !== lastDriftDirection) { driftRetryCount = 0; lastDriftDirection = driftDirection; }
+          if (driftRetryCount < DRIFT_RETRY_LIMIT + 1) driftRetryCount++;
+        }
         const adjustment = force ? targetReactTime : reactTime + (targetReactTime - reactTime) * 0.5;
         seekReact(adjustment, true);
+        queueSyncVerification(force ? 90 : 140, false);
+        if (!force && driftRetryCount >= DRIFT_RETRY_LIMIT && timeDifference > getSyncThreshold() * 1.5) {
+          try {
+            const fallbackBase = Math.max(0, reactTime - videoReactDelay);
+            seekBase(fallbackBase, true);
+            queueSyncVerification(160);
+          } catch (baseErr) { console.error('Error during base fallback drift correction:', baseErr); }
+          driftRetryCount = 0;
+          lastDriftDirection = 0;
+        }
         setTimeout(() => updateStatus(''), 500);
       } catch (e) { console.error('Error enforcing drift correction in syncVideos:', e); }
     }
     updateUIElements();
   } catch (e) { console.error('Error during sync operation:', e); clearSeeking(); }
+}
+
+function forceResyncToReaction() {
+  try {
+    if (!areVideosReady()) { updateStatus('Waiting for videos'); setTimeout(() => updateStatus(''), 800); return false; }
+    const reactTime = getReactCurrentTime();
+    const targetBase = Math.max(0, reactTime - videoReactDelay);
+    const basePlaying = isBasePlaying();
+    const reactPlaying = isReactPlaying();
+    markSeeking('force');
+    seekBase(targetBase, true);
+    updateBaseUI(targetBase);
+    if (isVideosSynced) {
+      const expectedReact = targetBase + videoReactDelay;
+      if (Math.abs(getReactCurrentTime() - expectedReact) > getSyncThreshold()) seekReact(expectedReact, true);
+    }
+    if (reactPlaying && !basePlaying) playBase(true);
+    if (!reactPlaying && basePlaying) pauseBase(true);
+    clearSeekingAfterDelay();
+    queueSyncVerification(90);
+    updateStatus('Force re-syncing');
+    setTimeout(() => updateStatus(''), 700);
+    return true;
+  } catch (e) {
+    console.error('Error forcing resync:', e);
+    updateStatus('Force re-sync failed');
+    setTimeout(() => updateStatus(''), 1000);
+    clearSeeking();
+    return false;
+  }
+}
+
+function queueSyncVerification(delay = 120, shouldForce = true) {
+  try {
+    if (pendingSyncCheck) { clearTimeout(pendingSyncCheck); }
+    pendingSyncCheck = setTimeout(() => {
+      pendingSyncCheck = null;
+      if (isVideosSynced) {
+        try { syncVideos(shouldForce); } catch (e) { console.error('Error during queued sync verification:', e); }
+      }
+    }, Math.max(40, delay));
+    return true;
+  } catch (e) {
+    console.error('Error scheduling sync verification:', e);
+    return false;
+  }
 }
 
 function startSyncLoop() {
@@ -852,8 +915,12 @@ function startSyncLoop() {
 
 function stopSyncLoop() {
   try {
-    if (syncIntervalId) { clearInterval(syncIntervalId); syncIntervalId = null; return true; }
-    return false;
+    const hadInterval = !!syncIntervalId;
+    if (syncIntervalId) { clearInterval(syncIntervalId); syncIntervalId = null; }
+    if (pendingSyncCheck) { clearTimeout(pendingSyncCheck); pendingSyncCheck = null; }
+    driftRetryCount = 0;
+    lastDriftDirection = 0;
+    return hadInterval;
   } catch (e) { console.error('Error stopping sync loop:', e); return false; }
 }
 
@@ -909,7 +976,7 @@ function markSeeking(source) {
 
 function clearSeekingAfterDelay() {
   if (window.seekingClearTimeout) { clearTimeout(window.seekingClearTimeout); }
-  window.seekingClearTimeout = setTimeout(() => { clearSeeking(); syncVideos(true); }, SEEK_COOLDOWN);
+  window.seekingClearTimeout = setTimeout(() => { clearSeeking(); queueSyncVerification(40); }, SEEK_COOLDOWN);
 }
 
 function clearSeeking() {
@@ -929,7 +996,7 @@ export {
   playBase, pauseBase, playReact, pauseReact, seekBase, seekReact,
   syncPlay, syncPause, syncSeek,
   updateBaseUI, updateReactUI, updatePlayPauseButtons, updateUIElements,
-  syncVideos, startSyncLoop, stopSyncLoop,
+  syncVideos, startSyncLoop, stopSyncLoop, forceResyncToReaction,
   markUserInteraction, markSeeking, clearSeeking, clearSeekingAfterDelay,
   isVideosSynced, videoReactDelay
 };
