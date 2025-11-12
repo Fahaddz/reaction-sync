@@ -182,7 +182,10 @@
       .ui-resizable:not(#videoReactContainer) { cursor: default !important; }
       #videoReactContainer .ui-resizable-se { cursor: se-resize !important; }
       #BottomBar { position: absolute; bottom: 45px; left: 0; right: 0; color: rgba(255, 255, 255, 0.8); padding: 5px 0; text-align: center; }
-      #delay { min-width: 60px; text-align: center; background: rgba(0, 0, 0, 0.7); padding: 5px 15px; border-radius: 20px; }
+      #delayControls { display: inline-flex; align-items: center; gap: 4px; min-width: 128px; justify-content: center; position: relative; }
+      #delayControls button { flex: 0 0 auto; }
+      .delayLabel { color: #b0b0b0; font-size: 9px; }
+      #delay { width: 74px; display: inline-flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.7); padding: 4px 0; border-radius: 20px; font-size: 10px; font-family: 'Courier New', monospace; color: #e0e0e0; }
       #timeRange, #timeRangeBase, #ReactVol, #BaseVol { display: none; }
       input, button { cursor: pointer; }
       input[type="range"] { appearance: none; margin-right: 15px; background: transparent; border-radius: 5px; height: 12px; overflow: hidden; outline: none; position: relative; z-index: 1000; pointer-events: all !important; }
@@ -202,10 +205,11 @@
       #baseVideoControls button { position: relative; z-index: 1000; transform: translateZ(0); will-change: transform; }
       #baseVideoControls #baseVolumeSlider { width: 80px; margin-left: 15px; }
       #youtubeQuality { background-color: rgba(0, 0, 0, 0.5); color: white; border: 1px solid rgba(255, 255, 255, 0.3); padding: 5px 10px; margin-left: 10px; border-radius: 3px; cursor: pointer; position: relative; }
-      .quality-menu { position: absolute; bottom: 40px; right: 0; background-color: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 5px; display: flex; flex-direction: column; width: 150px; max-height: 300px; overflow-y: auto; z-index: 1000; }
-      .quality-option { padding: 8px 12px; color: white; background: transparent; border: none; text-align: left; cursor: pointer; transition: background 0.2s; font-size: 14px; }
-      .quality-option:hover { background-color: rgba(255, 255, 255, 0.1); }
-      .quality-option.active { background-color: rgba(255, 0, 0, 0.3); }
+      .quality-menu { position: fixed; background: rgba(0, 0, 0, 0.92); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; display: none; flex-direction: column; width: 180px; max-height: 260px; overflow-y: auto; z-index: 1300; padding: 12px 10px; box-shadow: 0 12px 24px rgba(0, 0, 0, 0.55); gap: 6px; }
+      .quality-option { padding: 8px 12px; color: white; background: rgba(50, 50, 50, 0.85); border: none; text-align: left; cursor: pointer; transition: background 0.2s; font-size: 13px; border-radius: 4px; }
+      .quality-option:hover { background-color: rgba(80, 80, 80, 0.9); }
+      .quality-option.active { background-color: rgba(60, 60, 180, 0.6); font-weight: bold; }
+      .quality-empty { color: rgba(255, 255, 255, 0.7); text-align: center; font-size: 12px; padding: 6px; }
       body:hover #baseVideoControls { opacity: 1; }
       #baseSeekBar { flex: 2; margin: 0 10px; height: 4px; }
       
@@ -502,79 +506,72 @@
     </style>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-        let delayInterval = null;
-        let isHolding = false;
+        let holdDirection = 0;
         let holdStartTime = 0;
-        
-        function adjustDelay(direction) {
-          if (typeof window.setDelay === 'function' && typeof window.videoReactDelay === 'number') {
-            const currentDelay = window.videoReactDelay;
-            let increment = 0.1;
-            
-            // Speed up after holding for 1 second
-            if (isHolding && (Date.now() - holdStartTime) > 1000) {
-              increment = 0.5; // Faster increment when holding
-            } else if (isHolding && (Date.now() - holdStartTime) > 2000) {
-              increment = 1.0; // Even faster after 2 seconds
-            }
-            
-            const change = direction * increment;
-            const newDelay = Math.max(-300, Math.min(300, currentDelay + change));
-            window.setDelay(parseFloat(newDelay.toFixed(1)), true);
-          } else {
-            console.error('setDelay function or videoReactDelay not available');
+        let holdFrame = null;
+        let lastStepTime = 0;
+
+        function adjustDelay(direction, elapsed) {
+          if (typeof window.setDelay !== 'function') return;
+          const currentDelay = typeof window.videoReactDelay === 'number' ? window.videoReactDelay : 0;
+          let increment = 0.1;
+          if (elapsed > 2000) {
+            increment = 1.0;
+          } else if (elapsed > 1000) {
+            increment = 0.5;
           }
+          const next = Math.max(-300, Math.min(300, currentDelay + direction * increment));
+          window.setDelay(parseFloat(next.toFixed(1)), true);
         }
-        
+
+        function tick(now) {
+          if (!holdDirection) return;
+          if (!lastStepTime) lastStepTime = now;
+          if ((now - lastStepTime) >= 80) {
+            adjustDelay(holdDirection, now - holdStartTime);
+            lastStepTime = now;
+          }
+          holdFrame = requestAnimationFrame(tick);
+        }
+
         function startHolding(direction) {
-          isHolding = true;
-          holdStartTime = Date.now();
-          adjustDelay(direction); // Initial click
-          
-          delayInterval = setInterval(() => {
-            adjustDelay(direction);
-          }, 100); // Repeat every 100ms while holding
+          if (holdDirection === direction) return;
+          holdDirection = direction;
+          holdStartTime = performance.now();
+          lastStepTime = 0;
+          adjustDelay(direction, 0);
+          if (holdFrame) cancelAnimationFrame(holdFrame);
+          holdFrame = requestAnimationFrame(tick);
         }
-        
+
         function stopHolding() {
-          isHolding = false;
-          if (delayInterval) {
-            clearInterval(delayInterval);
-            delayInterval = null;
+          holdDirection = 0;
+          lastStepTime = 0;
+          if (holdFrame) {
+            cancelAnimationFrame(holdFrame);
+            holdFrame = null;
           }
         }
-        
-        // Decrease delay button
+
         const decreaseBtn = document.getElementById('decreaseDelayBtn');
         decreaseBtn.addEventListener('mousedown', () => startHolding(-1));
         decreaseBtn.addEventListener('mouseup', stopHolding);
         decreaseBtn.addEventListener('mouseleave', stopHolding);
-        decreaseBtn.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          startHolding(-1);
-        });
-        decreaseBtn.addEventListener('touchend', (e) => {
-          e.preventDefault();
-          stopHolding();
-        });
-        
-        // Increase delay button
+        decreaseBtn.addEventListener('touchstart', function(e) { e.preventDefault(); startHolding(-1); });
+        decreaseBtn.addEventListener('touchend', function(e) { e.preventDefault(); stopHolding(); });
+        decreaseBtn.addEventListener('touchcancel', stopHolding);
+
         const increaseBtn = document.getElementById('increaseDelayBtn');
         increaseBtn.addEventListener('mousedown', () => startHolding(1));
         increaseBtn.addEventListener('mouseup', stopHolding);
         increaseBtn.addEventListener('mouseleave', stopHolding);
-        increaseBtn.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          startHolding(1);
-        });
-        increaseBtn.addEventListener('touchend', (e) => {
-          e.preventDefault();
-          stopHolding();
-        });
-        
-        // Ensure cleanup if user releases anywhere
+        increaseBtn.addEventListener('touchstart', function(e) { e.preventDefault(); startHolding(1); });
+        increaseBtn.addEventListener('touchend', function(e) { e.preventDefault(); stopHolding(); });
+        increaseBtn.addEventListener('touchcancel', stopHolding);
+
         document.addEventListener('mouseup', stopHolding);
         document.addEventListener('touchend', stopHolding);
+        document.addEventListener('touchcancel', stopHolding);
       });
     </script>
   </head>
@@ -614,11 +611,11 @@
       <input type="range" id="baseSeekBar" min="0" max="100" value="0" step="any" title="Drag to jump to any time in the main video">
       
       <!-- Ultra-compact delay controls -->
-      <div style="display: flex; align-items: center; gap: 2px;">
-        <span style="color: #b0b0b0; font-size: 9px;">D:</span>
+      <div id="delayControls">
+        <span class="delayLabel">D:</span>
         <button id="decreaseDelayBtn" class="compact-btn ultra-compact" title="Make reaction video play earlier">-</button>
-        <span id="delay" style="color: #e0e0e0; min-width: 45px; text-align: center; font-size: 9px; font-family: 'Courier New', monospace;" title="Time difference between videos">?</span>
-        <span id="delayValue" style="display: none;">0.0</span>
+        <span id="delay" title="Time difference between videos">?</span>
+        <span id="delayValue" hidden>0.0</span>
         <button id="increaseDelayBtn" class="compact-btn ultra-compact" title="Make reaction video play later">+</button>
       </div>
       
