@@ -615,20 +615,25 @@
     if (!record) return;
     
     const savedDelay = record.delay ?? 0;
+    const savedBaseTime = record.baseTime ?? 0;
+    
+    console.log('Loading with saved delay:', savedDelay, 'base time:', savedBaseTime);
     setDelay(savedDelay);
     
     let basePlayer: YT.Player | null = null;
     let reactPlayer: YT.Player | null = null;
+    let baseVideoId = '';
+    let reactVideoId = '';
     
     if (record.baseMeta) {
       const meta = record.baseMeta;
       if (meta.type === 'youtube') {
-        const videoId = meta.videoId || (typeof meta.id === 'string' ? meta.id.replace(/^yt:/, '') : null);
-        if (videoId) {
+        baseVideoId = meta.videoId || (meta.id && typeof meta.id === 'string' ? meta.id.replace(/^yt:/, '') : '');
+        if (baseVideoId) {
           await waitForYouTubeAPI();
           try {
-            basePlayer = await initializePlayer(videoId, false, null);
-            baseMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
+            basePlayer = await initializePlayer(baseVideoId, false, null);
+            baseMeta = { ...meta, videoId: baseVideoId, originalUrl: meta.originalUrl || meta.url };
             baseId = sigForYouTube(basePlayer);
             loadBase(null, basePlayer, baseMeta, 'youtube');
           } catch (e) {
@@ -657,12 +662,12 @@
     if (record.reactMeta) {
       const meta = record.reactMeta;
       if (meta.type === 'youtube') {
-        const videoId = meta.videoId || (typeof meta.id === 'string' ? meta.id.replace(/^yt:/, '') : null);
-        if (videoId) {
+        reactVideoId = meta.videoId || (meta.id && typeof meta.id === 'string' ? meta.id.replace(/^yt:/, '') : '');
+        if (reactVideoId) {
           await waitForYouTubeAPI();
           try {
-            reactPlayer = await initializePlayer(videoId, true, null);
-            reactMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
+            reactPlayer = await initializePlayer(reactVideoId, true, null);
+            reactMeta = { ...meta, videoId: reactVideoId, originalUrl: meta.originalUrl || meta.url };
             reactId = sigForYouTube(reactPlayer);
             loadReact(reactVideoElement, reactPlayer, reactMeta, 'youtube');
           } catch (e) {
@@ -688,38 +693,48 @@
       }
     }
     
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    if (basePlayer) {
+    if (basePlayer && baseVideoId) {
+      console.log('Loading base YouTube video at time:', savedBaseTime);
       try {
-        basePlayer.loadVideoById({ videoId: record.baseMeta.videoId || record.baseMeta.id.replace(/^yt:/, ''), startSeconds: record.baseTime || 0 });
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        basePlayer.loadVideoById({ videoId: baseVideoId, startSeconds: savedBaseTime });
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        pauseVideo(basePlayer);
       } catch (e) {
         console.error('Error loading base video:', e);
+        alert('Failed to load base video at saved position');
       }
+    } else if (baseVideoElement) {
+      seek(baseVideoElement, savedBaseTime);
     }
     
-    if (reactPlayer) {
+    if (reactPlayer && reactVideoId) {
+      const reactStartTime = savedBaseTime + savedDelay;
+      console.log('Loading react YouTube video at time:', reactStartTime, '(base:', savedBaseTime, '+ delay:', savedDelay, ')');
       try {
-        const reactStartTime = (record.baseTime || 0) + savedDelay;
-        reactPlayer.loadVideoById({ videoId: record.reactMeta.videoId || record.reactMeta.id.replace(/^yt:/, ''), startSeconds: reactStartTime });
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        reactPlayer.loadVideoById({ videoId: reactVideoId, startSeconds: reactStartTime });
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        pauseVideo(reactPlayer);
       } catch (e) {
         console.error('Error loading react video:', e);
+        alert('Failed to load react video at saved position');
       }
+    } else if (reactVideoElement) {
+      seek(reactVideoElement, savedBaseTime + savedDelay);
     }
     
+    console.log('Setting final delay to:', savedDelay);
     setDelay(savedDelay);
     applyPosition(record.pos);
     applyVolume('base', record.baseVol, 100);
     applyVolume('react', record.reactVol, 100);
     
     setTimeout(() => {
+      console.log('Enabling sync with delay:', savedDelay);
       syncState.update(s => ({ ...s, isSynced: true, delay: savedDelay }));
       startSyncLoop();
-      if (basePlayer) pauseVideo(basePlayer);
-      if (reactPlayer) pauseVideo(reactPlayer);
-    }, 1500);
+    }, 500);
   }
 
   function handleClearSaved() {
