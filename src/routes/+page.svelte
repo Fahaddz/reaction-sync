@@ -628,16 +628,19 @@
         if (videoId) {
           await waitForYouTubeAPI();
           try {
-            const startTime = record.baseTime || 0;
-            const player = await initializePlayer(videoId, false, startTime);
+            const player = await initializePlayer(videoId, false, null);
             baseMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
             baseId = sigForYouTube(player);
             loadBase(null, player, baseMeta, 'youtube');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const startTime = record.baseTime || 0;
+            player.loadVideoById({ videoId: videoId, startSeconds: startTime });
             let attempts = 0;
             while (attempts < 20) {
               await new Promise(resolve => setTimeout(resolve, 200));
               const duration = getYTDuration(player);
               if (duration > 0) {
+                pauseVideo(player);
                 baseLoaded.done = true;
                 break;
               }
@@ -677,16 +680,19 @@
         if (videoId) {
           await waitForYouTubeAPI();
           try {
-            const startTime = (record.baseTime || 0) + (record.delay || 0);
-            const player = await initializePlayer(videoId, true, startTime);
+            const player = await initializePlayer(videoId, true, null);
             reactMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
             reactId = sigForYouTube(player);
             loadReact(reactVideoElement, player, reactMeta, 'youtube');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const startTime = (record.baseTime || 0) + (record.delay || 0);
+            player.loadVideoById({ videoId: videoId, startSeconds: startTime });
             let attempts = 0;
             while (attempts < 20) {
               await new Promise(resolve => setTimeout(resolve, 200));
               const duration = getYTDuration(player);
               if (duration > 0) {
+                pauseVideo(player);
                 reactLoaded.done = true;
                 break;
               }
@@ -720,11 +726,11 @@
     }
     
     applyPosition(record.pos);
-    applyVolume('base', record.baseVol, 1000);
-    applyVolume('react', record.reactVol, 1000);
+    applyVolume('base', record.baseVol, 500);
+    applyVolume('react', record.reactVol, 500);
     
     if (baseLoaded.done && reactLoaded.done) {
-      scheduleResume(record.baseTime, 2000);
+      scheduleResume(record.baseTime, 1000);
     }
   }
 

@@ -108,11 +108,6 @@ export function initializePlayer(videoId: string, isReaction: boolean, startSeco
               baseRetryCount = 0;
               baseInitializing = false;
             }
-            if (startSeconds != null && isFinite(startSeconds) && startSeconds >= 0) {
-              try {
-                player.loadVideoById({ videoId: videoId, startSeconds: startSeconds });
-              } catch (e) {}
-            }
             resolve(event.target);
           },
           onStateChange: (event) => {
