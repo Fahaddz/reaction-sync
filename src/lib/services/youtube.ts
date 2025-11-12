@@ -110,7 +110,7 @@ export function initializePlayer(videoId: string, isReaction: boolean, startSeco
             }
             if (startSeconds != null && isFinite(startSeconds) && startSeconds >= 0) {
               try {
-                player.cueVideoById({ videoId: videoId, startSeconds: startSeconds });
+                player.loadVideoById({ videoId: videoId, startSeconds: startSeconds });
               } catch (e) {}
             }
             resolve(event.target);

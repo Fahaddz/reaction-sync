@@ -442,9 +442,7 @@
       }
       markSeeking('resume');
       syncSeek(true, time);
-      const baseTime = getBaseCurrentTime();
-      const reactTime = getReactCurrentTime();
-      enableSync(baseTime, reactTime);
+      syncState.update(s => ({ ...s, isSynced: true }));
       startSyncLoop();
       setTimeout(clearSeeking, 600);
     }, delay);
@@ -635,12 +633,17 @@
             baseMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
             baseId = sigForYouTube(player);
             loadBase(null, player, baseMeta, 'youtube');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const duration = getYTDuration(player);
-            if (duration > 0) {
-              baseLoaded.done = true;
-            } else {
-              await new Promise(resolve => setTimeout(resolve, 1000));
+            let attempts = 0;
+            while (attempts < 20) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+              const duration = getYTDuration(player);
+              if (duration > 0) {
+                baseLoaded.done = true;
+                break;
+              }
+              attempts++;
+            }
+            if (!baseLoaded.done) {
               baseLoaded.done = true;
             }
           } catch (e) {
@@ -679,12 +682,17 @@
             reactMeta = { ...meta, videoId, originalUrl: meta.originalUrl || meta.url };
             reactId = sigForYouTube(player);
             loadReact(reactVideoElement, player, reactMeta, 'youtube');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const duration = getYTDuration(player);
-            if (duration > 0) {
-              reactLoaded.done = true;
-            } else {
-              await new Promise(resolve => setTimeout(resolve, 1000));
+            let attempts = 0;
+            while (attempts < 20) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+              const duration = getYTDuration(player);
+              if (duration > 0) {
+                reactLoaded.done = true;
+                break;
+              }
+              attempts++;
+            }
+            if (!reactLoaded.done) {
               reactLoaded.done = true;
             }
           } catch (e) {

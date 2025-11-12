@@ -72,6 +72,8 @@ declare namespace YT {
     destroy(): void;
     addEventListener(event: string, listener: (event: any) => void): void;
     removeEventListener(event: string, listener: (event: any) => void): void;
+    cueVideoById(options: CueVideoByIdOptions): void;
+    loadVideoById(options: CueVideoByIdOptions): void;
     iframe?: HTMLIFrameElement;
   }
 }
