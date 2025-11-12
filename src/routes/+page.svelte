@@ -905,20 +905,30 @@
       reactId = sigForYouTube(player);
       loadReact(reactVideoElement, player, normalizedMeta, 'youtube');
     }
+    let loaded = false;
     try {
       player.loadVideoById({ videoId, startSeconds: Math.max(0, startTime) });
+      loaded = true;
     } catch (e) {
       console.warn('loadVideoById failed, trying cueVideoById', e);
       try {
         player.cueVideoById({ videoId, startSeconds: Math.max(0, startTime) });
+        loaded = true;
       } catch (err) {
         console.error('cueVideoById also failed', err);
         alert(`Failed to prepare YouTube video for ${target}. Please re-select the video.`);
         return player;
       }
     }
-    await wait(500);
-    const gotDuration = await waitForPlayerDuration(player);
+    if (loaded) {
+      await wait(300);
+      try {
+        player.playVideo();
+      } catch (e) {
+        console.warn('playVideo failed (likely autoplay blocked)', e);
+      }
+    }
+    const gotDuration = await waitForPlayerDuration(player, 12000);
     if (!gotDuration) {
       alert(`Failed to load YouTube video for ${target}. The video might be unavailable. Please re-select it.`);
     }
