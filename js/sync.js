@@ -31,8 +31,18 @@ let pendingSyncCheck = null;
 let lastSyncedBaseTime = 0;
 let lastSyncedReactTime = 0;
 let postSeekVerifyCount = 0;
+let _syncClickListenerAdded = false;
 
 function updateStatus(msg){const e=document.getElementById('syncStatus');if(e)e.textContent=msg;}
+
+function updateSyncHealth(state) {
+  const dot = document.getElementById('syncHealthDot');
+  if (!dot) return;
+  dot.className = '';
+  if (state === 'healthy') dot.classList.add('healthy');
+  else if (state === 'correcting') dot.classList.add('correcting');
+  else if (state === 'drifting') dot.classList.add('drifting');
+}
 
 function initSync(baseYT, reactYT, isBaseYT, isReactYT) {
   try {
@@ -94,21 +104,24 @@ function initSync(baseYT, reactYT, isBaseYT, isReactYT) {
     updateSyncIndicator(false);
     $("#delay").css("color", "white").text("?");
 
-    document.addEventListener('click', function(e) {
-      if (e.target && (e.target.id === 'syncButton' ||
-          e.target.parentElement && e.target.parentElement.id === 'syncButton')) {
-        syncNow();
-        e.preventDefault();
-        e.stopPropagation();
-      }
-      if (e.target && e.target.id === 'forceResyncButton') { forceResyncToReaction(); e.preventDefault(); e.stopPropagation(); }
-      if (e.target && (e.target.id === 'desyncButton' ||
-          e.target.parentElement && e.target.parentElement.id === 'desyncButton')) {
-        disableSync();
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }, true);
+    if (!_syncClickListenerAdded) {
+      _syncClickListenerAdded = true;
+      document.addEventListener('click', function(e) {
+        if (e.target && (e.target.id === 'syncButton' ||
+            e.target.parentElement && e.target.parentElement.id === 'syncButton')) {
+          syncNow();
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        if (e.target && e.target.id === 'forceResyncButton') { forceResyncToReaction(); e.preventDefault(); e.stopPropagation(); }
+        if (e.target && (e.target.id === 'desyncButton' ||
+            e.target.parentElement && e.target.parentElement.id === 'desyncButton')) {
+          disableSync();
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, true);
+    }
 
     setupKeyboardShortcuts();
     updateUIElements();
@@ -256,6 +269,7 @@ function syncNow() {
     setDelay(calculatedDelay, false);
 
     updateSyncIndicator(true);
+    updateSyncHealth('healthy');
     updateUIElements();
     isVideosSynced = true;
     window.isVideosSynced = true;
@@ -330,6 +344,7 @@ function disableSync() {
     window.isVideosSynced = false;
     $("#delay").css("color", "white").text("?");
     updateSyncIndicator(false);
+    updateSyncHealth('');
     return true;
   } catch (e) {
     console.error("Error disabling sync:", e);
@@ -823,7 +838,9 @@ function syncVideos(force = false) {
     const canPerformTimeSync = !isSeeking && (!isUserInteracting || force);
     const needsTimeSyncDueToDrift = baseIsPlaying && reactIsPlaying && timeDifference > syncThreshold;
     const significantDrift = timeDifference > syncThreshold * 2;
-    if (timeDifference <= syncThreshold * 0.5) { driftRetryCount = 0; lastDriftDirection = 0; postSeekVerifyCount = 0; }
+    if (timeDifference <= syncThreshold * 0.5) { driftRetryCount = 0; lastDriftDirection = 0; postSeekVerifyCount = 0; updateSyncHealth('healthy'); }
+    else if (significantDrift) { updateSyncHealth('drifting'); }
+    else if (needsTimeSyncDueToDrift) { updateSyncHealth('correcting'); }
     
     if (DEBUG) {
       console.log('SyncVideos:', {

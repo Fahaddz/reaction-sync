@@ -12,22 +12,18 @@ function setupCustomDrag() {
   const dragHandle = document.getElementById('reactDragHandle');
 
   if (!container || !dragHandle) {
-    console.error('Container or drag handle not found for custom drag');
     return;
   }
 
   if ($(container).hasClass('ui-draggable')) {
-    try {
-      $(container).draggable('destroy');
-    } catch (e) {
-      console.error('Error destroying jQuery UI draggable:', e);
-    }
+    try { $(container).draggable('destroy'); } catch (e) {}
   }
 
   let isDragging = false;
   let startX, startY, startLeft, startTop;
 
   dragHandle.addEventListener('mousedown', initDrag);
+  dragHandle.addEventListener('touchstart', initTouchDrag, { passive: false });
 
   function initDrag(e) {
     e.preventDefault();
@@ -41,6 +37,20 @@ function setupCustomDrag() {
     document.addEventListener('mouseup', stopDrag);
   }
 
+  function initTouchDrag(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!e.touches || !e.touches[0]) return;
+    isDragging = true;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    startLeft = parseInt(container.style.left) || parseInt($(container).css('left')) || 0;
+    startTop = parseInt(container.style.top) || parseInt($(container).css('top')) || 0;
+    document.addEventListener('touchmove', dragContainerTouch, { passive: false });
+    document.addEventListener('touchend', stopTouchDrag);
+    document.addEventListener('touchcancel', stopTouchDrag);
+  }
+
   function dragContainer(e) {
     if (!isDragging) return;
     const newLeft = startLeft + (e.clientX - startX);
@@ -51,10 +61,28 @@ function setupCustomDrag() {
     container.style.top = `${Math.max(0, Math.min(newTop, maxTop))}px`;
   }
 
+  function dragContainerTouch(e) {
+    if (!isDragging || !e.touches || !e.touches[0]) return;
+    e.preventDefault();
+    const newLeft = startLeft + (e.touches[0].clientX - startX);
+    const newTop = startTop + (e.touches[0].clientY - startY);
+    const maxLeft = window.innerWidth - container.offsetWidth;
+    const maxTop = window.innerHeight - container.offsetHeight;
+    container.style.left = `${Math.max(0, Math.min(newLeft, maxLeft))}px`;
+    container.style.top = `${Math.max(0, Math.min(newTop, maxTop))}px`;
+  }
+
   function stopDrag() {
     isDragging = false;
     document.removeEventListener('mousemove', dragContainer);
     document.removeEventListener('mouseup', stopDrag);
+  }
+
+  function stopTouchDrag() {
+    isDragging = false;
+    document.removeEventListener('touchmove', dragContainerTouch);
+    document.removeEventListener('touchend', stopTouchDrag);
+    document.removeEventListener('touchcancel', stopTouchDrag);
   }
 }
 
@@ -86,6 +114,7 @@ function setupCustomResize() {
   let startX, startY, startWidth, startHeight;
 
   resizeHandle.addEventListener('mousedown', initResize);
+  resizeHandle.addEventListener('touchstart', initTouchResize, { passive: false });
 
   function initResize(e) {
     e.preventDefault();
@@ -100,6 +129,21 @@ function setupCustomResize() {
     document.addEventListener('mouseup', stopResize);
   }
 
+  function initTouchResize(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!e.touches || !e.touches[0]) return;
+    container.classList.add('resizing');
+    isResizing = true;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    startWidth = container.offsetWidth;
+    startHeight = container.offsetHeight;
+    document.addEventListener('touchmove', resizeContainerTouch, { passive: false });
+    document.addEventListener('touchend', stopTouchResize);
+    document.addEventListener('touchcancel', stopTouchResize);
+  }
+
   function resizeContainer(e) {
     if (!isResizing) return;
     const width = Math.max(200, startWidth + (e.clientX - startX));
@@ -107,13 +151,23 @@ function setupCustomResize() {
     const height = Math.round(width / aspectRatio);
     container.style.width = `${width}px`;
     container.style.height = `${height}px`;
-
     if (window.isReactYoutubeVideo && window.reactYoutubePlayer) {
-      try {
-        window.reactYoutubePlayer.setSize(width, height - 40);
-      } catch (err) {
-        console.error("YouTube resize error during custom resize:", err);
-      }
+      try { window.reactYoutubePlayer.setSize(width, height - 40); } catch (err) {}
+    } else {
+      $("#videoReact").css({ width: "100%", height: "100%" });
+    }
+  }
+
+  function resizeContainerTouch(e) {
+    if (!isResizing || !e.touches || !e.touches[0]) return;
+    e.preventDefault();
+    const width = Math.max(200, startWidth + (e.touches[0].clientX - startX));
+    const aspectRatio = 16 / 9;
+    const height = Math.round(width / aspectRatio);
+    container.style.width = `${width}px`;
+    container.style.height = `${height}px`;
+    if (window.isReactYoutubeVideo && window.reactYoutubePlayer) {
+      try { window.reactYoutubePlayer.setSize(width, height - 40); } catch (err) {}
     } else {
       $("#videoReact").css({ width: "100%", height: "100%" });
     }
@@ -125,14 +179,23 @@ function setupCustomResize() {
     container.classList.remove('resizing');
     document.removeEventListener('mousemove', resizeContainer);
     document.removeEventListener('mouseup', stopResize);
-
     if (window.isReactYoutubeVideo && window.reactYoutubePlayer) {
       setTimeout(function() {
-        try {
-          window.reactYoutubePlayer.setSize(container.offsetWidth, container.offsetHeight - 40);
-        } catch (err) {
-          console.error("YouTube final resize error after custom resize:", err);
-        }
+        try { window.reactYoutubePlayer.setSize(container.offsetWidth, container.offsetHeight - 40); } catch (err) {}
+      }, 100);
+    }
+  }
+
+  function stopTouchResize() {
+    if (!isResizing) return;
+    isResizing = false;
+    container.classList.remove('resizing');
+    document.removeEventListener('touchmove', resizeContainerTouch);
+    document.removeEventListener('touchend', stopTouchResize);
+    document.removeEventListener('touchcancel', stopTouchResize);
+    if (window.isReactYoutubeVideo && window.reactYoutubePlayer) {
+      setTimeout(function() {
+        try { window.reactYoutubePlayer.setSize(container.offsetWidth, container.offsetHeight - 40); } catch (err) {}
       }, 100);
     }
   }

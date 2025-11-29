@@ -71,9 +71,18 @@ function checkCodecSupport(file) {
   });
 }
 
+function debounce(fn, ms = 30) {
+  let t = null;
+  return function(...args) {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => { t = null; fn.apply(this, args); }, ms);
+  };
+}
+
 export {
   secondsToTime,
   srt2webvtt,
   getYoutubeId,
-  checkCodecSupport
+  checkCodecSupport,
+  debounce
 };

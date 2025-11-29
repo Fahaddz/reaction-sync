@@ -72,6 +72,7 @@ function loadSubtitles() {
     reader.onload = (e) => {
       let fileText = e.target.result;
       let webvtt = srt2webvtt(fileText);
+      $("#videoBaseLocal track").remove();
       $("#videoBaseLocal").append(
         `<track src="data:text/vtt;base64,${btoa(unescape(encodeURIComponent(webvtt)))}"
         kind="captions" srclang="en" label="English" default>`

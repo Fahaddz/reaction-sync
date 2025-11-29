@@ -186,6 +186,15 @@
       #delayControls button { flex: 0 0 auto; width: 24px; min-width: 24px; }
       .delayLabel { color: #b0b0b0; font-size: 9px; flex-shrink: 0; }
       #delay { width: 72px; min-width: 72px; max-width: 72px; display: inline-flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.7); padding: 4px 0; border-radius: 20px; font-size: 10px; font-family: 'Courier New', monospace; color: #e0e0e0; flex-shrink: 0; text-align: center; }
+      #syncHealthDot { width: 6px; height: 6px; border-radius: 50%; background: #666; margin-left: 2px; flex-shrink: 0; transition: background 0.3s ease; }
+      #syncHealthDot.healthy { background: #4caf50; box-shadow: 0 0 4px #4caf50; }
+      #syncHealthDot.correcting { background: #ff9800; box-shadow: 0 0 4px #ff9800; }
+      #syncHealthDot.drifting { background: #f44336; box-shadow: 0 0 4px #f44336; }
+      .toast-container { position: fixed; top: 50px; right: 10px; z-index: 99999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+      .toast { background: rgba(30, 30, 40, 0.95); color: #fff; padding: 12px 16px; border-radius: 8px; font-size: 13px; max-width: 300px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border-left: 4px solid #f44336; pointer-events: auto; animation: toastIn 0.3s ease; }
+      .toast.warning { border-left-color: #ff9800; }
+      .toast.info { border-left-color: #2196f3; }
+      @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
       #timeRange, #timeRangeBase, #ReactVol, #BaseVol { display: none; }
       input, button { cursor: pointer; }
       input[type="range"] { appearance: none; margin-right: 15px; background: transparent; border-radius: 5px; height: 12px; overflow: hidden; outline: none; position: relative; z-index: 1000; pointer-events: all !important; }
@@ -444,66 +453,6 @@
         transform: scale(1.2) !important;
         box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4) !important;
       }
-      
-      /* Modern react video controls */
-      .reactControls {
-        background: linear-gradient(145deg, rgba(20, 20, 30, 0.95), rgba(10, 10, 20, 0.95)) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 8px !important;
-        backdrop-filter: blur(10px) !important;
-        padding: 4px 6px !important;
-        gap: 3px !important;
-      }
-      
-      /* Modern react controls styling */
-      #reactPlayPauseInner {
-        background: linear-gradient(145deg, rgba(255, 193, 7, 0.8), rgba(255, 152, 0, 0.8)) !important;
-        border: 1px solid rgba(255, 193, 7, 0.3) !important;
-        border-radius: 50% !important;
-        width: 24px !important;
-        height: 24px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        color: white !important;
-        font-size: 10px !important;
-        transition: all 0.2s ease !important;
-      }
-      
-      #reactPlayPauseInner:hover {
-        transform: scale(1.1) !important;
-        box-shadow: 0 3px 12px rgba(255, 193, 7, 0.4) !important;
-      }
-      
-      #reactSeekBar, #reactVolumeSlider {
-        background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)) !important;
-        border-radius: 2px !important;
-        outline: none !important;
-        height: 3px !important;
-      }
-      
-      #reactSeekBar::-webkit-slider-thumb, #reactVolumeSlider::-webkit-slider-thumb {
-        appearance: none !important;
-        width: 10px !important;
-        height: 10px !important;
-        border-radius: 50% !important;
-        background: linear-gradient(145deg, #ff9800, #f57c00) !important;
-        cursor: pointer !important;
-        border: 1px solid rgba(255,255,255,0.2) !important;
-        transition: all 0.2s ease !important;
-      }
-      
-      #reactSeekBar::-webkit-slider-thumb:hover, #reactVolumeSlider::-webkit-slider-thumb:hover {
-        transform: scale(1.2) !important;
-        box-shadow: 0 2px 8px rgba(255, 152, 0, 0.4) !important;
-      }
-      
-      #reactTimeDisplay {
-        font-size: 9px !important;
-        color: #b0b0b0 !important;
-        font-family: 'Courier New', monospace !important;
-        font-weight: 500 !important;
-      }
     </style>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
@@ -616,6 +565,7 @@
         <span class="delayLabel">D:</span>
         <button id="decreaseDelayBtn" class="compact-btn ultra-compact" title="Make reaction video play earlier">-</button>
         <span id="delay" title="Time difference between videos">?</span>
+        <span id="syncHealthDot" title="Sync health indicator"></span>
         <span id="delayValue" hidden>0.0</span>
         <button id="increaseDelayBtn" class="compact-btn ultra-compact" title="Make reaction video play later">+</button>
       </div>
@@ -658,6 +608,20 @@
       </div>
     </div>
     <div id="syncStatus" style="position:fixed;top:5px;right:5px;background:rgba(0,0,0,0.7);color:#fff;padding:5px 10px;border-radius:4px;font-size:12px;z-index:9999;"></div>
+    <div id="toastContainer" class="toast-container"></div>
     <div id="debugOverlay" style="position:fixed;bottom:0;right:0;background:rgba(0,0,0,0.7);color:#0f0;font-size:12px;padding:5px;max-width:200px;max-height:150px;overflow:auto;display:none;z-index:9999"></div>
+    <script>
+      window.showToast = function(msg, type, duration) {
+        type = type || 'error';
+        duration = duration || 5000;
+        var c = document.getElementById('toastContainer');
+        if (!c) return;
+        var t = document.createElement('div');
+        t.className = 'toast ' + type;
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(function() { try { c.removeChild(t); } catch(e) {} }, duration);
+      };
+    </script>
   </body>
 </html>

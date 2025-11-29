@@ -26,21 +26,24 @@ const qualityLabels = {
 let qualityMenuTarget = 'base';
 let qualityMenuAnchor = null;
 let qualityMenuBound = false;
+let cachedQualityLevels = { base: null, react: null };
 
 function retryYouTubeCommand(player,command,verifyFn,attempt=1){if(attempt>MAX_YOUTUBE_RETRIES)return;try{player[command]()}catch(e){}setTimeout(()=>{const s=player.getPlayerState&&player.getPlayerState();if(!verifyFn(s))retryYouTubeCommand(player,command,verifyFn,attempt+1)},500)}
 
 function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0, startSeconds = null) {
-  if (retryCount > MAX_YOUTUBE_RETRIES) { // Changed from 3 to MAX_YOUTUBE_RETRIES
-    alert('Failed to initialize YouTube player after ' + MAX_YOUTUBE_RETRIES + ' attempts');
+  if (retryCount > MAX_YOUTUBE_RETRIES) {
+    if (window.showToast) window.showToast('Failed to initialize YouTube player after ' + MAX_YOUTUBE_RETRIES + ' attempts', 'error');
     return;
   }
 
   try {
     const containerId = isReaction ? 'videoReactYoutube' : 'videoBaseYoutube';
     if (isReaction) {
-      if (reactYoutubePlayer) { try { reactYoutubePlayer.destroy(); } catch (e) { console.error('Error destroying reaction player:', e); } }
+      if (window.reactSeekInterval) { clearInterval(window.reactSeekInterval); window.reactSeekInterval = null; }
+      if (reactYoutubePlayer) { try { reactYoutubePlayer.destroy(); } catch (e) {} }
     } else {
-      if (baseYoutubePlayer) { try { baseYoutubePlayer.destroy(); } catch (e) { console.error('Error destroying base player:', e); } }
+      if (window.baseSeekInterval) { clearInterval(window.baseSeekInterval); window.baseSeekInterval = null; }
+      if (baseYoutubePlayer) { try { baseYoutubePlayer.destroy(); } catch (e) {} }
     }
 
     const player = new YT.Player(containerId, {
@@ -50,7 +53,7 @@ function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0, st
       playerVars: {
         controls: 0, disablekb: 1, modestbranding: 1, rel: 0, enablejsapi: 1,
         playsinline: 1, iv_load_policy: 3,
-        origin: window.location.hostname === 'localhost' ? `http://${window.location.hostname}:${window.location.port || '80'}` : window.location.origin // More robust origin
+        origin: window.location.hostname === 'localhost' ? `http://${window.location.hostname}:${window.location.port || '80'}` : window.location.origin
       },
       events: {
         onReady: () => {
@@ -77,12 +80,12 @@ function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0, st
             console.error('Initial player setup failed:', e);
             setTimeout(() => initializeYouTubePlayer(videoId, isReaction, retryCount + 1, startSeconds), 2000 * (retryCount + 1));
           }
-          exposeYoutubeFunctions(); // Update window variables after player is ready
+          exposeYoutubeFunctions();
         },
         onStateChange: (event) => onYoutubeStateChange(event, isReaction),
         onError: (event) => {
           console.error(`YouTube ${isReaction ? 'reaction' : 'base'} player error:`, event.data);
-          handleYouTubeError(event.data, isReaction); // Call centralized error handler
+          handleYouTubeError(event.data, isReaction);
         }
       }
     });
@@ -106,12 +109,14 @@ function initializeYouTubePlayer(videoId, isReaction = false, retryCount = 0, st
 
 function setHighestQuality(player, isReaction) {
   if (!player || typeof player.getAvailableQualityLevels !== 'function') {
-    console.error('Invalid player for quality setting'); return;
+    return;
   }
   try {
     const preferredOrder = ['highres', 'hd2160', 'hd1440', 'hd1080', 'hd720', 'large', 'medium', 'small', 'tiny'];
     const availableQualities = player.getAvailableQualityLevels();
-    if (availableQualities.length === 0) { console.warn('No quality levels available'); return; }
+    const cacheKey = isReaction ? 'react' : 'base';
+    if (availableQualities.length > 0) cachedQualityLevels[cacheKey] = availableQualities.slice();
+    if (availableQualities.length === 0) return;
     let highestQuality = 'default';
     for (const quality of preferredOrder) {
       if (availableQualities.includes(quality)) { highestQuality = quality; break; }
@@ -124,13 +129,11 @@ function setHighestQuality(player, isReaction) {
         const currentQuality = player.getPlaybackQuality();
         if (currentQuality !== highestQuality && availableQualities.includes(highestQuality) && retryCount < maxRetries) {
           retryCount++; trySetQuality();
-        } else if (retryCount >= maxRetries) {
-          console.warn(`Couldn't set ${isReaction ? 'reaction' : 'base'} quality to ${highestQuality} after ${maxRetries} attempts`);
         }
       }, 1000);
     }
     trySetQuality();
-  } catch (e) { console.error('Error setting highest quality:', e); }
+  } catch (e) {}
 }
 
 function createQualityButton() {
@@ -209,7 +212,8 @@ function renderQualityMenu(context, anchor) {
     $('.quality-menu').remove();
     if (!context || !context.player || typeof context.player.getAvailableQualityLevels !== 'function') return null;
     const menu = $('<div class="quality-menu"></div>');
-    const levels = context.player.getAvailableQualityLevels() || [];
+    let levels = context.player.getAvailableQualityLevels() || [];
+    if (!levels.length && cachedQualityLevels[context.key]) levels = cachedQualityLevels[context.key];
     const options = buildQualityOptions(levels);
     const currentQuality = normalizeQualityValue(context.player.getPlaybackQuality ? context.player.getPlaybackQuality() : 'default');
     if (!options.length) {
@@ -322,31 +326,29 @@ function handleYouTubeError(errorCode, isReaction = false) {
 
   if (retryCount < MAX_YOUTUBE_RETRIES) {
     isReaction ? reactYoutubeRetryCount++ : baseYoutubeRetryCount++;
-    retryCount++; // use updated count for log
+    retryCount++;
     console.warn(`YouTube ${isReaction ? 'Reaction' : 'Base'} Error: ${errors[errorCode] || "Unknown error"} - Retrying (${retryCount}/${MAX_YOUTUBE_RETRIES})`);
     setTimeout(() => {
       try {
         const player = isReaction ? reactYoutubePlayer : baseYoutubePlayer;
         if (player && typeof player.getVideoData === 'function') {
           const videoId = player.getVideoData().video_id;
-          if (videoId) { initializeYouTubePlayer(videoId, isReaction, retryCount); return; } // Re-initialize with current retryCount
+          if (videoId) { initializeYouTubePlayer(videoId, isReaction, retryCount); return; }
         }
         throw new Error("YouTube player not ready for retry or no videoId.");
       } catch (e) {
         console.error(`${isReaction ? 'Reaction' : 'Base'} retry/reinitialization failed:`, e);
-         // If re-initialization failed here, it might loop if initializeYouTubePlayer itself errors out.
-         // The main initializeYouTubePlayer has its own retry for creation errors.
       }
-    }, 2000 * retryCount); // Exponential backoff for retry
+    }, 2000 * retryCount);
     return;
   }
-  alert(`YouTube ${isReaction ? 'Reaction' : 'Base'} Error: ${errors[errorCode] || "Unknown error"} (Failed after ${MAX_YOUTUBE_RETRIES} retries)`);
+  if (window.showToast) window.showToast(`YouTube ${isReaction ? 'Reaction' : 'Base'} Error: ${errors[errorCode] || "Unknown error"}`, 'error');
   if (isReaction) {
     isReactYoutubeVideo = false; $("#videoReactYoutube").hide(); $("#videoReact").show(); reactYoutubeRetryCount = 0;
   } else {
     isBaseYoutubeVideo = false; $("#videoBaseYoutube").hide(); $("#videoBaseLocal").show(); baseYoutubeRetryCount = 0;
   }
-  exposeYoutubeFunctions(); // Update global state
+  exposeYoutubeFunctions();
 }
 
 function onYoutubeStateChange(event, isReaction = false) {
@@ -356,19 +358,18 @@ function onYoutubeStateChange(event, isReaction = false) {
     }
   }
   if (event.data === YT.PlayerState.ERROR) {
-    handleYouTubeError(event.data, isReaction); return; // Already handled by onError in player init for some cases, but good to have
+    handleYouTubeError(event.data, isReaction); return;
   }
   if (event.data === YT.PlayerState.PLAYING) {
     isReaction ? reactYoutubeRetryCount = 0 : baseYoutubeRetryCount = 0;
     isReaction ? $("#reactPlayPauseInner").text("⏸") : $("#basePlayPause").text("⏸");
     if(!isReaction) window.baseManuallyPaused = null;
     
-    // Trigger sync when user clicks YouTube video to play (only if not already in a sync operation)
     if (window.isVideosSynced && window.syncPlay && typeof window.syncPlay === 'function' && !window.isSeeking) {
       if (!isReaction) {
         setTimeout(() => {
           if (window.isVideosSynced && !window.isSeeking) window.syncPlay(true);
-        }, 50); // Small delay to prevent feedback loops
+        }, 50);
       } else {
         setTimeout(() => {
           if (window.isVideosSynced && !window.isSeeking) window.syncPlay(false);
@@ -379,12 +380,11 @@ function onYoutubeStateChange(event, isReaction = false) {
     isReaction ? $("#reactPlayPauseInner").text("⏵") : $("#basePlayPause").text("⏵");
     if(!isReaction) window.baseManuallyPaused = Date.now();
     
-    // Trigger sync when user clicks YouTube video to pause (only if not already in a sync operation)
     if (window.isVideosSynced && window.syncPause && typeof window.syncPause === 'function' && !window.isSeeking) {
       if (!isReaction) {
         setTimeout(() => {
           if (window.isVideosSynced && !window.isSeeking) window.syncPause(true);
-        }, 50); // Small delay to prevent feedback loops
+        }, 50);
       } else {
         setTimeout(() => {
           if (window.isVideosSynced && !window.isSeeking) window.syncPause(false);
@@ -417,13 +417,12 @@ function setupYouTubeReactControls() {
       }
     }
   };
-  if (window.reactSeekInterval) clearInterval(window.reactSeekInterval); // Clear previous interval
+  if (window.reactSeekInterval) clearInterval(window.reactSeekInterval);
   window.reactSeekInterval = setInterval(updateReactSeekBar, 1000);
   if (reactYoutubePlayer && typeof reactYoutubePlayer.addEventListener === 'function') {
     reactYoutubePlayer.addEventListener('onStateChange', (event) => { if (event.data === YT.PlayerState.ENDED) { clearInterval(window.reactSeekInterval); } });
   }
   
-  // Add seek bar handlers for YouTube reaction video (missing critical sync functionality)
   let lastReactYTSeekTime = 0;
   const seekCooldown = 50;
 
@@ -483,7 +482,7 @@ function setupYouTubeBaseControls() {
       }
     } else { console.warn("Base YouTube player not ready for time update in setupYouTubeBaseControls"); }
   };
-  if (window.baseSeekInterval) clearInterval(window.baseSeekInterval); // Clear previous interval
+  if (window.baseSeekInterval) clearInterval(window.baseSeekInterval);
   window.baseSeekInterval = setInterval(updateBaseSeekBar, 1000);
   if (baseYoutubePlayer && typeof baseYoutubePlayer.addEventListener === 'function') {
     baseYoutubePlayer.addEventListener('onStateChange', (event) => { if (event.data === YT.PlayerState.ENDED) { clearInterval(window.baseSeekInterval); } });
@@ -539,9 +538,6 @@ function exposeYoutubeFunctions() {
   window.setupYouTubeReactControls = setupYouTubeReactControls; window.setupYouTubeBaseControls = setupYouTubeBaseControls;
 }
 exposeYoutubeFunctions();
-// The interval for updateYoutubeReferences can be removed if exposeYoutubeFunctions is called whenever player instances change.
-// For now, per user request not to break features, it's kept commented out but effectively replaced by calls within onReady.
-// setInterval(exposeYoutubeFunctions, 5000); 
 
 export {
   initializeYouTubePlayer, handleYouTubeError, onYoutubeStateChange, onQualityChange,

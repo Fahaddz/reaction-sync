@@ -471,8 +471,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   $("#baseVolumeSlider").on('input', function() {
     const volume = parseFloat(this.value);
-    if (isBaseYoutubeVideo && baseYoutubePlayer) {
-      baseYoutubePlayer.setVolume(volume * 100);
+    if (window.isBaseYoutubeVideo && window.baseYoutubePlayer && window.baseYoutubePlayer.setVolume) {
+      window.baseYoutubePlayer.setVolume(volume * 100);
     } else if ($("#videoBaseLocal")[0]) {
       $("#videoBaseLocal")[0].volume = volume;
     }
@@ -480,38 +480,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
   $("#reactVolumeSlider").on('input', function() {
     const volume = parseFloat(this.value);
-    if (isReactYoutubeVideo && reactYoutubePlayer) {
-      reactYoutubePlayer.setVolume(volume * 100);
+    if (window.isReactYoutubeVideo && window.reactYoutubePlayer && window.reactYoutubePlayer.setVolume) {
+      window.reactYoutubePlayer.setVolume(volume * 100);
     } else if ($("#videoReact")[0]) {
       $("#videoReact")[0].volume = volume;
     }
   });
 
-  setInterval(function() {
-    if (!isBaseYoutubeVideo && $("#videoBaseLocal").attr("src")) {
-      const video = $("#videoBaseLocal")[0];
-      if (video.readyState > 0) { // Ensure metadata is loaded
-        const current = secondsToTime(video.currentTime);
-        const total = secondsToTime(video.duration || 0);
-        $("#baseTimeDisplay").text(`${current} / ${total}`);
-        if (video.duration) { // Avoid division by zero or NaN
-             $("#baseSeekBar").val((video.currentTime / video.duration) * 100);
+  if (!window._localVideoTimerStarted) {
+    window._localVideoTimerStarted = true;
+    setInterval(function() {
+      if (!window.isBaseYoutubeVideo && $("#videoBaseLocal").attr("src")) {
+        const video = $("#videoBaseLocal")[0];
+        if (video && video.readyState > 0) {
+          const current = secondsToTime(video.currentTime);
+          const total = secondsToTime(video.duration || 0);
+          $("#baseTimeDisplay").text(`${current} / ${total}`);
+          if (video.duration) {
+               $("#baseSeekBar").val((video.currentTime / video.duration) * 100);
+          }
         }
       }
-    }
-
-    if (!isReactYoutubeVideo && $("#videoReact").attr("src")) {
-      const video = $("#videoReact")[0];
-       if (video.readyState > 0) { // Ensure metadata is loaded
-        const current = secondsToTime(video.currentTime);
-        const total = secondsToTime(video.duration || 0);
-        $("#reactTimeDisplay").text(`${current} / ${total}`);
-        if (video.duration) { // Avoid division by zero or NaN
-            $("#reactSeekBar").val((video.currentTime / video.duration) * 100);
+      if (!window.isReactYoutubeVideo && $("#videoReact").attr("src")) {
+        const video = $("#videoReact")[0];
+         if (video && video.readyState > 0) {
+          const current = secondsToTime(video.currentTime);
+          const total = secondsToTime(video.duration || 0);
+          $("#reactTimeDisplay").text(`${current} / ${total}`);
+          if (video.duration) {
+              $("#reactSeekBar").val((video.currentTime / video.duration) * 100);
+          }
         }
       }
-    }
-  }, 1000);
+    }, 1000);
+  }
 
   $(window).on('resize', function() {
     updateVideoContainers();
