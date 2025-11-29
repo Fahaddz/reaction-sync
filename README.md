@@ -20,7 +20,7 @@ reaction-sync is a web application that allows users to synchronize and display 
 - Automatic codec compatibility checking
 - Hold-to-adjust delay buttons with progressively faster increments
 - Optional verbose logs (enable with `?debug=true`)
-- Keyboard shortcuts: Space (play/pause), S (sync), D (desync), Arrow keys (seek), Shift+Arrows (seek base)
+- Keyboard shortcuts: Space (play/pause), S (sync), D (desync), FR (force resync), Arrow keys (seek), Shift+Arrows (seek base), PageUp/PageDown (adjust delay)
 - Resume last session (per pair): delay, time, volumes, react window position/size with 7-day retention
 
 ## Project Structure
