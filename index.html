@@ -152,306 +152,994 @@
         });
       });
     </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+      /* ========================================
+         CSS DESIGN TOKENS & VARIABLES
+         ======================================== */
+      :root {
+        /* Colors - Primary */
+        --color-bg-primary: rgba(8, 10, 15, 0.85);
+        --color-bg-secondary: rgba(15, 18, 25, 0.9);
+        --color-bg-elevated: rgba(22, 26, 35, 0.95);
+        
+        /* Colors - Accent */
+        --color-accent-cyan: #00d4ff;
+        --color-accent-cyan-dim: rgba(0, 212, 255, 0.6);
+        --color-accent-amber: #ffb300;
+        --color-accent-amber-dim: rgba(255, 179, 0, 0.6);
+        --color-accent-green: #00e676;
+        --color-accent-green-dim: rgba(0, 230, 118, 0.4);
+        --color-accent-red: #ff5252;
+        
+        /* Colors - Text */
+        --color-text-primary: #f0f0f0;
+        --color-text-secondary: #a0a8b8;
+        --color-text-muted: #6b7280;
+        
+        /* Colors - Borders */
+        --color-border-subtle: rgba(255, 255, 255, 0.06);
+        --color-border-medium: rgba(255, 255, 255, 0.12);
+        --color-border-accent: rgba(0, 212, 255, 0.3);
+        
+        /* Spacing */
+        --space-xs: 2px;
+        --space-sm: 4px;
+        --space-md: 8px;
+        --space-lg: 12px;
+        --space-xl: 16px;
+        
+        /* Border Radius */
+        --radius-sm: 4px;
+        --radius-md: 6px;
+        --radius-lg: 10px;
+        --radius-full: 50%;
+        
+        /* Typography */
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+        --font-size-xs: 9px;
+        --font-size-sm: 10px;
+        --font-size-md: 11px;
+        --font-size-lg: 12px;
+        
+        /* Shadows */
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+        --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+        --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+        --shadow-glow-cyan: 0 0 12px rgba(0, 212, 255, 0.4);
+        --shadow-glow-green: 0 0 12px rgba(0, 230, 118, 0.4);
+        --shadow-glow-amber: 0 0 12px rgba(255, 179, 0, 0.4);
+        
+        /* Transitions */
+        --transition-fast: 0.15s ease;
+        --transition-normal: 0.25s ease;
+        
+        /* Control Bar */
+        --control-height: 42px;
+        --control-btn-size: 28px;
+        --control-btn-size-sm: 24px;
+      }
+      
+      /* ========================================
+         BASE STYLES
+         ======================================== */
+      html, body { 
+        padding: 0; 
+        margin: 0; 
+        overflow: hidden; 
+        width: 100vw; 
+        height: 100vh; 
+        background: #000; 
+        font-family: var(--font-sans); 
+        position: relative; 
+        z-index: 0; 
+        -webkit-font-smoothing: antialiased;
+      }
+      
+      input, button { cursor: pointer; }
+      
+      /* ========================================
+         VIDEO CONTAINERS
+         ======================================== */
       #videoBase { background: #000; width: 100%; z-index: 1; max-height: 100vh; object-fit: contain; }
       #videoBaseContainer { position: fixed !important; top: 0; left: 0; width: 100vw !important; height: 100vh !important; overflow: hidden; z-index: 1; pointer-events: none !important; }
-      #videoBaseYoutube { position: absolute; top: 0; left: 0; width: 100% !important; height: calc(100% - 40px) !important; background: black; pointer-events: auto !important; }
-      #videoBaseLocal { position: absolute; top: 0; left: 0; width: 100%; height: calc(100% - 40px) !important; object-fit: contain; pointer-events: auto !important; }
-      html, body { padding: 0; margin: 0; overflow: hidden; width: 100vw; height: 100vh; background: #000; font-family: sans-serif; position: relative; z-index: 0; }
-      #videoReactContainer { position: fixed !important; z-index: 100; top: 1vw; left: 1vw; border-radius: 8px; border: 2px solid rgba(255, 255, 255, 0.2); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); transition: border-color 0.3s ease; background: transparent; min-width: 200px; min-height: 112px; overflow: visible !important; resize: none !important; transform: none !important; will-change: auto; touch-action: none; cursor: default !important;}
-      #videoReactContainer.resizing { border-color: rgba(0, 255, 255, 0.6); box-shadow: 0 0 15px rgba(0, 255, 255, 0.4); pointer-events: auto !important; user-select: none !important; }
-      #videoReactContainer.resizing .ui-resizable-se { opacity: 1 !important; background: rgba(0,255,255,0.8) !important; z-index: 1003 !important; }
+      #videoBaseYoutube { position: absolute; top: 0; left: 0; width: 100% !important; height: calc(100% - var(--control-height)) !important; background: black; pointer-events: auto !important; }
+      #videoBaseLocal { position: absolute; top: 0; left: 0; width: 100%; height: calc(100% - var(--control-height)) !important; object-fit: contain; pointer-events: auto !important; }
+      
+      /* React Video Container */
+      #videoReactContainer { 
+        position: fixed !important; 
+        z-index: 100; 
+        top: 1vw; 
+        left: 1vw; 
+        border-radius: var(--radius-lg); 
+        border: 2px solid var(--color-border-medium); 
+        box-shadow: var(--shadow-md); 
+        transition: border-color var(--transition-normal), box-shadow var(--transition-normal); 
+        background: transparent; 
+        min-width: 200px; 
+        min-height: 112px; 
+        overflow: visible !important; 
+        resize: none !important; 
+        transform: none !important; 
+        will-change: auto; 
+        touch-action: none; 
+        cursor: default !important;
+      }
+      #videoReactContainer:hover { border-color: var(--color-accent-amber-dim); }
+      #videoReactContainer.resizing { border-color: var(--color-accent-cyan); box-shadow: var(--shadow-glow-cyan); pointer-events: auto !important; user-select: none !important; }
+      #videoReactContainer.resizing .ui-resizable-se { opacity: 1 !important; background: var(--color-accent-cyan) !important; z-index: 1003 !important; }
       #videoReactContainer.ui-resizable { touch-action: none !important; }
-      #videoReact { width: 100% !important; height: 100% !important; border-radius: 8px; object-fit: contain !important; background: #000; transform: translateZ(0); }
-      #videoReactYoutube { width: 100% !important; border-radius: 8px 8px 0 0; background: #000; overflow: hidden; position: absolute; z-index: 4; pointer-events: none; }
+      #videoReact { width: 100% !important; height: 100% !important; border-radius: var(--radius-lg); object-fit: contain !important; background: #000; transform: translateZ(0); }
+      #videoReactYoutube { width: 100% !important; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: #000; overflow: hidden; position: absolute; z-index: 4; pointer-events: none; }
       #videoReactYoutube iframe { pointer-events: none !important; width: 100% !important; height: 100% !important; }
-      .reactControls { position: absolute; bottom: 0; left: 0; right: 0; height: 40px; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; padding: 0 10px; border-radius: 0 0 8px 8px; z-index: 1000; opacity: 0; transition: opacity 0.3s ease; gap: 10px; pointer-events: auto; }
+      
+      /* ========================================
+         REACT VIDEO CONTROLS
+         ======================================== */
+      .reactControls { 
+        position: absolute; 
+        bottom: 0; 
+        left: 0; 
+        right: 0; 
+        height: 36px; 
+        background: var(--color-bg-primary);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--color-border-subtle);
+        border-top: 1px solid rgba(255, 179, 0, 0.15);
+        display: flex; 
+        align-items: center; 
+        padding: 0 var(--space-md); 
+        border-radius: 0 0 var(--radius-lg) var(--radius-lg); 
+        z-index: 200; 
+        opacity: 0; 
+        transition: opacity var(--transition-normal); 
+        gap: var(--space-md); 
+        pointer-events: auto;
+      }
       #videoReactContainer:hover .reactControls { opacity: 1; }
-      #videoReactContainer:hover #reactDragHandle { opacity: 0.6 !important; }
-      #reactDragHandle { position: absolute; top: 50% !important; left: 6px !important; transform: translateY(-50%) !important; background: rgba(0, 0, 0, 0.5) !important; color: rgba(255, 255, 255, 0.9); padding: 6px 4px !important; border-radius: 6px !important; font-size: 10px !important; cursor: move; z-index: 1001 !important; backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.18); transition: all 0.2s ease; display: block; writing-mode: vertical-rl; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; pointer-events: auto !important; opacity: 0.35 !important; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
-      #reactDragHandle:hover { background: rgba(0, 0, 0, 0.55); transform: translateY(-50%) scale(1.05); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); }
+      #videoReactContainer:hover #reactDragHandle { opacity: 0.7 !important; }
+      
+      /* React Drag Handle */
+      #reactDragHandle { 
+        position: absolute; 
+        top: 50% !important; 
+        left: 5px !important; 
+        transform: translateY(-50%) !important; 
+        background: var(--color-bg-elevated) !important; 
+        color: var(--color-text-secondary); 
+        padding: 8px 4px !important; 
+        border-radius: var(--radius-md) !important; 
+        font-size: 8px !important; 
+        font-family: var(--font-sans);
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: move; 
+        z-index: 1001 !important; 
+        backdrop-filter: blur(8px); 
+        border: 1px solid var(--color-border-medium); 
+        transition: all var(--transition-fast); 
+        display: block; 
+        writing-mode: vertical-rl; 
+        text-transform: uppercase; 
+        white-space: nowrap; 
+        pointer-events: auto !important; 
+        opacity: 0.3 !important;
+      }
+      #reactDragHandle:hover { 
+        background: var(--color-bg-secondary) !important; 
+        transform: translateY(-50%) scale(1.05) !important; 
+        box-shadow: var(--shadow-sm);
+        color: var(--color-text-primary);
+      }
       #reactDragHandle::before { content: ''; display: none; }
-      #reactSeekBar { flex: 1; margin: 0 10px; height: 4px; }
-      #reactVolumeSlider { width: 60px; margin-right: 10px; }
-      .timeDisplay { color: white; font-weight: bold; min-width: 120px; font-size: 0.9em; text-align: center; }
-      .ui-resizable-handle { position: absolute; background: rgba(255, 255, 255, 0.2); width: 10px; height: 10px; display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 1000 !important; pointer-events: auto; }
-      .ui-resizable-se { width: 24px !important; height: 24px !important; background-color: rgba(255, 255, 255, 0.8) !important; background-image: none !important; cursor: se-resize !important; z-index: 1002 !important; bottom: 0 !important; right: 0 !important; display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important; position: absolute !important; border-radius: 3px 0 0 0; box-shadow: 0 0 5px rgba(0, 0, 0, 0.5); transition: background-color 0.2s ease; background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.8) 40%, rgba(0,255,255,0.6) 41%, rgba(0,255,255,0.6) 60%, rgba(255,255,255,0.8) 61%, rgba(255,255,255,0.8) 100%) !important; }
-      .ui-resizable-se:hover { background: rgba(255,255,255,0.9) !important; box-shadow: 0 0 8px rgba(0,255,255,0.7); background-color: rgba(255, 255, 255, 1) !important; }
-      .ui-resizable-helper { border: 2px solid rgba(0, 255, 255, 0.6); background: rgba(0, 255, 255, 0.1); }
+      
+      /* React Play Button */
+      #reactPlayPauseInner {
+        background: linear-gradient(145deg, var(--color-accent-amber), #f59e0b) !important;
+        border: none !important;
+        border-radius: var(--radius-full) !important;
+        width: 22px !important;
+        height: 22px !important;
+        min-width: 22px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: #1a1a1a !important;
+        font-size: 9px !important;
+        transition: all var(--transition-fast) !important;
+        box-shadow: var(--shadow-sm);
+        flex-shrink: 0;
+      }
+      #reactPlayPauseInner:hover {
+        transform: scale(1.1) !important;
+        box-shadow: var(--shadow-glow-amber) !important;
+      }
+      
+      /* React Seek & Volume */
+      #reactSeekBar { flex: 1; margin: 0 var(--space-sm); height: 3px; }
+      #reactVolumeSlider { width: 50px; margin: 0; }
+      
+      #reactSeekBar, #reactVolumeSlider {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border-radius: 2px !important;
+        outline: none !important;
+      }
+      #reactSeekBar::-webkit-slider-thumb, #reactVolumeSlider::-webkit-slider-thumb {
+        appearance: none !important;
+        width: 10px !important;
+        height: 10px !important;
+        border-radius: var(--radius-full) !important;
+        background: var(--color-accent-amber) !important;
+        cursor: pointer !important;
+        border: none !important;
+        transition: all var(--transition-fast) !important;
+      }
+      #reactSeekBar::-webkit-slider-thumb:hover, #reactVolumeSlider::-webkit-slider-thumb:hover {
+        transform: scale(1.3) !important;
+        box-shadow: var(--shadow-glow-amber) !important;
+      }
+      
+      #reactTimeDisplay {
+        font-size: var(--font-size-xs) !important;
+        color: var(--color-text-secondary) !important;
+        font-family: var(--font-mono) !important;
+        font-weight: 500 !important;
+        min-width: 70px;
+        text-align: center;
+      }
+      
+      .timeDisplay { color: white; font-weight: bold; min-width: 70px; font-size: 0.8em; text-align: center; }
+      
+      /* ========================================
+         RESIZABLE HANDLES
+         ======================================== */
+      .ui-resizable-handle { position: absolute; background: rgba(255, 255, 255, 0.15); width: 10px; height: 10px; display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 1000 !important; pointer-events: auto; }
+      .ui-resizable-se { 
+        width: 18px !important; 
+        height: 18px !important; 
+        background: var(--color-accent-cyan-dim) !important;
+        cursor: se-resize !important; 
+        z-index: 1002 !important; 
+        bottom: 0 !important; 
+        right: 0 !important; 
+        display: block !important; 
+        visibility: visible !important; 
+        opacity: 0.7 !important; 
+        pointer-events: auto !important; 
+        position: absolute !important; 
+        border-radius: var(--radius-sm) 0 var(--radius-lg) 0; 
+        transition: all var(--transition-fast);
+      }
+      .ui-resizable-se:hover { 
+        background: var(--color-accent-cyan) !important; 
+        box-shadow: var(--shadow-glow-cyan);
+        opacity: 1 !important;
+      }
+      .ui-resizable-helper { border: 2px solid var(--color-accent-cyan); background: rgba(0, 212, 255, 0.1); }
       html.ui-resizable, body.ui-resizable { cursor: default !important; }
       .ui-resizable:not(#videoReactContainer) { cursor: default !important; }
       #videoReactContainer .ui-resizable-se { cursor: se-resize !important; }
-      #BottomBar { position: absolute; bottom: 45px; left: 0; right: 0; color: rgba(255, 255, 255, 0.8); padding: 5px 0; text-align: center; }
-      #delayControls { display: inline-flex; align-items: center; gap: 4px; width: 140px; min-width: 140px; max-width: 140px; justify-content: center; position: relative; flex-shrink: 0; }
-      #delayControls button { flex: 0 0 auto; width: 24px; min-width: 24px; }
-      .delayLabel { color: #b0b0b0; font-size: 9px; flex-shrink: 0; }
-      #delay { width: 72px; min-width: 72px; max-width: 72px; display: inline-flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.7); padding: 4px 0; border-radius: 20px; font-size: 10px; font-family: 'Courier New', monospace; color: #e0e0e0; flex-shrink: 0; text-align: center; }
-      #syncHealthDot { width: 6px; height: 6px; border-radius: 50%; background: #666; margin-left: 2px; flex-shrink: 0; transition: background 0.3s ease; }
-      #syncHealthDot.healthy { background: #4caf50; box-shadow: 0 0 4px #4caf50; }
-      #syncHealthDot.correcting { background: #ff9800; box-shadow: 0 0 4px #ff9800; }
-      #syncHealthDot.drifting { background: #f44336; box-shadow: 0 0 4px #f44336; }
-      .toast-container { position: fixed; top: 50px; right: 10px; z-index: 99999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
-      .toast { background: rgba(30, 30, 40, 0.95); color: #fff; padding: 12px 16px; border-radius: 8px; font-size: 13px; max-width: 300px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border-left: 4px solid #f44336; pointer-events: auto; animation: toastIn 0.3s ease; }
-      .toast.warning { border-left-color: #ff9800; }
-      .toast.info { border-left-color: #2196f3; }
-      @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-      #timeRange, #timeRangeBase, #ReactVol, #BaseVol { display: none; }
-      input, button { cursor: pointer; }
-      input[type="range"] { appearance: none; margin-right: 15px; background: transparent; border-radius: 5px; height: 12px; overflow: hidden; outline: none; position: relative; z-index: 1000; pointer-events: all !important; }
-      input[type="range"]::-webkit-slider-thumb { appearance: none; height: 16px !important; width: 16px !important; margin-top: -4px; border-radius: 50%; background: #448; cursor: pointer; transition: transform 0.2s ease, background 0.3s ease-in-out; box-shadow: none !important; transform: scale(1.2); }
-      input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.8); }
-      input[type="range"]::-webkit-slider-runnable-track { appearance: none; box-shadow: none; border: none; height: 4px; background: rgba(255, 255, 255, 0.3); border-radius: 2px; }
-      button { background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.3); padding: 4px 12px; border-radius: 20px; transition: all 0.3s ease; margin: 0 4px; }
-      button:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.5); }
-      #tipsScreen { position: absolute; top: 0; left: 0; right: 0; z-index: 15; color: #fff; padding: 0; background: rgba(0, 0, 0, 0.82); max-height: 100vh; overflow: auto; overflow-x: hidden; }
-      #tipsHeader { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: rgba(10, 10, 12, 0.95); border-bottom: 1px solid rgba(255,255,255,0.1); font-weight: 600; font-size: 12px; letter-spacing: 0.3px; }
-      #tipsClose { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.25); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; }
-      #tipsBody { padding: 10px; font-size: 13px; line-height: 1.5; }
-      li + li { margin-top: 0.5rem; }
-      #baseVideoControls { position: absolute; bottom: 0; left: 0; right: 0; height: 40px; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; padding: 8px 15px; opacity: 0; transition: opacity 0.3s ease; gap: 10px; pointer-events: auto !important; z-index: 1000; }
-      #baseVideoControls * { pointer-events: auto !important; position: relative; }
-      #baseVideoControls #basePlayPause { margin-left: 0; margin-right: 0; }
-      #baseVideoControls button { position: relative; z-index: 1000; transform: translateZ(0); will-change: transform; }
-      #baseVideoControls #baseVolumeSlider { width: 80px; margin-left: 15px; }
-      #youtubeQuality { background-color: rgba(0, 0, 0, 0.5); color: white; border: 1px solid rgba(255, 255, 255, 0.3); padding: 5px 10px; margin-left: 10px; border-radius: 3px; cursor: pointer !important; position: relative; pointer-events: auto !important; z-index: 2000 !important; }
-      #youtubeQuality:hover { background-color: rgba(50, 50, 50, 0.8); border-color: rgba(100, 100, 255, 0.5); }
-      .quality-menu { position: fixed; background: rgba(0, 0, 0, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; display: none; flex-direction: column; width: 180px; max-height: 260px; overflow-y: auto; z-index: 99999 !important; padding: 12px 10px; box-shadow: 0 12px 24px rgba(0, 0, 0, 0.55); gap: 6px; pointer-events: auto !important; }
-      .quality-option { padding: 8px 12px; color: white; background: rgba(50, 50, 50, 0.85); border: none; text-align: left; cursor: pointer !important; transition: background 0.2s; font-size: 13px; border-radius: 4px; pointer-events: auto !important; }
-      .quality-option:hover { background-color: rgba(80, 80, 80, 0.9); }
-      .quality-option.active { background-color: rgba(60, 60, 180, 0.6); font-weight: bold; }
-      .quality-empty { color: rgba(255, 255, 255, 0.7); text-align: center; font-size: 12px; padding: 6px; }
-      body:hover #baseVideoControls { opacity: 1; }
-      #baseSeekBar { flex: 2; margin: 0 10px; height: 4px; }
       
-      /* Modern compact dropdown menus */
+      /* ========================================
+         MAIN CONTROL BAR
+         ======================================== */
+      #baseVideoControls { 
+        position: absolute; 
+        bottom: 0; 
+        left: 0; 
+        right: 0; 
+        height: var(--control-height); 
+        background: var(--color-bg-primary);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-top: 1px solid var(--color-border-subtle);
+        display: flex; 
+        align-items: center; 
+        padding: 0 var(--space-lg); 
+        opacity: 0; 
+        transition: opacity var(--transition-normal); 
+        gap: var(--space-sm); 
+        pointer-events: auto !important; 
+        z-index: 50;
+      }
+      body:hover #baseVideoControls { opacity: 1; }
+      #baseVideoControls * { pointer-events: auto !important; position: relative; }
+      #baseVideoControls button { position: relative; z-index: 1000; transform: translateZ(0); will-change: transform; }
+      
+      /* ========================================
+         CONTROL GROUPS
+         ======================================== */
+      .control-group {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        padding: 0 var(--space-sm);
+        position: relative;
+      }
+      
+      .control-group.playback-group {
+        flex-shrink: 0;
+      }
+      
+      .control-group.seek-group {
+        flex: 1;
+        min-width: 100px;
+      }
+      
+      .control-group.delay-group {
+        flex-shrink: 0;
+        background: var(--color-bg-secondary);
+        border-radius: var(--radius-md);
+        padding: var(--space-xs) var(--space-md);
+        border: 1px solid var(--color-border-subtle);
+      }
+      
+      .control-group.media-group {
+        flex-shrink: 0;
+      }
+      
+      .control-group.sync-group {
+        flex-shrink: 0;
+        background: var(--color-bg-secondary);
+        border-radius: var(--radius-md);
+        padding: var(--space-xs) var(--space-sm);
+        border: 1px solid var(--color-border-subtle);
+      }
+      
+      /* Vertical Separator */
+      .control-separator {
+        width: 1px;
+        height: 20px;
+        background: var(--color-border-medium);
+        margin: 0 var(--space-sm);
+        flex-shrink: 0;
+      }
+      
+      /* ========================================
+         BUTTONS
+         ======================================== */
+      button { 
+        background: var(--color-bg-elevated); 
+        color: var(--color-text-primary); 
+        border: 1px solid var(--color-border-subtle); 
+        padding: var(--space-sm) var(--space-md); 
+        border-radius: var(--radius-md); 
+        transition: all var(--transition-fast); 
+        margin: 0;
+        font-family: var(--font-sans);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+      }
+      button:hover { 
+        background: var(--color-bg-secondary); 
+        border-color: var(--color-border-medium);
+        transform: translateY(-1px);
+      }
+      button:active {
+        transform: translateY(0);
+      }
+      
+      /* Compact Button */
+      .compact-btn {
+        padding: var(--space-xs) var(--space-md) !important;
+        font-size: var(--font-size-sm) !important;
+        min-width: auto !important;
+        height: var(--control-btn-size-sm) !important;
+        background: var(--color-bg-elevated) !important;
+        border: 1px solid var(--color-border-subtle) !important;
+        border-radius: var(--radius-md) !important;
+        color: var(--color-text-secondary) !important;
+        transition: all var(--transition-fast) !important;
+        font-weight: 500 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+      .compact-btn:hover {
+        background: rgba(0, 212, 255, 0.15) !important;
+        border-color: var(--color-accent-cyan-dim) !important;
+        color: var(--color-text-primary) !important;
+        box-shadow: 0 2px 8px rgba(0, 212, 255, 0.15) !important;
+      }
+      
+      /* Ultra Compact (for grouped buttons) */
+      .ultra-compact {
+        padding: var(--space-xs) var(--space-sm) !important;
+        font-size: var(--font-size-xs) !important;
+        min-width: 22px !important;
+        height: 22px !important;
+      }
+      
+      /* Play/Pause Button */
+      #basePlayPause {
+        background: linear-gradient(145deg, var(--color-accent-cyan), #0ea5e9) !important;
+        border: none !important;
+        border-radius: var(--radius-full) !important;
+        width: var(--control-btn-size) !important;
+        height: var(--control-btn-size) !important;
+        min-width: var(--control-btn-size) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: #0a0a0a !important;
+        font-size: 11px !important;
+        transition: all var(--transition-fast) !important;
+        box-shadow: var(--shadow-sm);
+        flex-shrink: 0;
+      }
+      #basePlayPause:hover {
+        transform: scale(1.08) !important;
+        box-shadow: var(--shadow-glow-cyan) !important;
+      }
+      
+      /* ========================================
+         SYNC BUTTON STATES
+         ======================================== */
+      #syncButton {
+        transition: all var(--transition-fast) !important;
+      }
+      #syncButton.synced {
+        background: linear-gradient(145deg, var(--color-accent-green), #10b981) !important;
+        border-color: var(--color-accent-green) !important;
+        color: #0a0a0a !important;
+        box-shadow: var(--shadow-glow-green) !important;
+        font-weight: 600 !important;
+      }
+      #syncButton.synced:hover {
+        background: linear-gradient(145deg, #34d399, var(--color-accent-green)) !important;
+        transform: translateY(-1px) !important;
+      }
+      
+      /* Desync Button */
+      #desyncButton {
+        transition: all var(--transition-fast) !important;
+      }
+      #desyncButton:hover {
+        background: rgba(255, 82, 82, 0.2) !important;
+        border-color: var(--color-accent-red) !important;
+        color: var(--color-accent-red) !important;
+      }
+      
+      /* Force Resync Button */
+      #forceResyncButton:hover {
+        background: rgba(255, 179, 0, 0.2) !important;
+        border-color: var(--color-accent-amber) !important;
+        color: var(--color-accent-amber) !important;
+      }
+      
+      /* Save Button */
+      #saveNowButton:hover {
+        background: rgba(0, 230, 118, 0.15) !important;
+        border-color: var(--color-accent-green) !important;
+      }
+      
+      /* Active/Focus States */
+      .compact-btn:active {
+        transform: scale(0.95) !important;
+      }
+      .compact-btn:focus-visible {
+        outline: 2px solid var(--color-accent-cyan);
+        outline-offset: 2px;
+      }
+      
+      /* ========================================
+         SEEK BAR
+         ======================================== */
+      input[type="range"] { 
+        appearance: none; 
+        background: transparent; 
+        border-radius: var(--radius-sm); 
+        height: 16px; 
+        outline: none; 
+        position: relative; 
+        z-index: 1000; 
+        pointer-events: all !important;
+        margin: 0;
+      }
+      input[type="range"]::-webkit-slider-runnable-track { 
+        appearance: none; 
+        height: 4px; 
+        background: rgba(255, 255, 255, 0.15); 
+        border-radius: 2px; 
+      }
+      input[type="range"]::-webkit-slider-thumb { 
+        appearance: none; 
+        height: 12px; 
+        width: 12px; 
+        margin-top: -4px; 
+        border-radius: var(--radius-full); 
+        background: var(--color-accent-cyan); 
+        cursor: pointer; 
+        transition: all var(--transition-fast); 
+        border: none;
+      }
+      input[type="range"]:hover::-webkit-slider-thumb { 
+        transform: scale(1.2); 
+        box-shadow: var(--shadow-glow-cyan);
+      }
+      input[type="range"]:active::-webkit-slider-thumb { 
+        transform: scale(1.4); 
+      }
+      
+      #baseSeekBar {
+        flex: 1;
+        margin: 0 var(--space-sm);
+        height: 20px;
+      }
+      #baseSeekBar::-webkit-slider-runnable-track {
+        height: 5px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.12), rgba(255,255,255,0.08));
+        border-radius: 3px;
+      }
+      #baseSeekBar::-webkit-slider-thumb {
+        width: 14px;
+        height: 14px;
+        margin-top: -5px;
+        background: linear-gradient(145deg, var(--color-accent-cyan), #0ea5e9);
+        box-shadow: var(--shadow-sm);
+      }
+      
+      /* Volume Slider */
+      #baseVolumeSlider {
+        width: 60px;
+        height: 16px;
+      }
+      #baseVolumeSlider::-webkit-slider-runnable-track {
+        height: 3px;
+      }
+      #baseVolumeSlider::-webkit-slider-thumb {
+        width: 10px;
+        height: 10px;
+        margin-top: -4px;
+        background: var(--color-accent-green);
+      }
+      #baseVolumeSlider:hover::-webkit-slider-thumb {
+        box-shadow: var(--shadow-glow-green);
+      }
+      
+      /* ========================================
+         TIME DISPLAY
+         ======================================== */
+      .compact-time {
+        font-size: var(--font-size-sm) !important;
+        color: var(--color-text-secondary) !important;
+        font-weight: 500 !important;
+        font-family: var(--font-mono) !important;
+        white-space: nowrap;
+        min-width: 75px;
+        text-align: center;
+      }
+      
+      /* ========================================
+         DELAY CONTROLS
+         ======================================== */
+      #delayControls { 
+        display: inline-flex; 
+        align-items: center; 
+        gap: var(--space-sm); 
+        justify-content: center; 
+        flex-shrink: 0; 
+      }
+      #delayControls button { 
+        flex: 0 0 auto; 
+        width: 20px; 
+        min-width: 20px; 
+      }
+      .delayLabel { 
+        color: var(--color-text-muted); 
+        font-size: var(--font-size-xs); 
+        font-family: var(--font-mono);
+        font-weight: 500;
+        flex-shrink: 0; 
+      }
+      #delay { 
+        min-width: 58px;
+        display: inline-flex; 
+        align-items: center; 
+        justify-content: center; 
+        background: var(--color-bg-primary); 
+        padding: var(--space-xs) var(--space-sm); 
+        border-radius: var(--radius-sm); 
+        font-size: var(--font-size-sm); 
+        font-family: var(--font-mono); 
+        font-weight: 500;
+        color: var(--color-text-primary); 
+        flex-shrink: 0; 
+        text-align: center;
+        border: 1px solid var(--color-border-subtle);
+      }
+      
+      /* Sync Health Dot */
+      #syncHealthDot { 
+        width: 6px; 
+        height: 6px; 
+        border-radius: var(--radius-full); 
+        background: var(--color-text-muted); 
+        margin-left: var(--space-xs); 
+        flex-shrink: 0; 
+        transition: all var(--transition-normal); 
+      }
+      #syncHealthDot.healthy { background: var(--color-accent-green); box-shadow: 0 0 6px var(--color-accent-green); }
+      #syncHealthDot.correcting { background: var(--color-accent-amber); box-shadow: 0 0 6px var(--color-accent-amber); }
+      #syncHealthDot.drifting { background: var(--color-accent-red); box-shadow: 0 0 6px var(--color-accent-red); }
+      
+      /* ========================================
+         DROPDOWN MENUS
+         ======================================== */
       .video-source-dropdown {
         position: relative;
         display: inline-block;
       }
-      
       .video-source-menu {
         position: absolute;
-        bottom: 32px;
-        left: 0;
-        background: linear-gradient(145deg, rgba(25, 25, 35, 0.95), rgba(15, 15, 25, 0.95));
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 8px;
+        bottom: calc(100% + var(--space-sm));
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--color-bg-elevated);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--color-border-medium);
+        border-radius: var(--radius-md);
         display: none;
         flex-direction: column;
-        width: 80px;
+        min-width: 70px;
         z-index: 1000;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(10px);
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+        animation: dropdownIn 0.15s ease;
       }
-      
+      @keyframes dropdownIn {
+        from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
       .video-source-option {
-        padding: 6px 10px;
-        color: #e0e0e0;
+        padding: var(--space-md) var(--space-lg);
+        color: var(--color-text-secondary);
         background: transparent;
         border: none;
         text-align: center;
         cursor: pointer;
-        transition: all 0.2s ease;
-        font-size: 11px;
+        transition: all var(--transition-fast);
+        font-size: var(--font-size-sm);
         font-weight: 500;
+        font-family: var(--font-sans);
       }
-      
       .video-source-option:hover {
-        background: linear-gradient(145deg, rgba(66, 165, 245, 0.2), rgba(33, 150, 243, 0.2));
-        color: #ffffff;
-        transform: translateY(-1px);
+        background: rgba(0, 212, 255, 0.15);
+        color: var(--color-text-primary);
+      }
+      .video-source-option:first-child {
+        border-bottom: 1px solid var(--color-border-subtle);
       }
       
-      /* Modern compact button styles */
-      .compact-btn {
-        padding: 4px 8px !important;
-        font-size: 11px !important;
-        min-width: auto !important;
-        background: linear-gradient(145deg, rgba(45, 45, 55, 0.8), rgba(35, 35, 45, 0.8)) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 6px !important;
-        color: #e0e0e0 !important;
-        transition: all 0.2s ease !important;
-        font-weight: 500 !important;
+      /* Base Source Button */
+      #baseVideoSourceBtn:hover {
+        background: rgba(0, 212, 255, 0.2) !important;
+        border-color: var(--color-accent-cyan) !important;
+        color: var(--color-accent-cyan) !important;
       }
       
-      .compact-btn:hover {
-        background: linear-gradient(145deg, rgba(66, 165, 245, 0.3), rgba(33, 150, 243, 0.3)) !important;
-        border-color: rgba(66, 165, 245, 0.5) !important;
-        color: #ffffff !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 4px 12px rgba(66, 165, 245, 0.2) !important;
+      /* React Source Button */
+      #reactVideoSourceBtn:hover {
+        background: rgba(255, 179, 0, 0.2) !important;
+        border-color: var(--color-accent-amber) !important;
+        color: var(--color-accent-amber) !important;
       }
       
-      /* Ultra-compact control elements */
-      .ultra-compact {
-        padding: 2px 6px !important;
-        font-size: 10px !important;
-        min-width: 18px !important;
-        height: 24px !important;
-        margin: 0 1px !important;
+      /* ========================================
+         QUALITY MENU
+         ======================================== */
+      #youtubeQuality { 
+        pointer-events: auto !important; 
+        z-index: 2000 !important;
+      }
+      #youtubeQuality:hover {
+        background: rgba(147, 51, 234, 0.2) !important;
+        border-color: #a855f7 !important;
+        color: #a855f7 !important;
       }
       
-      /* Modern seek bar styling */
-      #baseSeekBar {
-        flex: 3 !important;
-        margin: 0 6px !important;
-        height: 6px !important;
-        background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)) !important;
-        border-radius: 3px !important;
-        outline: none !important;
-        transition: all 0.2s ease !important;
+      /* Subtitle Button */
+      #addSubBtn:hover {
+        background: rgba(236, 72, 153, 0.2) !important;
+        border-color: #ec4899 !important;
+        color: #ec4899 !important;
+      }
+      .quality-menu { 
+        position: fixed; 
+        background: var(--color-bg-elevated);
+        backdrop-filter: blur(16px);
+        border: 1px solid var(--color-border-medium); 
+        border-radius: var(--radius-md); 
+        display: none; 
+        flex-direction: column; 
+        width: 150px; 
+        max-height: 240px; 
+        overflow-y: auto; 
+        z-index: 99999 !important; 
+        padding: var(--space-sm); 
+        box-shadow: var(--shadow-lg); 
+        gap: var(--space-xs); 
+        pointer-events: auto !important; 
+      }
+      .quality-option { 
+        padding: var(--space-md) var(--space-lg); 
+        color: var(--color-text-secondary); 
+        background: transparent;
+        border: none; 
+        text-align: left; 
+        cursor: pointer !important; 
+        transition: all var(--transition-fast); 
+        font-size: var(--font-size-md); 
+        font-family: var(--font-sans);
+        border-radius: var(--radius-sm); 
+        pointer-events: auto !important; 
+      }
+      .quality-option:hover { background: rgba(0, 212, 255, 0.15); color: var(--color-text-primary); }
+      .quality-option.active { background: rgba(0, 212, 255, 0.25); color: var(--color-accent-cyan); font-weight: 600; }
+      .quality-empty { color: var(--color-text-muted); text-align: center; font-size: var(--font-size-sm); padding: var(--space-md); }
+      
+      /* ========================================
+         TIPS SCREEN
+         ======================================== */
+      #tipsScreen { 
+        position: absolute; 
+        top: 0; 
+        left: 0; 
+        right: 0; 
+        z-index: 15; 
+        color: var(--color-text-primary); 
+        padding: 0; 
+        background: rgba(8, 10, 15, 0.95);
+        backdrop-filter: blur(20px);
+        max-height: 100vh; 
+        overflow: auto; 
+        overflow-x: hidden; 
+      }
+      #tipsHeader { 
+        position: sticky; 
+        top: 0; 
+        display: flex; 
+        align-items: center; 
+        justify-content: space-between; 
+        padding: var(--space-lg) var(--space-xl); 
+        background: var(--color-bg-primary);
+        border-bottom: 1px solid var(--color-border-subtle); 
+        font-weight: 600; 
+        font-size: var(--font-size-lg); 
+        font-family: var(--font-sans);
+        letter-spacing: 0.3px; 
+      }
+      #tipsHeader span {
+        color: var(--color-accent-cyan);
+      }
+      #tipsClose { 
+        background: var(--color-bg-elevated); 
+        color: var(--color-text-primary); 
+        border: 1px solid var(--color-border-medium); 
+        padding: var(--space-sm) var(--space-lg); 
+        border-radius: var(--radius-md); 
+        font-size: var(--font-size-md); 
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
+      #tipsClose:hover {
+        background: rgba(255, 82, 82, 0.2);
+        border-color: var(--color-accent-red);
+      }
+      #tipsBody { 
+        padding: var(--space-xl); 
+        font-size: 13px; 
+        line-height: 1.7; 
+      }
+      #tipsBody ul {
+        padding-left: 20px;
+      }
+      #tipsBody li { 
+        color: var(--color-text-secondary);
+        margin-bottom: var(--space-md);
+      }
+      #tipsBody b {
+        color: var(--color-accent-cyan);
+        font-weight: 600;
+      }
+      #loadLastPairBtn, #clearStorageBtn {
+        background: var(--color-bg-elevated);
+        border: 1px solid var(--color-border-medium);
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-sm);
+        padding: var(--space-sm) var(--space-md);
+        border-radius: var(--radius-md);
+      }
+      #loadLastPairBtn:hover {
+        background: rgba(0, 230, 118, 0.15);
+        border-color: var(--color-accent-green);
+        color: var(--color-accent-green);
+      }
+      #clearStorageBtn:hover {
+        background: rgba(255, 82, 82, 0.15);
+        border-color: var(--color-accent-red);
+        color: var(--color-accent-red);
       }
       
-      #baseSeekBar::-webkit-slider-thumb {
-        appearance: none !important;
-        width: 14px !important;
-        height: 14px !important;
-        border-radius: 50% !important;
-        background: linear-gradient(145deg, #42a5f5, #2196f3) !important;
-        cursor: pointer !important;
-        border: 2px solid rgba(255,255,255,0.2) !important;
-        box-shadow: 0 2px 8px rgba(66, 165, 245, 0.3) !important;
-        transition: all 0.2s ease !important;
+      /* ========================================
+         TOAST NOTIFICATIONS
+         ======================================== */
+      .toast-container { 
+        position: fixed; 
+        top: 60px; 
+        right: var(--space-lg); 
+        z-index: 99999; 
+        display: flex; 
+        flex-direction: column; 
+        gap: var(--space-md); 
+        pointer-events: none; 
+      }
+      .toast { 
+        background: var(--color-bg-elevated);
+        backdrop-filter: blur(16px);
+        color: var(--color-text-primary); 
+        padding: var(--space-lg) var(--space-xl); 
+        border-radius: var(--radius-md); 
+        font-size: var(--font-size-lg); 
+        font-family: var(--font-sans);
+        max-width: 300px; 
+        box-shadow: var(--shadow-lg); 
+        border-left: 3px solid var(--color-accent-red); 
+        pointer-events: auto; 
+        animation: toastIn 0.3s ease; 
+      }
+      .toast.warning { border-left-color: var(--color-accent-amber); }
+      .toast.info { border-left-color: var(--color-accent-cyan); }
+      @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+      
+      /* Sync Status */
+      #syncStatus {
+        position: fixed;
+        top: var(--space-md);
+        right: var(--space-md);
+        background: var(--color-bg-primary);
+        backdrop-filter: blur(12px);
+        color: var(--color-text-primary);
+        padding: var(--space-sm) var(--space-lg);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-sm);
+        font-family: var(--font-mono);
+        z-index: 9999;
+        border: 1px solid var(--color-border-subtle);
       }
       
-      #baseSeekBar::-webkit-slider-thumb:hover {
-        transform: scale(1.2) !important;
-        box-shadow: 0 4px 16px rgba(66, 165, 245, 0.5) !important;
+      /* Hidden elements */
+      #timeRange, #timeRangeBase, #ReactVol, #BaseVol { display: none; }
+      #BottomBar { display: none; }
+      
+      /* Debug Overlay */
+      #debugOverlay {
+        font-family: var(--font-mono);
+        font-size: var(--font-size-sm);
+        background: var(--color-bg-primary);
+        border: 1px solid var(--color-border-subtle);
+        border-radius: var(--radius-md);
       }
       
-      /* Modern play/pause button */
-      #basePlayPause {
-        background: linear-gradient(145deg, rgba(66, 165, 245, 0.8), rgba(33, 150, 243, 0.8)) !important;
-        border: 1px solid rgba(66, 165, 245, 0.3) !important;
-        border-radius: 50% !important;
-        width: 28px !important;
-        height: 28px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        color: white !important;
-        font-size: 12px !important;
-        transition: all 0.2s ease !important;
-        margin: 0 4px !important;
+      /* ========================================
+         RESPONSIVE DESIGN
+         ======================================== */
+      
+      /* Large screens */
+      @media (min-width: 1200px) {
+        :root {
+          --control-height: 46px;
+          --control-btn-size: 32px;
+        }
+        .compact-time { min-width: 90px; }
+        #baseVolumeSlider { width: 80px; }
       }
       
-      #basePlayPause:hover {
-        transform: scale(1.1) !important;
-        box-shadow: 0 4px 16px rgba(66, 165, 245, 0.4) !important;
-        background: linear-gradient(145deg, rgba(66, 165, 245, 1), rgba(33, 150, 243, 1)) !important;
+      /* Medium screens */
+      @media (max-width: 1199px) and (min-width: 768px) {
+        :root {
+          --control-height: 40px;
+          --space-lg: 10px;
+        }
+        .control-separator { display: none; }
+        .control-group { gap: var(--space-xs); }
+        #delayControls { gap: 2px; }
+        #delay { min-width: 52px; font-size: var(--font-size-xs); }
+        .delayLabel { display: none; }
       }
       
-      /* Compact time display */
-      .compact-time {
-        font-size: 10px !important;
-        color: #b0b0b0 !important;
-        font-weight: 500 !important;
-        font-family: 'Courier New', monospace !important;
-        margin: 0 4px !important;
+      /* Small screens */
+      @media (max-width: 767px) {
+        :root {
+          --control-height: 38px;
+          --control-btn-size: 26px;
+          --control-btn-size-sm: 22px;
+        }
+        
+        #baseVideoControls {
+          flex-wrap: wrap;
+          height: auto;
+          padding: var(--space-sm) var(--space-md);
+          gap: var(--space-sm);
+        }
+        
+        .control-separator { display: none; }
+        
+        .control-group.playback-group { order: 1; }
+        .control-group.seek-group { 
+          order: 2; 
+          flex: 1 1 100%;
+          min-width: 100%;
+        }
+        .control-group.delay-group { order: 3; }
+        .control-group.media-group { order: 4; }
+        .control-group.sync-group { order: 5; }
+        
+        .delayLabel { display: none; }
+        #delay { min-width: 48px; font-size: 8px; }
+        
+        .compact-time { 
+          min-width: 60px; 
+          font-size: 8px !important; 
+        }
+        
+        #baseVolumeSlider { width: 40px; }
+        
+        #videoReactContainer {
+          min-width: 150px;
+          min-height: 85px;
+        }
+        
+        .reactControls {
+          height: 32px;
+          padding: 0 var(--space-sm);
+          gap: var(--space-sm);
+        }
+        
+        #reactPlayPauseInner {
+          width: 20px !important;
+          height: 20px !important;
+          min-width: 20px !important;
+        }
+        
+        #reactTimeDisplay {
+          font-size: 8px !important;
+          min-width: 55px;
+        }
+        
+        #reactVolumeSlider { width: 35px; }
       }
       
-      /* Modern controls container - More transparent and smaller */
-      #baseVideoControls {
-        background: linear-gradient(145deg, rgba(15, 15, 25, 0.6), rgba(8, 8, 18, 0.6)) !important;
-        border: 1px solid rgba(255, 255, 255, 0.04) !important;
-        border-radius: 6px !important;
-        backdrop-filter: blur(8px) !important;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15) !important;
-        padding: 3px 5px !important;
-        gap: 2px !important;
-        z-index: 50 !important; /* Lower z-index than react controls */
-      }
-      
-      /* Modern volume slider */
-      #baseVolumeSlider {
-        background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)) !important;
-        border-radius: 2px !important;
-        outline: none !important;
-        height: 3px !important;
-      }
-      
-      #baseVolumeSlider::-webkit-slider-thumb {
-        appearance: none !important;
-        width: 10px !important;
-        height: 10px !important;
-        border-radius: 50% !important;
-        background: linear-gradient(145deg, #66bb6a, #4caf50) !important;
-        cursor: pointer !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
-        transition: all 0.2s ease !important;
-      }
-      
-      #baseVolumeSlider::-webkit-slider-thumb:hover {
-        transform: scale(1.2) !important;
-        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4) !important;
-      }
-      
-      /* Modern react video controls - Higher z-index */
-      .reactControls {
-        background: linear-gradient(145deg, rgba(15, 15, 25, 0.7), rgba(8, 8, 18, 0.7)) !important;
-        border: 1px solid rgba(255, 255, 255, 0.06) !important;
-        border-radius: 6px !important;
-        backdrop-filter: blur(10px) !important;
-        padding: 3px 4px !important;
-        gap: 2px !important;
-        z-index: 200 !important; /* Higher z-index than base controls */
-        position: relative !important;
-      }
-      
-      /* Modern react controls styling - Smaller */
-      #reactPlayPauseInner {
-        background: linear-gradient(145deg, rgba(255, 193, 7, 0.7), rgba(255, 152, 0, 0.7)) !important;
-        border: 1px solid rgba(255, 193, 7, 0.25) !important;
-        border-radius: 50% !important;
-        width: 20px !important;
-        height: 20px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        color: white !important;
-        font-size: 9px !important;
-        transition: all 0.2s ease !important;
-      }
-      
-      #reactPlayPauseInner:hover {
-        transform: scale(1.1) !important;
-        box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4) !important;
-      }
-      
-      #reactSeekBar, #reactVolumeSlider {
-        background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)) !important;
-        border-radius: 2px !important;
-        outline: none !important;
-        height: 2px !important;
-      }
-      
-      #reactSeekBar::-webkit-slider-thumb, #reactVolumeSlider::-webkit-slider-thumb {
-        appearance: none !important;
-        width: 8px !important;
-        height: 8px !important;
-        border-radius: 50% !important;
-        background: linear-gradient(145deg, #ff9800, #f57c00) !important;
-        cursor: pointer !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
-        transition: all 0.2s ease !important;
-      }
-      
-      #reactSeekBar::-webkit-slider-thumb:hover, #reactVolumeSlider::-webkit-slider-thumb:hover {
-        transform: scale(1.2) !important;
-        box-shadow: 0 2px 8px rgba(255, 152, 0, 0.4) !important;
-      }
-      
-      #reactTimeDisplay {
-        font-size: 8px !important;
-        color: #b0b0b0 !important;
-        font-family: 'Courier New', monospace !important;
-        font-weight: 500 !important;
-      }
-      
-      #baseVolumeSlider::-webkit-slider-thumb:hover {
-        transform: scale(1.2) !important;
-        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4) !important;
+      /* Extra small screens */
+      @media (max-width: 480px) {
+        #baseVideoControls {
+          padding: var(--space-xs) var(--space-sm);
+        }
+        
+        .control-group.media-group #youtubeQuality,
+        .control-group.media-group #addSubBtn {
+          display: none;
+        }
+        
+        #baseVolumeSlider { display: none; }
+        
+        .compact-btn {
+          padding: 2px 4px !important;
+          font-size: 8px !important;
+        }
+        
+        .ultra-compact {
+          min-width: 18px !important;
+          height: 20px !important;
+        }
       }
     </style>
     <script>
@@ -546,46 +1234,58 @@
       <div id="videoBaseYoutube" style="width:100%;height:100%;display:none;"></div>
     </div>
     <div id="baseVideoControls">
-      <!-- Ultra-compact left controls -->
-      <div class="video-source-dropdown">
-        <button id="baseVideoSourceBtn" class="compact-btn ultra-compact" title="Load main video (local file or web link)">Base</button>
-        <div id="baseVideoSourceMenu" class="video-source-menu">
-          <button class="video-source-option" id="addBaseVideoLocal" title="Select a video file from your computer">Local</button>
-          <button class="video-source-option" id="addBaseVideoLink" title="Enter YouTube URL or direct video link">Link</button>
+      <!-- PLAYBACK GROUP: Source + Play -->
+      <div class="control-group playback-group">
+        <div class="video-source-dropdown">
+          <button id="baseVideoSourceBtn" class="compact-btn" title="Load main video (local file or web link)">Base</button>
+          <div id="baseVideoSourceMenu" class="video-source-menu">
+            <button class="video-source-option" id="addBaseVideoLocal" title="Select a video file from your computer">Local</button>
+            <button class="video-source-option" id="addBaseVideoLink" title="Enter YouTube URL or direct video link">Link</button>
+          </div>
+        </div>
+        <button id="basePlayPause" title="Play or pause the main video">▶</button>
+      </div>
+      
+      <!-- SEEK GROUP: Timeline + Time -->
+      <div class="control-group seek-group">
+        <input type="range" id="baseSeekBar" min="0" max="100" value="0" step="any" title="Drag to jump to any time in the main video">
+        <div id="baseTimeDisplay" class="compact-time" title="Current time / Total duration">0:00 / 0:00</div>
+      </div>
+      
+      <div class="control-separator"></div>
+      
+      <!-- DELAY GROUP: Timing adjustment -->
+      <div class="control-group delay-group">
+        <div id="delayControls">
+          <span class="delayLabel">Δ</span>
+          <button id="decreaseDelayBtn" class="compact-btn ultra-compact" title="Make reaction video play earlier">−</button>
+          <span id="delay" title="Time difference between videos">0.0s</span>
+          <span id="syncHealthDot" title="Sync health indicator"></span>
+          <span id="delayValue" hidden>0.0</span>
+          <button id="increaseDelayBtn" class="compact-btn ultra-compact" title="Make reaction video play later">+</button>
         </div>
       </div>
       
-      <button id="basePlayPause" title="Play or pause the main video">⏵</button>
+      <div class="control-separator"></div>
       
-      <!-- MAXIMIZED SEEK BAR - This gets the most space now -->
-      <input type="range" id="baseSeekBar" min="0" max="100" value="0" step="any" title="Drag to jump to any time in the main video">
-      
-      <!-- Ultra-compact delay controls -->
-      <div id="delayControls">
-        <span class="delayLabel">D:</span>
-        <button id="decreaseDelayBtn" class="compact-btn ultra-compact" title="Make reaction video play earlier">-</button>
-        <span id="delay" title="Time difference between videos">?</span>
-        <span id="syncHealthDot" title="Sync health indicator"></span>
-        <span id="delayValue" hidden>0.0</span>
-        <button id="increaseDelayBtn" class="compact-btn ultra-compact" title="Make reaction video play later">+</button>
-      </div>
-      
-      <button id="youtubeQuality" class="compact-btn ultra-compact" title="Change YouTube video quality" style="pointer-events: auto !important; z-index: 1001;">Q</button>
-      <div id="baseTimeDisplay" class="compact-time" title="Current time / Total duration">0:00/0:00</div>
-      <button id="addSubBtn" class="compact-btn ultra-compact" title="Load subtitle file (.srt format)">CC</button>
-      
-      <div class="video-source-dropdown">
-        <button id="reactVideoSourceBtn" class="compact-btn ultra-compact" title="Load reaction video (local file or web link)">React</button>
-        <div id="reactVideoSourceMenu" class="video-source-menu">
-          <button class="video-source-option" id="addReactVidLocal" title="Select a reaction video file from your computer">Local</button>
-          <button class="video-source-option" id="addReactVidLink" title="Enter YouTube URL or direct reaction video link">Link</button>
+      <!-- MEDIA GROUP: React source + extras -->
+      <div class="control-group media-group">
+        <div class="video-source-dropdown">
+          <button id="reactVideoSourceBtn" class="compact-btn" title="Load reaction video (local file or web link)">React</button>
+          <div id="reactVideoSourceMenu" class="video-source-menu">
+            <button class="video-source-option" id="addReactVidLocal" title="Select a reaction video file from your computer">Local</button>
+            <button class="video-source-option" id="addReactVidLink" title="Enter YouTube URL or direct reaction video link">Link</button>
+          </div>
         </div>
+        <button id="addSubBtn" class="compact-btn ultra-compact" title="Load subtitle file (.srt format)">CC</button>
+        <button id="youtubeQuality" class="compact-btn ultra-compact" title="Change YouTube video quality">Q</button>
+        <input type="range" id="baseVolumeSlider" min="0" max="1" value="1" step="any" title="Adjust main video volume">
       </div>
       
-      <input type="range" id="baseVolumeSlider" min="0" max="1" value="1" step="any" title="Adjust main video volume" style="width: 40px; margin: 0 2px;">
+      <div class="control-separator"></div>
       
-      <!-- Ultra-compact sync controls -->
-      <div style="display: flex; gap: 1px;">
+      <!-- SYNC GROUP: Sync controls -->
+      <div class="control-group sync-group">
         <button id="syncButton" class="compact-btn ultra-compact" title="Start syncing both videos together">S</button>
         <button id="desyncButton" class="compact-btn ultra-compact" title="Stop syncing - videos play independently">D</button>
         <button id="forceResyncButton" class="compact-btn ultra-compact" title="Force videos to sync again">FR</button>

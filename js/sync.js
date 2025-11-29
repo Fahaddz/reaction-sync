@@ -102,7 +102,7 @@ function initSync(baseYT, reactYT, isBaseYT, isReactYT) {
 
     stopSyncLoop();
     updateSyncIndicator(false);
-    $("#delay").css("color", "white").text("?");
+    $("#delay").css("color", "var(--color-text-primary, #f0f0f0)").text("0.0s");
 
     if (!_syncClickListenerAdded) {
       _syncClickListenerAdded = true;
@@ -282,7 +282,7 @@ function syncNow() {
     try {
       const syncButton = $("#syncButton");
       if (syncButton.length) {
-        syncButton.addClass("active").css({ "background-color": "rgba(0, 255, 0, 0.3)", "border-color": "rgba(0, 255, 0, 0.5)" }).text("Synced");
+        syncButton.addClass("synced");
       }
     } catch (uiErr) { console.warn('Error updating sync button:', uiErr); }
     try { document.dispatchEvent(new CustomEvent('syncStateChange')); } catch (eventErr) { console.warn('Error dispatching sync event:', eventErr); }
@@ -311,7 +311,7 @@ function setDelay(delay, shouldSeek = false) {
     const delayText = `${sign}${secondsToTime(absDelay, 10)}`;
 
     try {
-      $("#delay").css("color", "lightgreen").text(delayText);
+      $("#delay").css("color", "var(--color-accent-green, #00e676)").text(delayText);
       const delayValueEl = $("#delayValue");
       if (delayValueEl.length) { delayValueEl.text(delay.toFixed(1)); }
     } catch (uiErr) {}
@@ -342,7 +342,7 @@ function disableSync() {
     stopSyncLoop();
     isVideosSynced = false;
     window.isVideosSynced = false;
-    $("#delay").css("color", "white").text("?");
+    $("#delay").css("color", "var(--color-text-primary, #f0f0f0)").text("0.0s");
     updateSyncIndicator(false);
     updateSyncHealth('');
     return true;
@@ -357,17 +357,17 @@ function updateSyncIndicator(synced) {
     const syncButton = $("#syncButton");
     if (syncButton.length) {
       if (synced) {
-        syncButton.addClass("active").css({ "background-color": "rgba(0, 255, 0, 0.3)", "border-color": "rgba(0, 255, 0, 0.5)" }).text("Synced");
+        syncButton.addClass("synced");
       } else {
-        syncButton.removeClass("active").css({ "background-color": "", "border-color": "" }).text("Sync");
+        syncButton.removeClass("synced");
       }
     }
     const desyncButton = $("#desyncButton");
     if (desyncButton.length) {
-      desyncButton.css({ "display": synced ? "inline-block" : "inline-block", "opacity": synced ? "1" : "0.5" });
+      desyncButton.css({ "opacity": synced ? "1" : "0.6" });
     }
     const delayEl = $("#delay");
-    if (delayEl.length) { delayEl.css("color", synced ? "lightgreen" : "white"); }
+    if (delayEl.length) { delayEl.css("color", synced ? "var(--color-accent-green, #00e676)" : "var(--color-text-primary, #f0f0f0)"); }
   } catch (e) { console.error("Error updating sync indicator:", e); }
 }
 
