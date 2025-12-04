@@ -40,34 +40,36 @@
     <script type="module" src="js/progress.js"></script>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-        // Setup dropdown menus
         function setupDropdownMenu(buttonId, menuId) {
           const button = document.getElementById(buttonId);
           const menu = document.getElementById(menuId);
-          
           button.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            
-            // Hide all other menus
             document.querySelectorAll('.video-source-menu').forEach(m => {
-              if (m !== menu) m.style.display = 'none';
+              if (m !== menu) { m.style.display = 'none'; m.classList.remove('open-up', 'open-down'); }
             });
-            
-            // Toggle this menu
-            menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+            if (menu.style.display === 'flex') {
+              menu.style.display = 'none';
+              menu.classList.remove('open-up', 'open-down');
+            } else {
+              menu.style.display = 'flex';
+              const btnRect = button.getBoundingClientRect();
+              const menuHeight = menu.offsetHeight || 80;
+              const spaceAbove = btnRect.top;
+              const spaceBelow = window.innerHeight - btnRect.bottom;
+              menu.classList.remove('open-up', 'open-down');
+              menu.classList.add(spaceAbove > spaceBelow && spaceAbove >= menuHeight ? 'open-up' : 'open-down');
+            }
           });
         }
-        
-        // Setup both dropdown menus
         setupDropdownMenu('baseVideoSourceBtn', 'baseVideoSourceMenu');
         setupDropdownMenu('reactVideoSourceBtn', 'reactVideoSourceMenu');
-        
-        // Hide menus when clicking outside
         document.addEventListener('click', function(e) {
           if (!e.target.closest('.video-source-dropdown')) {
             document.querySelectorAll('.video-source-menu').forEach(m => {
               m.style.display = 'none';
+              m.classList.remove('open-up', 'open-down');
             });
           }
         });
@@ -778,7 +780,6 @@
       }
       .video-source-menu {
         position: absolute;
-        bottom: calc(100% + var(--space-sm));
         left: 50%;
         transform: translateX(-50%);
         background: var(--color-bg-elevated);
@@ -792,10 +793,23 @@
         z-index: 1000;
         box-shadow: var(--shadow-lg);
         overflow: hidden;
-        animation: dropdownIn 0.15s ease;
       }
-      @keyframes dropdownIn {
+      .video-source-menu.open-up {
+        bottom: calc(100% + var(--space-sm));
+        top: auto;
+        animation: dropdownUp 0.15s ease;
+      }
+      .video-source-menu.open-down {
+        top: calc(100% + var(--space-sm));
+        bottom: auto;
+        animation: dropdownDown 0.15s ease;
+      }
+      @keyframes dropdownUp {
         from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
+      @keyframes dropdownDown {
+        from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
         to { opacity: 1; transform: translateX(-50%) translateY(0); }
       }
       .video-source-option {
