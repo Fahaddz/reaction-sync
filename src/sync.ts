@@ -124,8 +124,8 @@ export class SyncEngine {
       this.reactPlayer.play()
       return
     }
-    if (!basePlaying && reactPlaying) {
-      this.reactPlayer.pause()
+    if (!basePlaying && reactPlaying && !this.isBuffering.base) {
+      this.basePlayer.play()
       return
     }
     if (!basePlaying || !reactPlaying) {

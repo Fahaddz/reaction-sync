@@ -101,6 +101,8 @@ export class YouTubePlayer implements Player {
   private retryCount = 0
   private onReadyCallback: (() => void) | null = null
   private onQualityChangeCallback: ((quality: string) => void) | null = null
+  private pendingPlay = false
+  private initTimeoutId: ReturnType<typeof setTimeout> | null = null
 
   constructor(containerId: string) {
     this.containerId = containerId
@@ -127,11 +129,13 @@ export class YouTubePlayer implements Player {
             e.target.pauseVideo()
             if (startSeconds != null && startSeconds > 0) {
               e.target.seekTo(startSeconds, true)
-              setTimeout(() => e.target.pauseVideo(), 100)
             }
-            setTimeout(() => {
+            this.initTimeoutId = setTimeout(() => {
               this.setHighestQuality()
-              e.target.pauseVideo()
+              if (!this.pendingPlay) {
+                e.target.pauseVideo()
+              }
+              this.initTimeoutId = null
             }, 500)
             this.onReadyCallback?.()
           },
@@ -145,6 +149,7 @@ export class YouTubePlayer implements Player {
 
   private handleStateChange(state: number): void {
     if (state === window.YT.PlayerState.PLAYING) {
+      this.pendingPlay = false
       this.stateCallback?.('playing')
     } else if (state === window.YT.PlayerState.PAUSED) {
       this.stateCallback?.('paused')
@@ -180,10 +185,18 @@ export class YouTubePlayer implements Player {
   }
 
   play(): void {
-    this.player?.playVideo()
+    if (!this.player || !this.ready) return
+    this.pendingPlay = true
+    if (this.initTimeoutId) {
+      clearTimeout(this.initTimeoutId)
+      this.initTimeoutId = null
+      this.setHighestQuality()
+    }
+    this.player.playVideo()
   }
 
   pause(): void {
+    this.pendingPlay = false
     this.player?.pauseVideo()
   }
 
@@ -232,9 +245,14 @@ export class YouTubePlayer implements Player {
   }
 
   destroy(): void {
+    if (this.initTimeoutId) {
+      clearTimeout(this.initTimeoutId)
+      this.initTimeoutId = null
+    }
     this.player?.destroy()
     this.player = null
     this.ready = false
+    this.pendingPlay = false
     this.stateCallback = null
   }
 
