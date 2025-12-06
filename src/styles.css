@@ -24,6 +24,75 @@ html, body {
   overflow: hidden;
 }
 
+input[type="range"] {
+  -webkit-appearance: none;
+  background: var(--border);
+  border-radius: 2px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-track {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+input[type="range"]::-moz-range-thumb {
+  background: var(--accent);
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+}
+
+.slider-sm, .reactControls input[type="range"], .media-group input[type="range"] {
+  height: 4px;
+}
+
+.slider-sm::-webkit-slider-thumb,
+.reactControls input[type="range"]::-webkit-slider-thumb,
+.media-group input[type="range"]::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+}
+
+.slider-sm::-moz-range-track,
+.reactControls input[type="range"]::-moz-range-track,
+.media-group input[type="range"]::-moz-range-track {
+  height: 4px;
+}
+
+.slider-sm::-moz-range-thumb,
+.reactControls input[type="range"]::-moz-range-thumb,
+.media-group input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+}
+
+.slider-md, .seek-group input[type="range"] {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.slider-md::-webkit-slider-thumb, .seek-group input[type="range"]::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+}
+
+.slider-md::-moz-range-track, .seek-group input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.slider-md::-moz-range-thumb, .seek-group input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+}
+
 #videoBaseContainer {
   position: fixed;
   inset: 0;
@@ -128,19 +197,6 @@ html, body {
 
 .reactControls input[type="range"] {
   flex: 1;
-  height: 4px;
-  -webkit-appearance: none;
-  background: var(--border);
-  border-radius: 2px;
-}
-
-.reactControls input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
-  background: var(--accent);
-  border-radius: 50%;
-  cursor: pointer;
 }
 
 #reactTimeDisplay {
@@ -219,18 +275,6 @@ html, body {
 .seek-group { flex: 1; min-width: 200px; }
 .seek-group input[type="range"] {
   flex: 1;
-  height: 6px;
-  -webkit-appearance: none;
-  background: var(--border);
-  border-radius: 3px;
-}
-.seek-group input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  background: var(--accent);
-  border-radius: 50%;
-  cursor: pointer;
 }
 
 .compact-time {
@@ -274,19 +318,6 @@ html, body {
 
 .media-group input[type="range"] {
   width: 80px;
-  height: 4px;
-  -webkit-appearance: none;
-  background: var(--border);
-  border-radius: 2px;
-}
-
-.media-group input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
-  background: var(--accent);
-  border-radius: 50%;
-  cursor: pointer;
 }
 
 .video-source-dropdown { position: relative; }
@@ -475,29 +506,6 @@ html, body {
 .resume-dialog .resume-btn { background: var(--success); color: #0a0a0a; }
 .resume-dialog .reset-btn { background: rgba(255, 255, 255, 0.1); }
 
-.resume-content {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-}
-
-.resume-content button {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.resume-content button:hover { background: var(--accent); border-color: var(--accent); }
-
 #rateDisplay {
   font-size: 11px;
   font-family: var(--font-mono);
@@ -505,49 +513,3 @@ html, body {
   text-align: center;
   transition: color 0.2s;
 }
-
-.reactControls input[type="range"]::-moz-range-track {
-  background: var(--border);
-  height: 4px;
-  border-radius: 2px;
-}
-
-.reactControls input[type="range"]::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  background: var(--accent);
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-}
-
-.seek-group input[type="range"]::-moz-range-track {
-  background: var(--border);
-  height: 6px;
-  border-radius: 3px;
-}
-
-.seek-group input[type="range"]::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  background: var(--accent);
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-}
-
-.media-group input[type="range"]::-moz-range-track {
-  background: var(--border);
-  height: 4px;
-  border-radius: 2px;
-}
-
-.media-group input[type="range"]::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  background: var(--accent);
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-}
-

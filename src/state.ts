@@ -7,13 +7,14 @@ export type VideoSource = {
 
 export type SyncHealth = 'healthy' | 'correcting' | 'drifting' | ''
 
+export type InteractionState = 'idle' | 'seeking' | 'interacting'
+
 export type State = {
   baseSource: VideoSource | null
   reactSource: VideoSource | null
   delay: number
   synced: boolean
-  seeking: boolean
-  userInteracting: boolean
+  interactionState: InteractionState
   baseVolume: number
   reactVolume: number
   syncHealth: SyncHealth
@@ -28,8 +29,7 @@ const initialState: State = {
   reactSource: null,
   delay: 0,
   synced: false,
-  seeking: false,
-  userInteracting: false,
+  interactionState: 'idle',
   baseVolume: 1,
   reactVolume: 1,
   syncHealth: '',
@@ -53,4 +53,3 @@ export function subscribe(fn: Listener): () => void {
   listeners.add(fn)
   return () => listeners.delete(fn)
 }
-

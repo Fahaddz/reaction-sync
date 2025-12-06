@@ -1,4 +1,5 @@
 import type { Player, PlayState } from './player.ts'
+import { showToast } from './ui/toast.ts'
 
 declare global {
   interface Window {
@@ -158,10 +159,12 @@ export class YouTubePlayer implements Player {
     const errors: Record<number, string> = {
       2: 'Invalid URL', 5: 'HTML5 error', 100: 'Not found', 101: 'Embedding disabled', 150: 'Embedding disabled'
     }
-    console.error('YouTube error:', errors[errorCode] || errorCode)
+    const message = errors[errorCode] || `YouTube error ${errorCode}`
     if (this.retryCount < 3) {
       this.retryCount++
       setTimeout(() => this.initialize(videoId), 2000 * this.retryCount)
+    } else {
+      showToast(`YouTube failed: ${message}`, 'error', 5000)
     }
   }
 

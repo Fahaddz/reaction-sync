@@ -1,6 +1,6 @@
 import './styles.css'
 import { subscribe } from './state.ts'
-import { initUI, closeTipsScreen, getYouTubePlayers } from './ui.ts'
+import { initUI, closeTipsScreen, getYouTubePlayers } from './ui/index.ts'
 import { initDraggable, initResizable, applyPosition } from './drag-resize.ts'
 import { initKeyboardShortcuts, trackContainerFocus, initDelayHold } from './keyboard.ts'
 import { startAutoSave, loadLastSession, clearSessions, onSourceChange } from './storage.ts'
