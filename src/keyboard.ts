@@ -58,7 +58,7 @@ function handleKeyDown(e: KeyboardEvent): void {
   if (key === 'arrowleft' || key === 'arrowright') {
     e.preventDefault()
     const amount = key === 'arrowleft' ? -5 : 5
-    const targetBase = e.shiftKey || isFocusedOnBase()
+    const targetBase = synced ? true : (e.shiftKey || isFocusedOnBase())
     const currentTime = targetBase ? getBaseCurrentTime() : getReactCurrentTime()
     syncSeek(targetBase, currentTime + amount)
     return

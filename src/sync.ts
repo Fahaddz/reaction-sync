@@ -8,7 +8,7 @@ const LOOSE_THRESHOLD = 0.25
 const SEEK_THRESHOLD = 0.5
 const RATE_MIN = 0.97
 const RATE_MAX = 1.03
-const SEEK_COOLDOWN = 600
+const SEEK_COOLDOWN = 300
 const DELAY_STEP = 0.1
 const DRIFT_HISTORY_SIZE = 10
 const SEEK_VERIFY_DELAY = 150
@@ -69,10 +69,7 @@ export class SyncEngine {
 
   private handleBufferingChange(): void {
     if (!get().synced || !this.basePlayer || !this.reactPlayer) return
-    if (this.isBuffering.base || this.isBuffering.react) {
-      if (this.isBuffering.base && this.reactPlayer.isPlaying()) this.reactPlayer.pause()
-      if (this.isBuffering.react && this.basePlayer.isPlaying()) this.basePlayer.pause()
-    }
+    if (get().interactionState !== 'idle') return
   }
 
   private verifySeek(): void {
@@ -310,22 +307,24 @@ export class SyncEngine {
   }
 
   syncSeek(sourceIsBase: boolean, time: number): void {
+    const wasPlaying = this.basePlayer?.isPlaying() || this.reactPlayer?.isPlaying()
     set({ interactionState: 'seeking', lastInteractionTime: Date.now() })
     const { delay, synced } = get()
     this.lastSeekTime = Date.now()
     if (synced) {
-      if (sourceIsBase) {
-        this.basePlayer?.seek(time)
-        const targetReact = Math.max(0, time + delay)
+      const baseTime = sourceIsBase ? time : Math.max(0, time - delay)
+      const reactTime = sourceIsBase ? Math.max(0, time + delay) : time
+      this.basePlayer?.seek(baseTime)
+      this.reactPlayer?.seek(reactTime)
+      this.pendingSeekVerify = { target: reactTime, time: Date.now() }
+      setTimeout(() => this.verifySeek(), SEEK_VERIFY_DELAY)
+      if (wasPlaying) {
         setTimeout(() => {
-          this.reactPlayer?.seek(targetReact)
-          this.pendingSeekVerify = { target: targetReact, time: Date.now() }
-          setTimeout(() => this.verifySeek(), SEEK_VERIFY_DELAY)
-        }, 100)
-      } else {
-        this.reactPlayer?.seek(time)
-        const targetBase = Math.max(0, time - delay)
-        setTimeout(() => this.basePlayer?.seek(targetBase), 100)
+          if (get().synced && get().interactionState === 'idle') {
+            this.basePlayer?.play()
+            this.reactPlayer?.play()
+          }
+        }, SEEK_COOLDOWN + 100)
       }
     } else {
       if (sourceIsBase) this.basePlayer?.seek(time)
