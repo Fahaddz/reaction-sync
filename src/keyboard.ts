@@ -1,119 +1,160 @@
-import { get, set } from './state.ts'
-import { 
-  syncToggle, syncSeek, adjustBaseVolume, adjustReactVolume,
-  enableSync, disableSync, forceResync, getReactPlayer, getBaseCurrentTime
+import { get } from './state.ts'
+import {
+  enableSync, disableSync, forceResync, syncPlay, syncPause, syncSeek, adjustDelay,
+  getBaseCurrentTime, getReactCurrentTime, setBaseVolume, setReactVolume,
+  isBasePlaying, isReactPlaying
 } from './sync.ts'
+import { clamp } from './utils.ts'
 
-let holdStartTime = 0
-let holdInterval: ReturnType<typeof setInterval> | null = null
+let delayHoldStart = 0
+let delayHoldDir = 0
+let delayHoldFrame: number | null = null
 
-function getDelayStep(): number {
-  const held = Date.now() - holdStartTime
-  if (held < 500) return 0.1
-  if (held < 1500) return 0.5
-  return 1.0
+export function initKeyboardShortcuts(): void {
+  document.addEventListener('keydown', handleKeyDown, true)
 }
 
-function adjustDelay(direction: 1 | -1): void {
-  const step = getDelayStep() * direction
-  set({ delay: +(get().delay + step).toFixed(1), lastInteractionTime: Date.now() })
-}
+function handleKeyDown(e: KeyboardEvent): void {
+  const active = document.activeElement
+  const isInput = active?.tagName === 'INPUT' || active?.tagName === 'TEXTAREA'
+  if (isInput) return
 
-function startDelayHold(direction: 1 | -1): void {
-  if (holdInterval) return
-  holdStartTime = Date.now()
-  adjustDelay(direction)
-  holdInterval = setInterval(() => adjustDelay(direction), 100)
-}
+  const key = e.key.toLowerCase()
+  const { synced } = get()
 
-function stopDelayHold(): void {
-  if (holdInterval) {
-    clearInterval(holdInterval)
-    holdInterval = null
+  if (key === 's') {
+    e.preventDefault()
+    enableSync()
+    return
+  }
+
+  if (key === 'd') {
+    e.preventDefault()
+    disableSync()
+    return
+  }
+
+  if (key === 'f') {
+    e.preventDefault()
+    forceResync()
+    return
+  }
+
+  if (key === ' ' || key === 'k') {
+    e.preventDefault()
+    const focusedBase = isFocusedOnBase()
+    if (synced) {
+      isBasePlaying() ? syncPause(focusedBase) : syncPlay(focusedBase)
+    } else {
+      if (focusedBase) {
+        isBasePlaying() ? syncPause(true) : syncPlay(true)
+      } else {
+        isReactPlaying() ? syncPause(false) : syncPlay(false)
+      }
+    }
+    return
+  }
+
+  if (key === 'arrowleft' || key === 'arrowright') {
+    e.preventDefault()
+    const amount = key === 'arrowleft' ? -5 : 5
+    const focusedBase = isFocusedOnBase()
+    const targetBase = e.shiftKey || focusedBase
+    if (synced) {
+      if (targetBase) {
+        syncSeek(true, getBaseCurrentTime() + amount)
+      } else {
+        syncSeek(false, getReactCurrentTime() + amount)
+      }
+    } else {
+      if (targetBase) {
+        syncSeek(true, getBaseCurrentTime() + amount)
+      } else {
+        syncSeek(false, getReactCurrentTime() + amount)
+      }
+    }
+    return
+  }
+
+  if (key === 'arrowup' || key === 'arrowdown') {
+    e.preventDefault()
+    const delta = key === 'arrowup' ? 0.1 : -0.1
+    const targetBase = e.shiftKey
+    const { baseVolume, reactVolume } = get()
+    if (targetBase) {
+      setBaseVolume(clamp(baseVolume + delta, 0, 1))
+    } else {
+      setReactVolume(clamp(reactVolume + delta, 0, 1))
+    }
+    return
+  }
+
+  if (key === 'pageup' || key === 'pagedown') {
+    e.preventDefault()
+    if (synced) {
+      adjustDelay(key === 'pageup' ? -1 : 1, 0)
+    }
+    return
   }
 }
 
-export function initKeyboard(): void {
-  const decBtn = document.getElementById('decreaseDelayBtn')
-  const incBtn = document.getElementById('increaseDelayBtn')
+function isFocusedOnBase(): boolean {
+  const baseContainer = document.getElementById('videoBaseContainer')
+  const reactContainer = document.getElementById('videoReactContainer')
+  if (!baseContainer || !reactContainer) return true
+  const baseLast = parseInt(baseContainer.dataset.lastInteracted || '0', 10)
+  const reactLast = parseInt(reactContainer.dataset.lastInteracted || '0', 10)
+  return baseLast >= reactLast
+}
 
-  decBtn?.addEventListener('mousedown', () => startDelayHold(-1))
-  decBtn?.addEventListener('mouseup', stopDelayHold)
-  decBtn?.addEventListener('mouseleave', stopDelayHold)
-  incBtn?.addEventListener('mousedown', () => startDelayHold(1))
-  incBtn?.addEventListener('mouseup', stopDelayHold)
-  incBtn?.addEventListener('mouseleave', stopDelayHold)
-
-  document.addEventListener('keydown', (e: KeyboardEvent) => {
-    const tag = (e.target as HTMLElement).tagName
-    if (tag === 'INPUT' || tag === 'TEXTAREA') return
-
-    switch (e.code) {
-      case 'Space':
-        e.preventDefault()
-        syncToggle()
-        break
-      case 'ArrowLeft':
-        e.preventDefault()
-        if (e.shiftKey) {
-          syncSeek(true, getBaseCurrentTime() - 5)
-        } else {
-          const rp = getReactPlayer()
-          if (rp) syncSeek(false, rp.getCurrentTime() - 5)
-        }
-        break
-      case 'ArrowRight':
-        e.preventDefault()
-        if (e.shiftKey) {
-          syncSeek(true, getBaseCurrentTime() + 5)
-        } else {
-          const rp = getReactPlayer()
-          if (rp) syncSeek(false, rp.getCurrentTime() + 5)
-        }
-        break
-      case 'ArrowUp':
-        e.preventDefault()
-        if (e.shiftKey) {
-          adjustBaseVolume(0.1)
-        } else {
-          adjustReactVolume(0.1)
-        }
-        break
-      case 'ArrowDown':
-        e.preventDefault()
-        if (e.shiftKey) {
-          adjustBaseVolume(-0.1)
-        } else {
-          adjustReactVolume(-0.1)
-        }
-        break
-      case 'KeyS':
-        if (!e.ctrlKey && !e.metaKey) {
-          e.preventDefault()
-          enableSync()
-        }
-        break
-      case 'KeyD':
-        if (!e.ctrlKey && !e.metaKey) {
-          e.preventDefault()
-          disableSync()
-        }
-        break
-      case 'KeyF':
-        if (!e.ctrlKey && !e.metaKey) {
-          e.preventDefault()
-          forceResync()
-        }
-        break
-      case 'PageUp':
-        e.preventDefault()
-        adjustDelay(1)
-        break
-      case 'PageDown':
-        e.preventDefault()
-        adjustDelay(-1)
-        break
-    }
+export function trackContainerFocus(): void {
+  const base = document.getElementById('videoBaseContainer')
+  const react = document.getElementById('videoReactContainer')
+  base?.addEventListener('pointerenter', () => {
+    base.dataset.lastInteracted = String(Date.now())
+  })
+  react?.addEventListener('pointerenter', () => {
+    react.dataset.lastInteracted = String(Date.now())
   })
 }
 
+export function initDelayHold(
+  decreaseBtn: HTMLElement,
+  increaseBtn: HTMLElement
+): void {
+  function startHold(dir: number) {
+    if (delayHoldDir === dir) return
+    stopHold()
+    delayHoldDir = dir
+    delayHoldStart = performance.now()
+    adjustDelay(dir, 0)
+    tick()
+  }
+
+  function tick() {
+    if (!delayHoldDir) return
+    const elapsed = performance.now() - delayHoldStart
+    if (elapsed >= 80) {
+      adjustDelay(delayHoldDir, elapsed)
+    }
+    delayHoldFrame = requestAnimationFrame(tick)
+  }
+
+  function stopHold() {
+    delayHoldDir = 0
+    if (delayHoldFrame) {
+      cancelAnimationFrame(delayHoldFrame)
+      delayHoldFrame = null
+    }
+  }
+
+  decreaseBtn.addEventListener('pointerdown', () => startHold(-1))
+  decreaseBtn.addEventListener('pointerup', stopHold)
+  decreaseBtn.addEventListener('pointerleave', stopHold)
+
+  increaseBtn.addEventListener('pointerdown', () => startHold(1))
+  increaseBtn.addEventListener('pointerup', stopHold)
+  increaseBtn.addEventListener('pointerleave', stopHold)
+
+  document.addEventListener('pointerup', stopHold)
+}

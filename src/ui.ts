@@ -3,11 +3,13 @@ import { createLocalPlayer, type LocalPlayer } from './player.ts'
 import { createYouTubePlayer, getQualityLabel, getQualityOrder, type YouTubePlayer } from './youtube.ts'
 import { formatTime, formatTimeWithDecimal, parseYouTubeId, throttle, srtToVtt, parseDelayFromFilename, checkCodecSupport } from './utils.ts'
 import { 
-  setPlayers, getBasePlayer, getReactPlayer, syncSeek, syncToggle,
-  enableSync, disableSync, forceResync, getBaseCurrentTime, getBaseDuration, getReactCurrentTime, getReactDuration
+  setPlayers, getBasePlayer, getReactPlayer, syncSeek, syncPlay, syncPause,
+  enableSync, disableSync, forceResync, setDelay, isBasePlaying, isReactPlaying,
+  getBaseCurrentTime, getBaseDuration, getReactCurrentTime, getReactDuration,
+  setBaseVolume, setReactVolume
 } from './sync.ts'
 
-const $ = (id: string) => document.getElementById(id)
+const $ = <T extends HTMLElement>(id: string): T | null => document.getElementById(id) as T | null
 
 let baseLocal: LocalPlayer | null = null
 let baseYT: YouTubePlayer | null = null
@@ -19,8 +21,8 @@ function destroyBasePlayers(): void {
   baseYT?.destroy()
   baseLocal = null
   baseYT = null
-  const ytDiv = $('videoBaseYoutube')
-  if (ytDiv) ytDiv.innerHTML = ''
+  $('videoBaseYoutube')!.style.display = 'none'
+  $('videoBaseLocal')!.style.display = 'block'
 }
 
 function destroyReactPlayers(): void {
@@ -28,11 +30,11 @@ function destroyReactPlayers(): void {
   reactYT?.destroy()
   reactLocal = null
   reactYT = null
-  const ytDiv = $('videoReactYoutube')
-  if (ytDiv) ytDiv.innerHTML = ''
+  $('videoReactYoutube')!.style.display = 'none'
+  $('videoReact')!.style.display = 'block'
 }
 
-export function showToast(message: string, type: 'info' | 'error' = 'info', duration = 3000): void {
+export function showToast(message: string, type: 'info' | 'error' | 'warning' = 'info', duration = 3000): void {
   const container = $('toastContainer')
   if (!container) return
   const toast = document.createElement('div')
@@ -46,70 +48,376 @@ export function showToast(message: string, type: 'info' | 'error' = 'info', dura
   }, duration)
 }
 
-export function showResumePrompt(title: string, onYes: () => void, onNo: () => void): void {
+export function showResumePrompt(
+  baseTime: number,
+  delay: number,
+  onResume: () => void,
+  onReset: () => void
+): void {
   const container = $('resumePrompt')
   if (!container) return
   container.innerHTML = `
-    <div class="resume-content">
-      <span>${title}</span>
-      <button id="resumeYes">Yes</button>
-      <button id="resumeNo">No</button>
+    <div class="resume-dialog">
+      <h3>Resume where you left off?</h3>
+      <p>Last time at ${formatTime(baseTime)} with delay ${formatTimeWithDecimal(delay)}</p>
+      <div class="buttons">
+        <button class="reset-btn">Start New</button>
+        <button class="resume-btn">Resume</button>
+      </div>
     </div>
   `
-  container.style.display = 'flex'
-  $('resumeYes')?.addEventListener('click', () => {
-    container.style.display = 'none'
-    onYes()
+  container.classList.add('open')
+  container.querySelector('.resume-btn')?.addEventListener('click', () => {
+    container.classList.remove('open')
+    onResume()
   })
-  $('resumeNo')?.addEventListener('click', () => {
-    container.style.display = 'none'
-    onNo()
+  container.querySelector('.reset-btn')?.addEventListener('click', () => {
+    container.classList.remove('open')
+    onReset()
   })
 }
 
-export function promptLocalFile(which: 'base' | 'react', expectedName?: string): Promise<File | null> {
+export function closeTipsScreen(): void {
+  const tips = $('tipsScreen')
+  if (tips) tips.style.display = 'none'
+}
+
+export async function promptLocalFile(which: 'base' | 'react', expectedName?: string): Promise<void> {
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'video/*'
-    if (expectedName) {
-      showToast(`Please select: ${expectedName}`, 'info', 5000)
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) { resolve(); return }
+      const { supported, reason } = await checkCodecSupport(file)
+      if (!supported) {
+        showToast(reason || 'Unsupported codec', 'error')
+        resolve()
+        return
+      }
+      const source: VideoSource = { type: 'local', id: `file:${file.name}|${file.size}`, name: file.name }
+      if (which === 'base') {
+        destroyBasePlayers()
+        const video = $<HTMLVideoElement>('videoBaseLocal')!
+        baseLocal = createLocalPlayer(video)
+        baseLocal.loadFile(file)
+        setPlayers(baseLocal, getReactPlayer())
+        set({ baseSource: source })
+        document.title = file.name
+      } else {
+        destroyReactPlayers()
+        const video = $<HTMLVideoElement>('videoReact')!
+        reactLocal = createLocalPlayer(video)
+        reactLocal.loadFile(file)
+        setPlayers(getBasePlayer(), reactLocal)
+        set({ reactSource: source })
+        const delayToken = parseDelayFromFilename(file.name)
+        if (delayToken !== null) setDelay(delayToken)
+      }
+      resolve()
     }
-    input.onchange = () => {
-      const file = input.files?.[0] || null
-      resolve(file)
+    if (expectedName) {
+      showToast(`Please select: ${expectedName}`, 'info', 8000)
     }
     input.click()
   })
 }
 
-export async function loadLocalVideo(which: 'base' | 'react', file: File): Promise<void> {
-  const check = await checkCodecSupport(file)
-  if (!check.supported) {
-    showToast(check.reason || 'Video not supported', 'error')
-    return
+async function selectLocalFile(which: 'base' | 'react'): Promise<void> {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'video/*'
+  input.onchange = async () => {
+    const file = input.files?.[0]
+    if (!file) return
+    const { supported, reason } = await checkCodecSupport(file)
+    if (!supported) {
+      showToast(reason || 'Unsupported codec', 'error')
+      return
+    }
+    const source: VideoSource = { type: 'local', id: `file:${file.name}|${file.size}`, name: file.name }
+    if (which === 'base') {
+      destroyBasePlayers()
+      const video = $<HTMLVideoElement>('videoBaseLocal')!
+      baseLocal = createLocalPlayer(video)
+      baseLocal.loadFile(file)
+      setPlayers(baseLocal, getReactPlayer())
+      set({ baseSource: source })
+      document.title = file.name
+    } else {
+      destroyReactPlayers()
+      const video = $<HTMLVideoElement>('videoReact')!
+      reactLocal = createLocalPlayer(video)
+      reactLocal.loadFile(file)
+      setPlayers(getBasePlayer(), reactLocal)
+      set({ reactSource: source })
+      const delayToken = parseDelayFromFilename(file.name)
+      if (delayToken !== null) setDelay(delayToken)
+    }
   }
-  if (which === 'base') {
-    destroyBasePlayers()
-    const video = $('videoBaseLocal') as HTMLVideoElement
-    video.style.display = 'block'
-    $('videoBaseYoutube')!.style.display = 'none'
-    baseLocal = createLocalPlayer(video)
-    baseLocal.loadFile(file)
-    setPlayers(baseLocal, getReactPlayer())
-    set({ baseSource: { type: 'local', id: file.name, name: file.name } })
+  input.click()
+}
+
+async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
+  const url = prompt('Enter YouTube URL or direct video link:')
+  if (!url) return
+  const ytId = parseYouTubeId(url)
+  if (ytId) {
+    const source: VideoSource = { type: 'youtube', id: `yt:${ytId}` }
+    if (which === 'base') {
+      destroyBasePlayers()
+      $('videoBaseLocal')!.style.display = 'none'
+      $('videoBaseYoutube')!.style.display = 'block'
+      baseYT = createYouTubePlayer('videoBaseYoutube')
+      await baseYT.initialize(ytId)
+      setPlayers(baseYT, getReactPlayer())
+      set({ baseSource: source })
+    } else {
+      destroyReactPlayers()
+      $('videoReact')!.style.display = 'none'
+      $('videoReactYoutube')!.style.display = 'block'
+      reactYT = createYouTubePlayer('videoReactYoutube')
+      await reactYT.initialize(ytId)
+      setPlayers(getBasePlayer(), reactYT)
+      set({ reactSource: source })
+    }
   } else {
-    destroyReactPlayers()
-    const video = $('videoReact') as HTMLVideoElement
-    video.style.display = 'block'
-    $('videoReactYoutube')!.style.display = 'none'
-    reactLocal = createLocalPlayer(video)
-    reactLocal.loadFile(file)
-    setPlayers(getBasePlayer(), reactLocal)
-    set({ reactSource: { type: 'local', id: file.name, name: file.name } })
-    const delay = parseDelayFromFilename(file.name)
-    if (delay !== null) set({ delay })
+    const source: VideoSource = { type: 'url', id: `url:${url}`, url }
+    if (which === 'base') {
+      destroyBasePlayers()
+      $('videoBaseYoutube')!.style.display = 'none'
+      $('videoBaseLocal')!.style.display = 'block'
+      const video = $<HTMLVideoElement>('videoBaseLocal')!
+      baseLocal = createLocalPlayer(video)
+      baseLocal.loadUrl(url)
+      setPlayers(baseLocal, getReactPlayer())
+      set({ baseSource: source })
+    } else {
+      destroyReactPlayers()
+      $('videoReactYoutube')!.style.display = 'none'
+      $('videoReact')!.style.display = 'block'
+      const video = $<HTMLVideoElement>('videoReact')!
+      reactLocal = createLocalPlayer(video)
+      reactLocal.loadUrl(url)
+      setPlayers(getBasePlayer(), reactLocal)
+      set({ reactSource: source })
+    }
   }
+}
+
+function selectSubtitleFile(): void {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.srt,.vtt'
+  input.onchange = () => {
+    const file = input.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = reader.result as string
+      const vtt = file.name.endsWith('.srt') ? srtToVtt(text) : text
+      baseLocal?.attachSubtitles(vtt)
+      const btn = $('addSubBtn')
+      if (btn) btn.textContent = file.name.replace(/\.[^.]+$/, '').slice(-10)
+    }
+    reader.readAsText(file)
+  }
+  input.click()
+}
+
+function initSourceMenus(): void {
+  const baseBtn = $<HTMLButtonElement>('baseVideoSourceBtn')
+  const baseMenu = $<HTMLDivElement>('baseVideoSourceMenu')
+  const reactBtn = $<HTMLButtonElement>('reactVideoSourceBtn')
+  const reactMenu = $<HTMLDivElement>('reactVideoSourceMenu')
+
+  baseBtn?.addEventListener('click', (e) => {
+    e.stopPropagation()
+    baseMenu?.classList.toggle('open')
+    reactMenu?.classList.remove('open')
+  })
+
+  reactBtn?.addEventListener('click', (e) => {
+    e.stopPropagation()
+    reactMenu?.classList.toggle('open')
+    baseMenu?.classList.remove('open')
+  })
+
+  document.addEventListener('click', () => {
+    baseMenu?.classList.remove('open')
+    reactMenu?.classList.remove('open')
+  })
+
+  $('addBaseVideoLocal')?.addEventListener('click', () => selectLocalFile('base'))
+  $('addBaseVideoLink')?.addEventListener('click', () => selectUrlSource('base'))
+  $('addReactVidLocal')?.addEventListener('click', () => selectLocalFile('react'))
+  $('addReactVidLink')?.addEventListener('click', () => selectUrlSource('react'))
+  $('addSubBtn')?.addEventListener('click', selectSubtitleFile)
+}
+
+function initControlBindings(): void {
+  $('basePlayPause')?.addEventListener('click', () => {
+    isBasePlaying() ? syncPause(true) : syncPlay(true)
+  })
+  $('reactPlayPause')?.addEventListener('click', () => {
+    isReactPlaying() ? syncPause(false) : syncPlay(false)
+  })
+  $('videoBaseLocal')?.addEventListener('click', () => {
+    isBasePlaying() ? syncPause(true) : syncPlay(true)
+  })
+  $('videoReact')?.addEventListener('click', () => {
+    isReactPlaying() ? syncPause(false) : syncPlay(false)
+  })
+}
+
+function initSyncButtons(): void {
+  $('syncButton')?.addEventListener('click', () => {
+    enableSync()
+    showToast('Videos synced', 'info', 2000)
+  })
+  $('desyncButton')?.addEventListener('click', () => {
+    disableSync()
+    showToast('Sync disabled', 'info', 2000)
+  })
+  $('forceResyncButton')?.addEventListener('click', () => {
+    forceResync()
+    showToast('Force re-synced', 'info', 2000)
+  })
+  $('saveNowButton')?.addEventListener('click', () => {
+    const event = new CustomEvent('saveNow')
+    document.dispatchEvent(event)
+    showToast('Progress saved', 'info', 2000)
+  })
+}
+
+function initVolumeSliders(): void {
+  const baseVol = $<HTMLInputElement>('baseVolumeSlider')
+  const reactVol = $<HTMLInputElement>('reactVolumeSlider')
+  baseVol?.addEventListener('input', () => setBaseVolume(parseFloat(baseVol.value)))
+  reactVol?.addEventListener('input', () => setReactVolume(parseFloat(reactVol.value)))
+}
+
+function initSeekBars(): void {
+  const baseSeek = $<HTMLInputElement>('baseSeekBar')
+  const reactSeek = $<HTMLInputElement>('reactSeekBar')
+
+  const onBaseSeek = throttle(() => {
+    const pct = parseFloat(baseSeek!.value)
+    const dur = getBaseDuration()
+    if (dur > 0) syncSeek(true, (pct / 100) * dur)
+  }, 50)
+
+  const onReactSeek = throttle(() => {
+    const pct = parseFloat(reactSeek!.value)
+    const dur = getReactDuration()
+    if (dur > 0) syncSeek(false, (pct / 100) * dur)
+  }, 50)
+
+  baseSeek?.addEventListener('input', onBaseSeek)
+  reactSeek?.addEventListener('input', onReactSeek)
+}
+
+function initQualityMenu(): void {
+  const btn = $('youtubeQuality')
+  const menu = $<HTMLDivElement>('qualityMenu')
+  if (!btn || !menu) return
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const player = baseYT || reactYT
+    if (!player) {
+      showToast('No YouTube video loaded', 'info')
+      return
+    }
+    const levels = player.getAvailableQualities()
+    const current = player.getCurrentQuality()
+    menu.innerHTML = ''
+    const opts = ['auto', ...getQualityOrder().filter(q => levels.includes(q))]
+    for (const q of opts) {
+      const opt = document.createElement('button')
+      opt.className = `quality-option${q === current || (q === 'auto' && current === 'default') ? ' active' : ''}`
+      opt.textContent = getQualityLabel(q)
+      opt.addEventListener('click', () => {
+        player.setQuality(q)
+        menu.classList.remove('open')
+      })
+      menu.appendChild(opt)
+    }
+    const rect = btn.getBoundingClientRect()
+    menu.style.left = `${rect.left}px`
+    menu.style.top = `${rect.top - menu.offsetHeight - 8}px`
+    menu.classList.toggle('open')
+  })
+
+  document.addEventListener('click', () => menu.classList.remove('open'))
+}
+
+function updateTimeDisplays(): void {
+  const baseTime = $('baseTimeDisplay')
+  const reactTime = $('reactTimeDisplay')
+  const baseSeek = $<HTMLInputElement>('baseSeekBar')
+  const reactSeek = $<HTMLInputElement>('reactSeekBar')
+
+  const bc = getBaseCurrentTime()
+  const bd = getBaseDuration()
+  const rc = getReactCurrentTime()
+  const rd = getReactDuration()
+
+  if (baseTime) baseTime.textContent = `${formatTime(bc)} / ${formatTime(bd)}`
+  if (reactTime) reactTime.textContent = `${formatTime(rc)} / ${formatTime(rd)}`
+  if (baseSeek && bd > 0) baseSeek.value = String((bc / bd) * 100)
+  if (reactSeek && rd > 0) reactSeek.value = String((rc / rd) * 100)
+
+  const basePP = $('basePlayPause')
+  const reactPP = $('reactPlayPause')
+  if (basePP) basePP.textContent = isBasePlaying() ? '⏸' : '▶'
+  if (reactPP) reactPP.textContent = isReactPlaying() ? '⏸' : '⏵'
+}
+
+function updateUIFromState(): void {
+  const { delay, synced, syncHealth } = get()
+
+  const delayEl = $('delayDisplay')
+  if (delayEl) {
+    delayEl.textContent = formatTimeWithDecimal(delay)
+    delayEl.classList.toggle('synced', synced)
+  }
+
+  const syncBtn = $('syncButton')
+  syncBtn?.classList.toggle('synced', synced)
+
+  const reactContainer = $('videoReactContainer')
+  reactContainer?.classList.toggle('synced', synced)
+
+  const healthDot = $('syncHealthDot')
+  if (healthDot) {
+    healthDot.className = syncHealth || ''
+  }
+
+  const baseVol = $<HTMLInputElement>('baseVolumeSlider')
+  const reactVol = $<HTMLInputElement>('reactVolumeSlider')
+  if (baseVol) baseVol.value = String(get().baseVolume)
+  if (reactVol) reactVol.value = String(get().reactVolume)
+}
+
+export function initUI(): void {
+  initSourceMenus()
+  initControlBindings()
+  initSyncButtons()
+  initVolumeSliders()
+  initSeekBars()
+  initQualityMenu()
+  subscribe(updateUIFromState)
+  setInterval(updateTimeDisplays, 500)
+}
+
+export function getYouTubePlayers(): { baseYT: YouTubePlayer | null; reactYT: YouTubePlayer | null } {
+  return { baseYT, reactYT }
+}
+
+export function getLocalPlayers(): { baseLocal: LocalPlayer | null; reactLocal: LocalPlayer | null } {
+  return { baseLocal, reactLocal }
 }
 
 export async function loadYouTubeVideo(which: 'base' | 'react', videoId: string, startTime?: number): Promise<void> {
@@ -133,284 +441,24 @@ export async function loadYouTubeVideo(which: 'base' | 'react', videoId: string,
 }
 
 export async function loadUrlVideo(which: 'base' | 'react', url: string): Promise<void> {
+  const source: VideoSource = { type: 'url', id: `url:${url}`, url }
   if (which === 'base') {
     destroyBasePlayers()
-    const video = $('videoBaseLocal') as HTMLVideoElement
-    video.style.display = 'block'
     $('videoBaseYoutube')!.style.display = 'none'
+    $('videoBaseLocal')!.style.display = 'block'
+    const video = $<HTMLVideoElement>('videoBaseLocal')!
     baseLocal = createLocalPlayer(video)
     baseLocal.loadUrl(url)
     setPlayers(baseLocal, getReactPlayer())
-    set({ baseSource: { type: 'url', id: url, url } })
+    set({ baseSource: source })
   } else {
     destroyReactPlayers()
-    const video = $('videoReact') as HTMLVideoElement
-    video.style.display = 'block'
     $('videoReactYoutube')!.style.display = 'none'
+    $('videoReact')!.style.display = 'block'
+    const video = $<HTMLVideoElement>('videoReact')!
     reactLocal = createLocalPlayer(video)
     reactLocal.loadUrl(url)
     setPlayers(getBasePlayer(), reactLocal)
-    set({ reactSource: { type: 'url', id: url, url } })
+    set({ reactSource: source })
   }
 }
-
-export async function loadVideoSource(which: 'base' | 'react', meta: VideoSource, startTime?: number): Promise<void> {
-  if (meta.type === 'youtube') {
-    const videoId = meta.id.replace('yt:', '')
-    await loadYouTubeVideo(which, videoId, startTime)
-  } else if (meta.type === 'url' && meta.url) {
-    await loadUrlVideo(which, meta.url)
-  } else if (meta.type === 'local' && meta.name) {
-    const file = await promptLocalFile(which, meta.name)
-    if (file) await loadLocalVideo(which, file)
-  }
-}
-
-function initSourceDropdowns(): void {
-  const baseBtn = $('baseVideoSourceBtn')
-  const baseMenu = $('baseVideoSourceMenu')
-  const reactBtn = $('reactVideoSourceBtn')
-  const reactMenu = $('reactVideoSourceMenu')
-
-  baseBtn?.addEventListener('click', (e) => {
-    e.stopPropagation()
-    baseMenu?.classList.toggle('show')
-    reactMenu?.classList.remove('show')
-  })
-
-  reactBtn?.addEventListener('click', (e) => {
-    e.stopPropagation()
-    reactMenu?.classList.toggle('show')
-    baseMenu?.classList.remove('show')
-  })
-
-  document.addEventListener('click', () => {
-    baseMenu?.classList.remove('show')
-    reactMenu?.classList.remove('show')
-  })
-
-  $('addBaseVideoLocal')?.addEventListener('click', async () => {
-    baseMenu?.classList.remove('show')
-    const file = await promptLocalFile('base')
-    if (file) await loadLocalVideo('base', file)
-  })
-
-  $('addBaseVideoLink')?.addEventListener('click', () => {
-    baseMenu?.classList.remove('show')
-    const url = prompt('Enter YouTube URL or direct video link:')
-    if (!url) return
-    const ytId = parseYouTubeId(url)
-    if (ytId) {
-      loadYouTubeVideo('base', ytId)
-    } else {
-      loadUrlVideo('base', url)
-    }
-  })
-
-  $('addReactVidLocal')?.addEventListener('click', async () => {
-    reactMenu?.classList.remove('show')
-    const file = await promptLocalFile('react')
-    if (file) await loadLocalVideo('react', file)
-  })
-
-  $('addReactVidLink')?.addEventListener('click', () => {
-    reactMenu?.classList.remove('show')
-    const url = prompt('Enter YouTube URL or direct video link:')
-    if (!url) return
-    const ytId = parseYouTubeId(url)
-    if (ytId) {
-      loadYouTubeVideo('react', ytId)
-    } else {
-      loadUrlVideo('react', url)
-    }
-  })
-}
-
-function initPlaybackControls(): void {
-  const basePlayPause = $('basePlayPause')
-  const reactPlayPause = $('reactPlayPause')
-  const baseSeekBar = $('baseSeekBar') as HTMLInputElement
-  const reactSeekBar = $('reactSeekBar') as HTMLInputElement
-  const baseVolume = $('baseVolumeSlider') as HTMLInputElement
-  const reactVolume = $('reactVolumeSlider') as HTMLInputElement
-
-  basePlayPause?.addEventListener('click', syncToggle)
-  reactPlayPause?.addEventListener('click', () => {
-    const rp = getReactPlayer()
-    if (rp?.isPlaying()) rp.pause()
-    else rp?.play()
-  })
-
-  baseSeekBar?.addEventListener('input', () => {
-    const bp = getBasePlayer()
-    if (!bp) return
-    const time = (parseFloat(baseSeekBar.value) / 100) * bp.getDuration()
-    syncSeek(true, time)
-  })
-
-  reactSeekBar?.addEventListener('input', () => {
-    const rp = getReactPlayer()
-    if (!rp) return
-    const time = (parseFloat(reactSeekBar.value) / 100) * rp.getDuration()
-    syncSeek(false, time)
-  })
-
-  baseVolume?.addEventListener('input', () => {
-    const bp = getBasePlayer()
-    if (bp) {
-      bp.setVolume(parseFloat(baseVolume.value))
-      set({ baseVolume: parseFloat(baseVolume.value) })
-    }
-  })
-
-  reactVolume?.addEventListener('input', () => {
-    const rp = getReactPlayer()
-    if (rp) {
-      rp.setVolume(parseFloat(reactVolume.value))
-      set({ reactVolume: parseFloat(reactVolume.value) })
-    }
-  })
-}
-
-function initSubtitleButton(): void {
-  $('addSubBtn')?.addEventListener('click', async () => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.srt,.vtt'
-    input.onchange = async () => {
-      const file = input.files?.[0]
-      if (!file || !baseLocal) return
-      const text = await file.text()
-      const vtt = file.name.endsWith('.srt') ? srtToVtt(text) : text
-      baseLocal.attachSubtitles(vtt)
-      showToast('Subtitles loaded', 'info', 2000)
-    }
-    input.click()
-  })
-}
-
-function initQualityMenu(): void {
-  const qBtn = $('youtubeQuality')
-  const menu = $('qualityMenu')
-  if (!qBtn || !menu) return
-
-  qBtn.addEventListener('click', (e) => {
-    e.stopPropagation()
-    const yt = baseYT || reactYT
-    if (!yt) {
-      showToast('Load a YouTube video first', 'error')
-      return
-    }
-    const available = yt.getAvailableQualities()
-    const current = yt.getCurrentQuality()
-    menu.innerHTML = ''
-    for (const q of getQualityOrder()) {
-      if (!available.includes(q)) continue
-      const btn = document.createElement('button')
-      btn.textContent = getQualityLabel(q)
-      btn.className = q === current ? 'active' : ''
-      btn.addEventListener('click', () => {
-        yt.setQuality(q)
-        menu.classList.remove('show')
-        showToast(`Quality: ${getQualityLabel(q)}`, 'info', 2000)
-      })
-      menu.appendChild(btn)
-    }
-    menu.classList.toggle('show')
-  })
-
-  document.addEventListener('click', () => menu.classList.remove('show'))
-}
-
-function initSyncButtons(): void {
-  $('syncButton')?.addEventListener('click', () => {
-    enableSync()
-    showToast('Videos synced', 'info', 2000)
-  })
-  $('desyncButton')?.addEventListener('click', () => {
-    disableSync()
-    showToast('Sync disabled', 'info', 2000)
-  })
-  $('forceResyncButton')?.addEventListener('click', () => {
-    forceResync()
-    showToast('Force re-synced', 'info', 2000)
-  })
-  $('saveNowButton')?.addEventListener('click', () => {
-    const event = new CustomEvent('saveNow')
-    document.dispatchEvent(event)
-    showToast('Progress saved', 'info', 2000)
-  })
-}
-
-function initTipsScreen(): void {
-  const tips = $('tipsScreen')
-  $('tipsClose')?.addEventListener('click', () => {
-    tips?.classList.add('hidden')
-  })
-}
-
-const updateUI = throttle(() => {
-  const state = get()
-  const basePlayPause = $('basePlayPause')
-  const reactPlayPause = $('reactPlayPause')
-  const baseSeekBar = $('baseSeekBar') as HTMLInputElement
-  const reactSeekBar = $('reactSeekBar') as HTMLInputElement
-  const baseTime = $('baseTimeDisplay')
-  const reactTime = $('reactTimeDisplay')
-  const delayDisplay = $('delayDisplay')
-  const healthDot = $('syncHealthDot')
-  const baseVolume = $('baseVolumeSlider') as HTMLInputElement
-  const reactVolume = $('reactVolumeSlider') as HTMLInputElement
-
-  const bp = getBasePlayer()
-  const rp = getReactPlayer()
-
-  if (basePlayPause) basePlayPause.textContent = bp?.isPlaying() ? '⏸' : '▶'
-  if (reactPlayPause) reactPlayPause.textContent = rp?.isPlaying() ? '⏸' : '⏵'
-
-  const baseCurrent = getBaseCurrentTime()
-  const baseDur = getBaseDuration()
-  const reactCurrent = getReactCurrentTime()
-  const reactDur = getReactDuration()
-
-  if (baseSeekBar && baseDur > 0) {
-    baseSeekBar.value = String((baseCurrent / baseDur) * 100)
-  }
-  if (reactSeekBar && reactDur > 0) {
-    reactSeekBar.value = String((reactCurrent / reactDur) * 100)
-  }
-
-  if (baseTime) baseTime.textContent = `${formatTime(baseCurrent)} / ${formatTime(baseDur)}`
-  if (reactTime) reactTime.textContent = `${formatTime(reactCurrent)} / ${formatTime(reactDur)}`
-
-  if (delayDisplay) delayDisplay.textContent = formatTimeWithDecimal(state.delay)
-
-  if (healthDot) {
-    healthDot.className = state.syncHealth ? `health-${state.syncHealth}` : ''
-  }
-
-  if (baseVolume) baseVolume.value = String(state.baseVolume)
-  if (reactVolume) reactVolume.value = String(state.reactVolume)
-}, 100)
-
-export function initUI(): void {
-  initSourceDropdowns()
-  initPlaybackControls()
-  initSubtitleButton()
-  initQualityMenu()
-  initSyncButtons()
-  initTipsScreen()
-
-  subscribe(updateUI)
-  setInterval(updateUI, 100)
-
-  const container = $('videoReactContainer')
-  if (container) {
-    const pos = get().reactPosition
-    container.style.left = `${pos.x}px`
-    container.style.top = `${pos.y}px`
-    container.style.width = `${pos.w}px`
-    container.style.height = `${pos.h}px`
-  }
-}
-

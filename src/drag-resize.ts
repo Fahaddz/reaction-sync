@@ -1,84 +1,79 @@
 import { get, set } from './state.ts'
+import { clamp } from './utils.ts'
 
-export function initDragResize(): void {
-  const container = document.getElementById('videoReactContainer')
-  const handle = document.getElementById('reactDragHandle')
-  const resizer = document.getElementById('reactResizeHandle')
-  if (!container || !handle || !resizer) return
-
+export function initDraggable(container: HTMLElement, handle: HTMLElement): void {
   let startX = 0, startY = 0, startLeft = 0, startTop = 0
-  let startW = 0, startH = 0
-  let isDragging = false, isResizing = false
 
-  const ASPECT = 16 / 9
-  const MIN_W = 200
-  const MIN_H = MIN_W / ASPECT
-
-  handle.addEventListener('pointerdown', (e: PointerEvent) => {
+  handle.addEventListener('pointerdown', (e) => {
     e.preventDefault()
-    isDragging = true
+    handle.setPointerCapture(e.pointerId)
     startX = e.clientX
     startY = e.clientY
     startLeft = container.offsetLeft
     startTop = container.offsetTop
-    set({ userInteracting: true, lastInteractionTime: Date.now() })
-    handle.setPointerCapture(e.pointerId)
+    handle.addEventListener('pointermove', onMove)
+    handle.addEventListener('pointerup', onUp)
   })
 
-  handle.addEventListener('pointermove', (e: PointerEvent) => {
-    if (!isDragging) return
-    const dx = e.clientX - startX
-    const dy = e.clientY - startY
-    const newLeft = Math.max(0, Math.min(startLeft + dx, window.innerWidth - container.offsetWidth))
-    const newTop = Math.max(0, Math.min(startTop + dy, window.innerHeight - container.offsetHeight))
-    container.style.left = `${newLeft}px`
-    container.style.top = `${newTop}px`
-  })
+  function onMove(e: PointerEvent) {
+    const maxX = window.innerWidth - container.offsetWidth
+    const maxY = window.innerHeight - container.offsetHeight
+    const x = clamp(startLeft + (e.clientX - startX), 0, maxX)
+    const y = clamp(startTop + (e.clientY - startY), 0, maxY)
+    container.style.left = `${x}px`
+    container.style.top = `${y}px`
+  }
 
-  handle.addEventListener('pointerup', (e: PointerEvent) => {
-    if (!isDragging) return
-    isDragging = false
+  function onUp(e: PointerEvent) {
     handle.releasePointerCapture(e.pointerId)
+    handle.removeEventListener('pointermove', onMove)
+    handle.removeEventListener('pointerup', onUp)
     const pos = get().reactPosition
-    set({
-      userInteracting: false,
-      reactPosition: { ...pos, x: container.offsetLeft, y: container.offsetTop }
-    })
-  })
-
-  resizer.addEventListener('pointerdown', (e: PointerEvent) => {
-    e.preventDefault()
-    isResizing = true
-    startX = e.clientX
-    startY = e.clientY
-    startW = container.offsetWidth
-    startH = container.offsetHeight
-    set({ userInteracting: true, lastInteractionTime: Date.now() })
-    resizer.setPointerCapture(e.pointerId)
-  })
-
-  resizer.addEventListener('pointermove', (e: PointerEvent) => {
-    if (!isResizing) return
-    const dx = e.clientX - startX
-    let newW = Math.max(MIN_W, startW + dx)
-    let newH = newW / ASPECT
-    if (newH < MIN_H) {
-      newH = MIN_H
-      newW = newH * ASPECT
-    }
-    container.style.width = `${newW}px`
-    container.style.height = `${newH}px`
-  })
-
-  resizer.addEventListener('pointerup', (e: PointerEvent) => {
-    if (!isResizing) return
-    isResizing = false
-    resizer.releasePointerCapture(e.pointerId)
-    const pos = get().reactPosition
-    set({
-      userInteracting: false,
-      reactPosition: { ...pos, w: container.offsetWidth, h: container.offsetHeight }
-    })
-  })
+    set({ reactPosition: { ...pos, x: container.offsetLeft, y: container.offsetTop } })
+  }
 }
 
+export function initResizable(
+  container: HTMLElement,
+  handle: HTMLElement,
+  onResize?: (w: number, h: number) => void
+): void {
+  let startX = 0, startW = 0
+
+  handle.addEventListener('pointerdown', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    handle.setPointerCapture(e.pointerId)
+    startX = e.clientX
+    startW = container.offsetWidth
+    container.classList.add('resizing')
+    handle.addEventListener('pointermove', onMove)
+    handle.addEventListener('pointerup', onUp)
+  })
+
+  function onMove(e: PointerEvent) {
+    const w = Math.max(200, startW + (e.clientX - startX))
+    const h = Math.round(w / (16 / 9))
+    container.style.width = `${w}px`
+    container.style.height = `${h}px`
+    onResize?.(w, h)
+  }
+
+  function onUp(e: PointerEvent) {
+    handle.releasePointerCapture(e.pointerId)
+    handle.removeEventListener('pointermove', onMove)
+    handle.removeEventListener('pointerup', onUp)
+    container.classList.remove('resizing')
+    const pos = get().reactPosition
+    set({ reactPosition: { ...pos, w: container.offsetWidth, h: container.offsetHeight } })
+    onResize?.(container.offsetWidth, container.offsetHeight)
+  }
+}
+
+export function applyPosition(container: HTMLElement): void {
+  const { reactPosition } = get()
+  container.style.left = `${reactPosition.x}px`
+  container.style.top = `${reactPosition.y}px`
+  container.style.width = `${reactPosition.w}px`
+  container.style.height = `${reactPosition.h}px`
+}

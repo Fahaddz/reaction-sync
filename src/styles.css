@@ -54,7 +54,12 @@ html, body {
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
   display: flex;
   flex-direction: column;
+  border: 2px solid var(--border);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
+
+#videoReactContainer:hover { border-color: var(--accent); }
+#videoReactContainer.synced { border-color: var(--success); box-shadow: 0 0 12px rgba(34, 197, 94, 0.4); }
 
 .react-video-wrapper {
   flex: 1;
@@ -203,6 +208,14 @@ html, body {
 .compact-btn:hover { background: var(--accent); border-color: var(--accent); }
 .compact-btn.ultra-compact { padding: 6px 10px; min-width: 32px; }
 
+#syncButton.synced {
+  background: var(--success);
+  border-color: var(--success);
+  color: #0a0a0a;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+  font-weight: 600;
+}
+
 .seek-group { flex: 1; min-width: 200px; }
 .seek-group input[type="range"] {
   flex: 1;
@@ -246,6 +259,8 @@ html, body {
   text-align: center;
 }
 
+#delayDisplay.synced { color: var(--success); }
+
 #syncHealthDot {
   width: 8px;
   height: 8px;
@@ -253,9 +268,9 @@ html, body {
   transition: background 0.2s;
 }
 
-#syncHealthDot.health-healthy { background: var(--success); }
-#syncHealthDot.health-correcting { background: var(--warning); }
-#syncHealthDot.health-drifting { background: var(--error); }
+#syncHealthDot.health-healthy, #syncHealthDot.healthy { background: var(--success); box-shadow: 0 0 6px var(--success); }
+#syncHealthDot.health-correcting, #syncHealthDot.correcting { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+#syncHealthDot.health-drifting, #syncHealthDot.drifting { background: var(--error); box-shadow: 0 0 6px var(--error); }
 
 .media-group input[type="range"] {
   width: 80px;
@@ -291,7 +306,7 @@ html, body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
-.video-source-menu.show { display: flex; }
+.video-source-menu.show, .video-source-menu.open { display: flex; }
 
 .video-source-option {
   background: transparent;
@@ -321,7 +336,7 @@ html, body {
   z-index: 300;
 }
 
-.quality-menu.show { display: flex; }
+.quality-menu.show, .quality-menu.open { display: flex; }
 
 .quality-menu button {
   background: transparent;
@@ -431,12 +446,34 @@ html, body {
 
 #resumePrompt {
   position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 400;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 10000;
   display: none;
+  align-items: center;
+  justify-content: center;
 }
+
+#resumePrompt.open { display: flex; }
+
+.resume-dialog {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 260px;
+  max-width: 90vw;
+  padding: 14px;
+  font-size: 13px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+.resume-dialog h3 { font-weight: 600; margin: 0 0 8px 0; font-size: 14px; }
+.resume-dialog p { opacity: 0.9; margin: 0 0 12px 0; }
+.resume-dialog .buttons { display: flex; gap: 8px; justify-content: flex-end; }
+.resume-dialog button { padding: 6px 10px; border-radius: 6px; }
+.resume-dialog .resume-btn { background: var(--success); color: #0a0a0a; }
+.resume-dialog .reset-btn { background: rgba(255, 255, 255, 0.1); }
 
 .resume-content {
   background: var(--bg-tertiary);

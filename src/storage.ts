@@ -1,121 +1,293 @@
 import { get, set, type VideoSource } from './state.ts'
 import { getBaseCurrentTime, setDelay, syncSeek } from './sync.ts'
-import { showResumePrompt, loadYouTubeVideo, loadUrlVideo, promptLocalFile, loadLocalVideo, showToast } from './ui.ts'
+import { showResumePrompt, loadYouTubeVideo, loadUrlVideo, promptLocalFile, showToast } from './ui.ts'
 
-const DB_NAME = 'reaction-sync-v2'
-const STORE_NAME = 'sessions'
-const DB_VERSION = 1
-
-interface SessionData {
+type SessionData = {
   id: string
-  timestamp: number
-  baseTime: number
+  baseId: string
+  reactId: string
+  baseMeta: VideoSource | null
+  reactMeta: VideoSource | null
   delay: number
+  baseTime: number
   baseVol: number
   reactVol: number
   position: { x: number; y: number; w: number; h: number }
-  baseMeta: VideoSource | null
-  reactMeta: VideoSource | null
+  updatedAt: number
 }
 
+const DB_NAME = 'reaction-sync'
+const STORE_NAME = 'sessions'
+const TTL = 7 * 24 * 60 * 60 * 1000
+const MAX_SESSIONS = 2
+
 let db: IDBDatabase | null = null
+let saveIntervalId: ReturnType<typeof setInterval> | null = null
+let prompted = false
 
 async function openDB(): Promise<IDBDatabase> {
   if (db) return db
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION)
+    const req = indexedDB.open(DB_NAME, 1)
+    req.onerror = () => reject(req.error)
+    req.onsuccess = () => {
+      db = req.result
+      resolve(db)
+    }
     req.onupgradeneeded = () => {
       const database = req.result
       if (!database.objectStoreNames.contains(STORE_NAME)) {
         database.createObjectStore(STORE_NAME, { keyPath: 'id' })
       }
     }
-    req.onsuccess = () => {
-      db = req.result
-      resolve(db)
-    }
-    req.onerror = () => reject(req.error)
   })
 }
 
-async function saveSession(session: SessionData): Promise<void> {
-  try {
-    const database = await openDB()
-    return new Promise((resolve, reject) => {
-      const tx = database.transaction(STORE_NAME, 'readwrite')
-      tx.objectStore(STORE_NAME).put(session)
-      tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
-    })
-  } catch {
-    localStorage.setItem('reaction-sync-session', JSON.stringify(session))
-  }
+function getPairKey(): string | null {
+  const { baseSource, reactSource } = get()
+  if (!baseSource || !reactSource) return null
+  return `${baseSource.id}||${reactSource.id}`
 }
 
-async function loadSession(): Promise<SessionData | null> {
-  try {
-    const database = await openDB()
-    return new Promise((resolve, reject) => {
-      const tx = database.transaction(STORE_NAME, 'readonly')
-      const req = tx.objectStore(STORE_NAME).get('current')
-      req.onsuccess = () => resolve(req.result || null)
-      req.onerror = () => reject(req.error)
-    })
-  } catch {
-    const stored = localStorage.getItem('reaction-sync-session')
-    return stored ? JSON.parse(stored) : null
-  }
-}
-
-async function clearSession(): Promise<void> {
-  try {
-    const database = await openDB()
-    return new Promise((resolve, reject) => {
-      const tx = database.transaction(STORE_NAME, 'readwrite')
-      tx.objectStore(STORE_NAME).delete('current')
-      tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
-    })
-  } catch {
-    localStorage.removeItem('reaction-sync-session')
-  }
-}
-
-function getCurrentSession(): SessionData {
+export async function saveSession(): Promise<void> {
+  const key = getPairKey()
+  if (!key) return
   const state = get()
-  return {
-    id: 'current',
-    timestamp: Date.now(),
-    baseTime: getBaseCurrentTime(),
+  if (!state.synced) return
+  const data: SessionData = {
+    id: key,
+    baseId: state.baseSource!.id,
+    reactId: state.reactSource!.id,
+    baseMeta: state.baseSource,
+    reactMeta: state.reactSource,
     delay: state.delay,
+    baseTime: getBaseCurrentTime(),
     baseVol: state.baseVolume,
     reactVol: state.reactVolume,
     position: state.reactPosition,
-    baseMeta: state.baseSource,
-    reactMeta: state.reactSource
+    updatedAt: Date.now()
+  }
+  try {
+    const database = await openDB()
+    const tx = database.transaction(STORE_NAME, 'readwrite')
+    tx.objectStore(STORE_NAME).put(data)
+    await pruneOldSessions()
+  } catch {
+    saveToLocalStorage(data)
   }
 }
 
-async function loadVideoSource(which: 'base' | 'react', meta: VideoSource, startTime?: number): Promise<void> {
-  if (meta.type === 'youtube') {
-    const videoId = meta.id.replace('yt:', '')
-    await loadYouTubeVideo(which, videoId, startTime)
-  } else if (meta.type === 'url' && meta.url) {
-    await loadUrlVideo(which, meta.url)
-  } else if (meta.type === 'local' && meta.name) {
-    const file = await promptLocalFile(which, meta.name)
-    if (file) await loadLocalVideo(which, file)
+function saveToLocalStorage(data: SessionData): void {
+  try {
+    localStorage.setItem(`rsync:${data.id}`, JSON.stringify(data))
+  } catch {}
+}
+
+async function loadSession(key: string): Promise<SessionData | null> {
+  try {
+    const database = await openDB()
+    return new Promise((resolve) => {
+      const tx = database.transaction(STORE_NAME, 'readonly')
+      const req = tx.objectStore(STORE_NAME).get(key)
+      req.onsuccess = () => resolve(req.result || null)
+      req.onerror = () => resolve(loadFromLocalStorage(key))
+    })
+  } catch {
+    return loadFromLocalStorage(key)
   }
 }
 
-async function applySession(session: SessionData): Promise<void> {
-  if (session.baseMeta) {
-    await loadVideoSource('base', session.baseMeta, session.baseTime)
+function loadFromLocalStorage(key: string): SessionData | null {
+  try {
+    const raw = localStorage.getItem(`rsync:${key}`)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
   }
-  if (session.reactMeta) {
-    await loadVideoSource('react', session.reactMeta)
+}
+
+async function getLastSession(): Promise<SessionData | null> {
+  try {
+    const database = await openDB()
+    return new Promise((resolve) => {
+      const tx = database.transaction(STORE_NAME, 'readonly')
+      const store = tx.objectStore(STORE_NAME)
+      const req = store.openCursor(null, 'prev')
+      let latest: SessionData | null = null
+      req.onsuccess = () => {
+        const cursor = req.result
+        if (cursor) {
+          const data = cursor.value as SessionData
+          if (!latest || data.updatedAt > latest.updatedAt) {
+            latest = data
+          }
+          cursor.continue()
+        } else {
+          resolve(latest)
+        }
+      }
+      req.onerror = () => resolve(null)
+    })
+  } catch {
+    return null
   }
-  finalizeSessionLoad(session)
+}
+
+async function pruneOldSessions(): Promise<void> {
+  try {
+    const database = await openDB()
+    const tx = database.transaction(STORE_NAME, 'readwrite')
+    const store = tx.objectStore(STORE_NAME)
+    const req = store.getAll()
+    req.onsuccess = () => {
+      const all = req.result as SessionData[]
+      const now = Date.now()
+      const valid = all.filter(s => now - s.updatedAt < TTL)
+      const sorted = valid.sort((a, b) => b.updatedAt - a.updatedAt)
+      const keep = new Set(sorted.slice(0, MAX_SESSIONS).map(s => s.id))
+      for (const s of all) {
+        if (!keep.has(s.id)) {
+          store.delete(s.id)
+        }
+      }
+    }
+  } catch {}
+}
+
+export async function clearSessions(): Promise<void> {
+  try {
+    const database = await openDB()
+    const tx = database.transaction(STORE_NAME, 'readwrite')
+    tx.objectStore(STORE_NAME).clear()
+  } catch {}
+  try {
+    const keys: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k?.startsWith('rsync:')) keys.push(k)
+    }
+    keys.forEach(k => localStorage.removeItem(k))
+  } catch {}
+}
+
+export function startAutoSave(): void {
+  if (saveIntervalId) return
+  saveIntervalId = setInterval(() => {
+    if (get().synced) saveSession()
+  }, 10000)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && get().synced) saveSession()
+  })
+  window.addEventListener('beforeunload', () => {
+    if (get().synced) saveSession()
+  })
+  document.addEventListener('saveNow', () => saveSession())
+}
+
+export async function checkForResume(): Promise<void> {
+  if (prompted) return
+  const key = getPairKey()
+  if (!key) return
+  const session = await loadSession(key)
+  if (!session) return
+  if (Date.now() - session.updatedAt > TTL) return
+  prompted = true
+  showResumePrompt(
+    session.baseTime,
+    session.delay,
+    () => applySession(session),
+    () => {}
+  )
+}
+
+function applySession(session: SessionData): void {
+  setDelay(session.delay)
+  set({
+    baseVolume: session.baseVol,
+    reactVolume: session.reactVol,
+    reactPosition: session.position
+  })
+  const container = document.getElementById('videoReactContainer')
+  if (container) {
+    container.style.left = `${session.position.x}px`
+    container.style.top = `${session.position.y}px`
+    container.style.width = `${session.position.w}px`
+    container.style.height = `${session.position.h}px`
+  }
+  setTimeout(() => syncSeek(true, session.baseTime), 200)
+}
+
+export async function loadLastSession(): Promise<void> {
+  const session = await getLastSession()
+  if (!session) {
+    showToast('No saved session found', 'info')
+    return
+  }
+  await loadSessionVideos(session)
+}
+
+async function loadSessionVideos(session: SessionData): Promise<void> {
+  const { baseMeta, reactMeta, baseTime, delay } = session
+  const needsBaseLocal = baseMeta?.type === 'local'
+  const needsReactLocal = reactMeta?.type === 'local'
+  
+  if (baseMeta?.type === 'youtube') {
+    const ytId = baseMeta.id.replace('yt:', '')
+    await loadYouTubeVideo('base', ytId, baseTime)
+  } else if (baseMeta?.type === 'url' && baseMeta.url) {
+    await loadUrlVideo('base', baseMeta.url)
+  }
+  
+  if (reactMeta?.type === 'youtube') {
+    const ytId = reactMeta.id.replace('yt:', '')
+    const reactTime = Math.max(0, baseTime + delay)
+    await loadYouTubeVideo('react', ytId, reactTime)
+  } else if (reactMeta?.type === 'url' && reactMeta.url) {
+    await loadUrlVideo('react', reactMeta.url)
+  }
+  
+  if (needsBaseLocal || needsReactLocal) {
+    showLocalFilePrompt(session, needsBaseLocal, needsReactLocal)
+  } else {
+    finalizeSessionLoad(session)
+  }
+}
+
+function showLocalFilePrompt(session: SessionData, needsBase: boolean, needsReact: boolean): void {
+  const container = document.getElementById('resumePrompt')
+  if (!container) return
+  
+  const baseFileName = session.baseMeta?.name || 'unknown'
+  const reactFileName = session.reactMeta?.name || 'unknown'
+  
+  container.innerHTML = `
+    <div class="resume-dialog">
+      <h3>Select Local Files</h3>
+      <p style="font-size:12px;opacity:0.8;margin-bottom:12px;">
+        ${needsBase ? `Base: <b>${baseFileName}</b><br>` : ''}
+        ${needsReact ? `React: <b>${reactFileName}</b>` : ''}
+      </p>
+      <div class="buttons" style="flex-wrap:wrap;gap:6px;">
+        ${needsBase ? '<button class="pick-base" style="background:#2d5a">Pick Base</button>' : ''}
+        ${needsReact ? '<button class="pick-react" style="background:#5a2d">Pick React</button>' : ''}
+        <button class="done-btn" style="background:rgba(255,255,255,0.1)">Done</button>
+      </div>
+    </div>
+  `
+  container.classList.add('open')
+  
+  container.querySelector('.pick-base')?.addEventListener('click', async () => {
+    await promptLocalFile('base', baseFileName)
+  })
+  
+  container.querySelector('.pick-react')?.addEventListener('click', async () => {
+    await promptLocalFile('react', reactFileName)
+  })
+  
+  container.querySelector('.done-btn')?.addEventListener('click', () => {
+    container.classList.remove('open')
+    finalizeSessionLoad(session)
+  })
 }
 
 function finalizeSessionLoad(session: SessionData): void {
@@ -137,51 +309,9 @@ function finalizeSessionLoad(session: SessionData): void {
   showToast('Session restored - press S to sync', 'info', 4000)
 }
 
-export async function initStorage(): Promise<void> {
-  await openDB()
-
-  let autoSaveInterval: ReturnType<typeof setInterval> | null = null
-
-  const startAutoSave = () => {
-    if (autoSaveInterval) return
-    autoSaveInterval = setInterval(() => {
-      const state = get()
-      if (state.baseSource || state.reactSource) {
-        saveSession(getCurrentSession())
-      }
-    }, 10000)
-  }
-
-  document.addEventListener('saveNow', () => {
-    saveSession(getCurrentSession())
-  })
-
-  const session = await loadSession()
-  if (session && (session.baseMeta || session.reactMeta)) {
-    showResumePrompt(
-      'Resume previous session?',
-      async () => {
-        await applySession(session)
-        startAutoSave()
-      },
-      () => startAutoSave()
-    )
-  } else {
+export function onSourceChange(): void {
+  if (!prompted && get().baseSource && get().reactSource) {
+    checkForResume()
     startAutoSave()
   }
-
-  document.getElementById('loadLastPairBtn')?.addEventListener('click', async () => {
-    const savedSession = await loadSession()
-    if (savedSession) {
-      await applySession(savedSession)
-    } else {
-      showToast('No saved session found', 'error')
-    }
-  })
-
-  document.getElementById('clearStorageBtn')?.addEventListener('click', async () => {
-    await clearSession()
-    showToast('Saved data cleared', 'info')
-  })
 }
-
