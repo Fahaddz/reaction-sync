@@ -201,8 +201,7 @@ export class YouTubePlayer implements Player {
 
   isPlaying(): boolean {
     if (!this.player || !this.ready) return false
-    const state = this.player.getPlayerState()
-    return state === window.YT.PlayerState.PLAYING || state === window.YT.PlayerState.BUFFERING
+    return this.player.getPlayerState() === window.YT.PlayerState.PLAYING
   }
 
   getVolume(): number {

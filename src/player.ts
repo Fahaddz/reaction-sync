@@ -18,13 +18,21 @@ export interface Player {
 export class LocalPlayer implements Player {
   private video: HTMLVideoElement
   private stateCallback: ((state: PlayState) => void) | null = null
+  private handlePlay: () => void
+  private handlePause: () => void
+  private handleWaiting: () => void
+  private handleEnded: () => void
 
   constructor(video: HTMLVideoElement) {
     this.video = video
-    this.video.addEventListener('play', () => this.stateCallback?.('playing'))
-    this.video.addEventListener('pause', () => this.stateCallback?.('paused'))
-    this.video.addEventListener('waiting', () => this.stateCallback?.('buffering'))
-    this.video.addEventListener('ended', () => this.stateCallback?.('ended'))
+    this.handlePlay = () => this.stateCallback?.('playing')
+    this.handlePause = () => this.stateCallback?.('paused')
+    this.handleWaiting = () => this.stateCallback?.('buffering')
+    this.handleEnded = () => this.stateCallback?.('ended')
+    this.video.addEventListener('play', this.handlePlay)
+    this.video.addEventListener('pause', this.handlePause)
+    this.video.addEventListener('waiting', this.handleWaiting)
+    this.video.addEventListener('ended', this.handleEnded)
   }
 
   play(): void {
@@ -36,12 +44,7 @@ export class LocalPlayer implements Player {
   }
 
   seek(time: number): void {
-    const t = Math.max(0, Math.min(time, this.getDuration() || time))
-    if (typeof this.video.fastSeek === 'function') {
-      this.video.fastSeek(t)
-    } else {
-      this.video.currentTime = t
-    }
+    this.video.currentTime = Math.max(0, Math.min(time, this.getDuration() || time))
   }
 
   getCurrentTime(): number {
@@ -78,6 +81,10 @@ export class LocalPlayer implements Player {
   }
 
   destroy(): void {
+    this.video.removeEventListener('play', this.handlePlay)
+    this.video.removeEventListener('pause', this.handlePause)
+    this.video.removeEventListener('waiting', this.handleWaiting)
+    this.video.removeEventListener('ended', this.handleEnded)
     this.video.src = ''
     this.video.load()
     this.stateCallback = null
@@ -109,4 +116,3 @@ export class LocalPlayer implements Player {
 export function createLocalPlayer(video: HTMLVideoElement): LocalPlayer {
   return new LocalPlayer(video)
 }
-

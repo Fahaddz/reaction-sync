@@ -54,8 +54,3 @@ export function subscribe(fn: Listener): () => void {
   return () => listeners.delete(fn)
 }
 
-export function reset(): void {
-  state = { ...initialState }
-  listeners.forEach(fn => fn())
-}
-

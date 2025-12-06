@@ -1,10 +1,12 @@
 import { get } from './state.ts'
 import {
-  enableSync, disableSync, forceResync, syncPlay, syncPause, syncSeek, adjustDelay,
+  enableSync, disableSync, forceResync, syncPlay, syncPause, syncSeek, adjustDelay, setDelay,
   getBaseCurrentTime, getReactCurrentTime, setBaseVolume, setReactVolume,
   isBasePlaying, isReactPlaying
 } from './sync.ts'
 import { clamp } from './utils.ts'
+
+const MICRO_ADJUST_STEP = 0.033
 
 let delayHoldStart = 0
 let delayHoldDir = 0
@@ -20,7 +22,7 @@ function handleKeyDown(e: KeyboardEvent): void {
   if (isInput) return
 
   const key = e.key.toLowerCase()
-  const { synced } = get()
+  const { synced, delay } = get()
 
   if (key === 's') {
     e.preventDefault()
@@ -46,11 +48,9 @@ function handleKeyDown(e: KeyboardEvent): void {
     if (synced) {
       isBasePlaying() ? syncPause(focusedBase) : syncPlay(focusedBase)
     } else {
-      if (focusedBase) {
-        isBasePlaying() ? syncPause(true) : syncPlay(true)
-      } else {
-        isReactPlaying() ? syncPause(false) : syncPlay(false)
-      }
+      const targetBase = focusedBase
+      const playing = targetBase ? isBasePlaying() : isReactPlaying()
+      playing ? syncPause(targetBase) : syncPlay(targetBase)
     }
     return
   }
@@ -58,30 +58,17 @@ function handleKeyDown(e: KeyboardEvent): void {
   if (key === 'arrowleft' || key === 'arrowright') {
     e.preventDefault()
     const amount = key === 'arrowleft' ? -5 : 5
-    const focusedBase = isFocusedOnBase()
-    const targetBase = e.shiftKey || focusedBase
-    if (synced) {
-      if (targetBase) {
-        syncSeek(true, getBaseCurrentTime() + amount)
-      } else {
-        syncSeek(false, getReactCurrentTime() + amount)
-      }
-    } else {
-      if (targetBase) {
-        syncSeek(true, getBaseCurrentTime() + amount)
-      } else {
-        syncSeek(false, getReactCurrentTime() + amount)
-      }
-    }
+    const targetBase = e.shiftKey || isFocusedOnBase()
+    const currentTime = targetBase ? getBaseCurrentTime() : getReactCurrentTime()
+    syncSeek(targetBase, currentTime + amount)
     return
   }
 
   if (key === 'arrowup' || key === 'arrowdown') {
     e.preventDefault()
     const delta = key === 'arrowup' ? 0.1 : -0.1
-    const targetBase = e.shiftKey
     const { baseVolume, reactVolume } = get()
-    if (targetBase) {
+    if (e.shiftKey) {
       setBaseVolume(clamp(baseVolume + delta, 0, 1))
     } else {
       setReactVolume(clamp(reactVolume + delta, 0, 1))
@@ -93,6 +80,15 @@ function handleKeyDown(e: KeyboardEvent): void {
     e.preventDefault()
     if (synced) {
       adjustDelay(key === 'pageup' ? -1 : 1, 0)
+    }
+    return
+  }
+
+  if (key === ',' || key === '.') {
+    e.preventDefault()
+    if (synced) {
+      const step = key === ',' ? -MICRO_ADJUST_STEP : MICRO_ADJUST_STEP
+      setDelay(delay + step, true)
     }
     return
   }

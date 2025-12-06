@@ -19,7 +19,7 @@ type SessionData = {
 const DB_NAME = 'reaction-sync'
 const STORE_NAME = 'sessions'
 const TTL = 7 * 24 * 60 * 60 * 1000
-const MAX_SESSIONS = 2
+const MAX_SESSIONS = 3
 
 let db: IDBDatabase | null = null
 let saveIntervalId: ReturnType<typeof setInterval> | null = null

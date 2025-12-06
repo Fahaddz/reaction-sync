@@ -323,8 +323,6 @@ html, body {
 
 .quality-menu {
   position: fixed;
-  bottom: 80px;
-  right: 24px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -332,6 +330,8 @@ html, body {
   display: none;
   flex-direction: column;
   min-width: 140px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   z-index: 300;
 }
@@ -497,4 +497,57 @@ html, body {
 }
 
 .resume-content button:hover { background: var(--accent); border-color: var(--accent); }
+
+#rateDisplay {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  min-width: 40px;
+  text-align: center;
+  transition: color 0.2s;
+}
+
+.reactControls input[type="range"]::-moz-range-track {
+  background: var(--border);
+  height: 4px;
+  border-radius: 2px;
+}
+
+.reactControls input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+}
+
+.seek-group input[type="range"]::-moz-range-track {
+  background: var(--border);
+  height: 6px;
+  border-radius: 3px;
+}
+
+.seek-group input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+}
+
+.media-group input[type="range"]::-moz-range-track {
+  background: var(--border);
+  height: 4px;
+  border-radius: 2px;
+}
+
+.media-group input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+}
 

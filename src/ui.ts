@@ -6,7 +6,7 @@ import {
   setPlayers, getBasePlayer, getReactPlayer, syncSeek, syncPlay, syncPause,
   enableSync, disableSync, forceResync, setDelay, isBasePlaying, isReactPlaying,
   getBaseCurrentTime, getBaseDuration, getReactCurrentTime, getReactDuration,
-  setBaseVolume, setReactVolume
+  setBaseVolume, setReactVolume, getCurrentRate
 } from './sync.ts'
 
 const $ = <T extends HTMLElement>(id: string): T | null => document.getElementById(id) as T | null
@@ -21,8 +21,10 @@ function destroyBasePlayers(): void {
   baseYT?.destroy()
   baseLocal = null
   baseYT = null
-  $('videoBaseYoutube')!.style.display = 'none'
-  $('videoBaseLocal')!.style.display = 'block'
+  const ytEl = $('videoBaseYoutube')
+  const localEl = $('videoBaseLocal')
+  if (ytEl) ytEl.style.display = 'none'
+  if (localEl) localEl.style.display = 'block'
 }
 
 function destroyReactPlayers(): void {
@@ -30,8 +32,10 @@ function destroyReactPlayers(): void {
   reactYT?.destroy()
   reactLocal = null
   reactYT = null
-  $('videoReactYoutube')!.style.display = 'none'
-  $('videoReact')!.style.display = 'block'
+  const ytEl = $('videoReactYoutube')
+  const localEl = $('videoReact')
+  if (ytEl) ytEl.style.display = 'none'
+  if (localEl) localEl.style.display = 'block'
 }
 
 export function showToast(message: string, type: 'info' | 'error' | 'warning' = 'info', duration = 3000): void {
@@ -82,81 +86,49 @@ export function closeTipsScreen(): void {
   if (tips) tips.style.display = 'none'
 }
 
+async function handleLocalFile(which: 'base' | 'react', file: File): Promise<boolean> {
+  const { supported, reason } = await checkCodecSupport(file)
+  if (!supported) {
+    showToast(reason || 'Unsupported codec', 'error')
+    return false
+  }
+  const source: VideoSource = { type: 'local', id: `file:${file.name}|${file.size}`, name: file.name }
+  if (which === 'base') {
+    destroyBasePlayers()
+    const video = $<HTMLVideoElement>('videoBaseLocal')
+    if (!video) return false
+    baseLocal = createLocalPlayer(video)
+    baseLocal.loadFile(file)
+    setPlayers(baseLocal, getReactPlayer())
+    set({ baseSource: source })
+    document.title = file.name
+  } else {
+    destroyReactPlayers()
+    const video = $<HTMLVideoElement>('videoReact')
+    if (!video) return false
+    reactLocal = createLocalPlayer(video)
+    reactLocal.loadFile(file)
+    setPlayers(getBasePlayer(), reactLocal)
+    set({ reactSource: source })
+    const delayToken = parseDelayFromFilename(file.name)
+    if (delayToken !== null) setDelay(delayToken)
+  }
+  return true
+}
+
 export async function promptLocalFile(which: 'base' | 'react', expectedName?: string): Promise<void> {
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'video/*'
+    if (expectedName) showToast(`Please select: ${expectedName}`, 'info', 8000)
     input.onchange = async () => {
       const file = input.files?.[0]
-      if (!file) { resolve(); return }
-      const { supported, reason } = await checkCodecSupport(file)
-      if (!supported) {
-        showToast(reason || 'Unsupported codec', 'error')
-        resolve()
-        return
-      }
-      const source: VideoSource = { type: 'local', id: `file:${file.name}|${file.size}`, name: file.name }
-      if (which === 'base') {
-        destroyBasePlayers()
-        const video = $<HTMLVideoElement>('videoBaseLocal')!
-        baseLocal = createLocalPlayer(video)
-        baseLocal.loadFile(file)
-        setPlayers(baseLocal, getReactPlayer())
-        set({ baseSource: source })
-        document.title = file.name
-      } else {
-        destroyReactPlayers()
-        const video = $<HTMLVideoElement>('videoReact')!
-        reactLocal = createLocalPlayer(video)
-        reactLocal.loadFile(file)
-        setPlayers(getBasePlayer(), reactLocal)
-        set({ reactSource: source })
-        const delayToken = parseDelayFromFilename(file.name)
-        if (delayToken !== null) setDelay(delayToken)
-      }
+      if (file) await handleLocalFile(which, file)
       resolve()
-    }
-    if (expectedName) {
-      showToast(`Please select: ${expectedName}`, 'info', 8000)
     }
     input.click()
   })
-}
-
-async function selectLocalFile(which: 'base' | 'react'): Promise<void> {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = 'video/*'
-  input.onchange = async () => {
-    const file = input.files?.[0]
-    if (!file) return
-    const { supported, reason } = await checkCodecSupport(file)
-    if (!supported) {
-      showToast(reason || 'Unsupported codec', 'error')
-      return
-    }
-    const source: VideoSource = { type: 'local', id: `file:${file.name}|${file.size}`, name: file.name }
-    if (which === 'base') {
-      destroyBasePlayers()
-      const video = $<HTMLVideoElement>('videoBaseLocal')!
-      baseLocal = createLocalPlayer(video)
-      baseLocal.loadFile(file)
-      setPlayers(baseLocal, getReactPlayer())
-      set({ baseSource: source })
-      document.title = file.name
-    } else {
-      destroyReactPlayers()
-      const video = $<HTMLVideoElement>('videoReact')!
-      reactLocal = createLocalPlayer(video)
-      reactLocal.loadFile(file)
-      setPlayers(getBasePlayer(), reactLocal)
-      set({ reactSource: source })
-      const delayToken = parseDelayFromFilename(file.name)
-      if (delayToken !== null) setDelay(delayToken)
-    }
-  }
-  input.click()
 }
 
 async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
@@ -167,16 +139,20 @@ async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
     const source: VideoSource = { type: 'youtube', id: `yt:${ytId}` }
     if (which === 'base') {
       destroyBasePlayers()
-      $('videoBaseLocal')!.style.display = 'none'
-      $('videoBaseYoutube')!.style.display = 'block'
+      const localEl = $('videoBaseLocal')
+      const ytEl = $('videoBaseYoutube')
+      if (localEl) localEl.style.display = 'none'
+      if (ytEl) ytEl.style.display = 'block'
       baseYT = createYouTubePlayer('videoBaseYoutube')
       await baseYT.initialize(ytId)
       setPlayers(baseYT, getReactPlayer())
       set({ baseSource: source })
     } else {
       destroyReactPlayers()
-      $('videoReact')!.style.display = 'none'
-      $('videoReactYoutube')!.style.display = 'block'
+      const localEl = $('videoReact')
+      const ytEl = $('videoReactYoutube')
+      if (localEl) localEl.style.display = 'none'
+      if (ytEl) ytEl.style.display = 'block'
       reactYT = createYouTubePlayer('videoReactYoutube')
       await reactYT.initialize(ytId)
       setPlayers(getBasePlayer(), reactYT)
@@ -186,18 +162,24 @@ async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
     const source: VideoSource = { type: 'url', id: `url:${url}`, url }
     if (which === 'base') {
       destroyBasePlayers()
-      $('videoBaseYoutube')!.style.display = 'none'
-      $('videoBaseLocal')!.style.display = 'block'
-      const video = $<HTMLVideoElement>('videoBaseLocal')!
+      const ytEl = $('videoBaseYoutube')
+      const localEl = $('videoBaseLocal')
+      if (ytEl) ytEl.style.display = 'none'
+      if (localEl) localEl.style.display = 'block'
+      const video = $<HTMLVideoElement>('videoBaseLocal')
+      if (!video) return
       baseLocal = createLocalPlayer(video)
       baseLocal.loadUrl(url)
       setPlayers(baseLocal, getReactPlayer())
       set({ baseSource: source })
     } else {
       destroyReactPlayers()
-      $('videoReactYoutube')!.style.display = 'none'
-      $('videoReact')!.style.display = 'block'
-      const video = $<HTMLVideoElement>('videoReact')!
+      const ytEl = $('videoReactYoutube')
+      const localEl = $('videoReact')
+      if (ytEl) ytEl.style.display = 'none'
+      if (localEl) localEl.style.display = 'block'
+      const video = $<HTMLVideoElement>('videoReact')
+      if (!video) return
       reactLocal = createLocalPlayer(video)
       reactLocal.loadUrl(url)
       setPlayers(getBasePlayer(), reactLocal)
@@ -249,9 +231,9 @@ function initSourceMenus(): void {
     reactMenu?.classList.remove('open')
   })
 
-  $('addBaseVideoLocal')?.addEventListener('click', () => selectLocalFile('base'))
+  $('addBaseVideoLocal')?.addEventListener('click', () => promptLocalFile('base'))
   $('addBaseVideoLink')?.addEventListener('click', () => selectUrlSource('base'))
-  $('addReactVidLocal')?.addEventListener('click', () => selectLocalFile('react'))
+  $('addReactVidLocal')?.addEventListener('click', () => promptLocalFile('react'))
   $('addReactVidLink')?.addEventListener('click', () => selectUrlSource('react'))
   $('addSubBtn')?.addEventListener('click', selectSubtitleFile)
 }
@@ -302,20 +284,23 @@ function initSeekBars(): void {
   const baseSeek = $<HTMLInputElement>('baseSeekBar')
   const reactSeek = $<HTMLInputElement>('reactSeekBar')
 
-  const onBaseSeek = throttle(() => {
-    const pct = parseFloat(baseSeek!.value)
-    const dur = getBaseDuration()
-    if (dur > 0) syncSeek(true, (pct / 100) * dur)
-  }, 50)
+  if (baseSeek) {
+    const onBaseSeek = throttle(() => {
+      const pct = parseFloat(baseSeek.value)
+      const dur = getBaseDuration()
+      if (dur > 0) syncSeek(true, (pct / 100) * dur)
+    }, 50)
+    baseSeek.addEventListener('input', onBaseSeek)
+  }
 
-  const onReactSeek = throttle(() => {
-    const pct = parseFloat(reactSeek!.value)
-    const dur = getReactDuration()
-    if (dur > 0) syncSeek(false, (pct / 100) * dur)
-  }, 50)
-
-  baseSeek?.addEventListener('input', onBaseSeek)
-  reactSeek?.addEventListener('input', onReactSeek)
+  if (reactSeek) {
+    const onReactSeek = throttle(() => {
+      const pct = parseFloat(reactSeek.value)
+      const dur = getReactDuration()
+      if (dur > 0) syncSeek(false, (pct / 100) * dur)
+    }, 50)
+    reactSeek.addEventListener('input', onReactSeek)
+  }
 }
 
 function initQualityMenu(): void {
@@ -344,10 +329,24 @@ function initQualityMenu(): void {
       })
       menu.appendChild(opt)
     }
-    const rect = btn.getBoundingClientRect()
-    menu.style.left = `${rect.left}px`
-    menu.style.top = `${rect.top - menu.offsetHeight - 8}px`
-    menu.classList.toggle('open')
+    menu.style.visibility = 'hidden'
+    menu.classList.add('open')
+    const btnRect = btn.getBoundingClientRect()
+    const menuRect = menu.getBoundingClientRect()
+    const spaceAbove = btnRect.top
+    const spaceBelow = window.innerHeight - btnRect.bottom
+    menu.style.left = `${Math.max(8, Math.min(btnRect.left, window.innerWidth - menuRect.width - 8))}px`
+    if (spaceAbove >= menuRect.height + 8) {
+      menu.style.top = `${btnRect.top - menuRect.height - 8}px`
+      menu.style.bottom = 'auto'
+    } else if (spaceBelow >= menuRect.height + 8) {
+      menu.style.top = `${btnRect.bottom + 8}px`
+      menu.style.bottom = 'auto'
+    } else {
+      menu.style.bottom = '8px'
+      menu.style.top = 'auto'
+    }
+    menu.style.visibility = 'visible'
   })
 
   document.addEventListener('click', () => menu.classList.remove('open'))
@@ -373,6 +372,13 @@ function updateTimeDisplays(): void {
   const reactPP = $('reactPlayPause')
   if (basePP) basePP.textContent = isBasePlaying() ? '⏸' : '▶'
   if (reactPP) reactPP.textContent = isReactPlaying() ? '⏸' : '⏵'
+
+  const rateDisplay = $('rateDisplay')
+  if (rateDisplay) {
+    const rate = getCurrentRate()
+    rateDisplay.textContent = rate === 1.0 ? '1.00x' : `${rate.toFixed(2)}x`
+    rateDisplay.style.color = rate === 1.0 ? '' : (rate > 1 ? 'var(--success)' : 'var(--warning)')
+  }
 }
 
 function updateUIFromState(): void {
@@ -423,16 +429,20 @@ export function getLocalPlayers(): { baseLocal: LocalPlayer | null; reactLocal: 
 export async function loadYouTubeVideo(which: 'base' | 'react', videoId: string, startTime?: number): Promise<void> {
   if (which === 'base') {
     destroyBasePlayers()
-    $('videoBaseLocal')!.style.display = 'none'
-    $('videoBaseYoutube')!.style.display = 'block'
+    const localEl = $('videoBaseLocal')
+    const ytEl = $('videoBaseYoutube')
+    if (localEl) localEl.style.display = 'none'
+    if (ytEl) ytEl.style.display = 'block'
     baseYT = createYouTubePlayer('videoBaseYoutube')
     await baseYT.initialize(videoId, startTime)
     setPlayers(baseYT, getReactPlayer())
     set({ baseSource: { type: 'youtube', id: `yt:${videoId}` } })
   } else {
     destroyReactPlayers()
-    $('videoReact')!.style.display = 'none'
-    $('videoReactYoutube')!.style.display = 'block'
+    const localEl = $('videoReact')
+    const ytEl = $('videoReactYoutube')
+    if (localEl) localEl.style.display = 'none'
+    if (ytEl) ytEl.style.display = 'block'
     reactYT = createYouTubePlayer('videoReactYoutube')
     await reactYT.initialize(videoId, startTime)
     setPlayers(getBasePlayer(), reactYT)
@@ -444,18 +454,24 @@ export async function loadUrlVideo(which: 'base' | 'react', url: string): Promis
   const source: VideoSource = { type: 'url', id: `url:${url}`, url }
   if (which === 'base') {
     destroyBasePlayers()
-    $('videoBaseYoutube')!.style.display = 'none'
-    $('videoBaseLocal')!.style.display = 'block'
-    const video = $<HTMLVideoElement>('videoBaseLocal')!
+    const ytEl = $('videoBaseYoutube')
+    const localEl = $('videoBaseLocal')
+    if (ytEl) ytEl.style.display = 'none'
+    if (localEl) localEl.style.display = 'block'
+    const video = $<HTMLVideoElement>('videoBaseLocal')
+    if (!video) return
     baseLocal = createLocalPlayer(video)
     baseLocal.loadUrl(url)
     setPlayers(baseLocal, getReactPlayer())
     set({ baseSource: source })
   } else {
     destroyReactPlayers()
-    $('videoReactYoutube')!.style.display = 'none'
-    $('videoReact')!.style.display = 'block'
-    const video = $<HTMLVideoElement>('videoReact')!
+    const ytEl = $('videoReactYoutube')
+    const localEl = $('videoReact')
+    if (ytEl) ytEl.style.display = 'none'
+    if (localEl) localEl.style.display = 'block'
+    const video = $<HTMLVideoElement>('videoReact')
+    if (!video) return
     reactLocal = createLocalPlayer(video)
     reactLocal.loadUrl(url)
     setPlayers(getBasePlayer(), reactLocal)
