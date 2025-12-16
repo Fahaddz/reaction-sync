@@ -167,7 +167,17 @@ export class YouTubePlayer implements Player {
     const message = errors[errorCode] || `YouTube error ${errorCode}`
     if (this.retryCount < 3) {
       this.retryCount++
-      setTimeout(() => this.initialize(videoId), 2000 * this.retryCount)
+      setTimeout(() => {
+        // Destroy old player before re-initializing
+        if (this.player) {
+          try {
+            this.player.destroy()
+          } catch {}
+          this.player = null
+        }
+        this.ready = false
+        this.initialize(videoId)
+      }, 2000 * this.retryCount)
     } else {
       showToast(`YouTube failed: ${message}`, 'error', 5000)
     }
@@ -296,4 +306,3 @@ export function getQualityLabel(quality: string): string {
 export function getQualityOrder(): string[] {
   return QUALITY_ORDER
 }
-
