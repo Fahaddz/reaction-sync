@@ -24,6 +24,7 @@ const MAX_SESSIONS = 3
 let db: IDBDatabase | null = null
 let saveIntervalId: ReturnType<typeof setInterval> | null = null
 let prompted = false
+let isLoadingSession = false
 
 async function openDB(): Promise<IDBDatabase> {
   if (db) return db
@@ -185,12 +186,14 @@ export function startAutoSave(): void {
 }
 
 export async function checkForResume(): Promise<void> {
-  if (prompted) return
+  if (prompted || isLoadingSession) return
   const key = getPairKey()
   if (!key) return
   const session = await loadSession(key)
   if (!session) return
   if (Date.now() - session.updatedAt > TTL) return
+  // Only show resume if we have meaningful progress (at least 5 seconds watched)
+  if (session.baseTime < 5) return
   prompted = true
   showResumePrompt(
     session.baseTime,
@@ -223,7 +226,13 @@ export async function loadLastSession(): Promise<void> {
     showToast('No saved session found', 'info')
     return
   }
-  await loadSessionVideos(session)
+  isLoadingSession = true
+  prompted = true // Prevent resume prompt from showing during load
+  try {
+    await loadSessionVideos(session)
+  } finally {
+    isLoadingSession = false
+  }
 }
 
 async function loadSessionVideos(session: SessionData): Promise<void> {
@@ -231,25 +240,30 @@ async function loadSessionVideos(session: SessionData): Promise<void> {
   const needsBaseLocal = baseMeta?.type === 'local'
   const needsReactLocal = reactMeta?.type === 'local'
   
-  if (baseMeta?.type === 'youtube') {
-    const ytId = baseMeta.id.replace('yt:', '')
-    await loadYouTubeVideo('base', ytId, baseTime)
-  } else if (baseMeta?.type === 'url' && baseMeta.url) {
-    await loadUrlVideo('base', baseMeta.url)
-  }
-  
-  if (reactMeta?.type === 'youtube') {
-    const ytId = reactMeta.id.replace('yt:', '')
-    const reactTime = Math.max(0, baseTime + delay)
-    await loadYouTubeVideo('react', ytId, reactTime)
-  } else if (reactMeta?.type === 'url' && reactMeta.url) {
-    await loadUrlVideo('react', reactMeta.url)
-  }
-  
-  if (needsBaseLocal || needsReactLocal) {
-    showLocalFilePrompt(session, needsBaseLocal, needsReactLocal)
-  } else {
-    finalizeSessionLoad(session)
+  try {
+    if (baseMeta?.type === 'youtube') {
+      const ytId = baseMeta.id.replace('yt:', '')
+      await loadYouTubeVideo('base', ytId, baseTime)
+    } else if (baseMeta?.type === 'url' && baseMeta.url) {
+      await loadUrlVideo('base', baseMeta.url)
+    }
+    
+    if (reactMeta?.type === 'youtube') {
+      const ytId = reactMeta.id.replace('yt:', '')
+      const reactTime = Math.max(0, baseTime + delay)
+      await loadYouTubeVideo('react', ytId, reactTime)
+    } else if (reactMeta?.type === 'url' && reactMeta.url) {
+      await loadUrlVideo('react', reactMeta.url)
+    }
+    
+    if (needsBaseLocal || needsReactLocal) {
+      showLocalFilePrompt(session, needsBaseLocal, needsReactLocal)
+    } else {
+      finalizeSessionLoad(session)
+    }
+  } catch (err) {
+    showToast('Failed to load session videos', 'error')
+    console.error('loadSessionVideos error:', err)
   }
 }
 
@@ -310,6 +324,7 @@ function finalizeSessionLoad(session: SessionData): void {
 }
 
 export function onSourceChange(): void {
+  if (isLoadingSession) return
   if (!prompted && get().baseSource && get().reactSource) {
     checkForResume()
     startAutoSave()
