@@ -147,20 +147,26 @@ export function selectSubtitleFile(): void {
 }
 
 export async function loadYouTubeVideo(which: 'base' | 'react', videoId: string, startTime?: number): Promise<void> {
-  if (which === 'base') {
-    destroyBasePlayers()
-    setVideoVisibility('base', 'youtube')
-    baseYT = createYouTubePlayer('videoBaseYoutube')
-    await baseYT.initialize(videoId, startTime)
-    setPlayers(baseYT, getReactPlayer())
-    set({ baseSource: { type: 'youtube', id: `yt:${videoId}` } })
-  } else {
-    destroyReactPlayers()
-    setVideoVisibility('react', 'youtube')
-    reactYT = createYouTubePlayer('videoReactYoutube')
-    await reactYT.initialize(videoId, startTime)
-    setPlayers(getBasePlayer(), reactYT)
-    set({ reactSource: { type: 'youtube', id: `yt:${videoId}` } })
+  try {
+    if (which === 'base') {
+      destroyBasePlayers()
+      setVideoVisibility('base', 'youtube')
+      baseYT = createYouTubePlayer('videoBaseYoutube')
+      await baseYT.initialize(videoId, startTime)
+      setPlayers(baseYT, getReactPlayer())
+      set({ baseSource: { type: 'youtube', id: `yt:${videoId}` } })
+    } else {
+      destroyReactPlayers()
+      setVideoVisibility('react', 'youtube')
+      reactYT = createYouTubePlayer('videoReactYoutube')
+      await reactYT.initialize(videoId, startTime)
+      setPlayers(getBasePlayer(), reactYT)
+      set({ reactSource: { type: 'youtube', id: `yt:${videoId}` } })
+    }
+  } catch (err) {
+    console.error(`Failed to load YouTube video (${which}):`, err)
+    showToast(`Failed to load ${which} video`, 'error')
+    throw err
   }
 }
 
@@ -194,4 +200,3 @@ export function getYouTubePlayers(): { baseYT: YouTubePlayer | null; reactYT: Yo
 export function getLocalPlayers(): { baseLocal: LocalPlayer | null; reactLocal: LocalPlayer | null } {
   return { baseLocal, reactLocal }
 }
-
