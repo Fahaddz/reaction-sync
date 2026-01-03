@@ -4,6 +4,7 @@ import { initUI, closeTipsScreen, getYouTubePlayers } from './ui/index.ts'
 import { initDraggable, initResizable, applyPosition } from './drag-resize.ts'
 import { initKeyboardShortcuts, trackContainerFocus, initDelayHold } from './keyboard.ts'
 import { startAutoSave, loadLastSession, clearSessions, onSourceChange } from './storage.ts'
+import { updateReactControlsPosition } from './ui/controls.ts'
 
 function init(): void {
   initUI()
@@ -25,6 +26,11 @@ function init(): void {
     })
     applyPosition(reactContainer)
   }
+
+  // Update react controls position on window resize
+  window.addEventListener('resize', updateReactControlsPosition)
+  // Initial position check
+  updateReactControlsPosition()
 
   const decreaseBtn = document.getElementById('decreaseDelayBtn')
   const increaseBtn = document.getElementById('increaseDelayBtn')

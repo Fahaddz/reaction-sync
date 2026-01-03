@@ -26,6 +26,18 @@ let saveIntervalId: ReturnType<typeof setInterval> | null = null
 let prompted = false
 let isLoadingSession = false
 
+// Track video pairs loaded in current session to prevent false resume prompts
+const currentSessionPairs = new Set<string>()
+
+/**
+ * Mark a video pair as newly loaded in the current session.
+ * This prevents the resume prompt from appearing for pairs that were just loaded.
+ */
+export function markPairAsNew(): void {
+  const key = getPairKey()
+  if (key) currentSessionPairs.add(key)
+}
+
 async function openDB(): Promise<IDBDatabase> {
   if (db) return db
   return new Promise((resolve, reject) => {
@@ -189,6 +201,10 @@ export async function checkForResume(): Promise<void> {
   if (prompted || isLoadingSession) return
   const key = getPairKey()
   if (!key) return
+  
+  // Skip if this pair was loaded fresh in current session
+  if (currentSessionPairs.has(key)) return
+  
   const session = await loadSession(key)
   if (!session) return
   if (Date.now() - session.updatedAt > TTL) return

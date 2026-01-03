@@ -1,5 +1,6 @@
 import { get, set } from './state.ts'
 import { clamp } from './utils.ts'
+import { updateReactControlsPosition } from './ui/controls.ts'
 
 export function initDraggable(container: HTMLElement, handle: HTMLElement): void {
   let startX = 0, startY = 0, startLeft = 0, startTop = 0
@@ -30,6 +31,7 @@ export function initDraggable(container: HTMLElement, handle: HTMLElement): void
     handle.removeEventListener('pointerup', onUp)
     const pos = get().reactPosition
     set({ reactPosition: { ...pos, x: container.offsetLeft, y: container.offsetTop } })
+    updateReactControlsPosition()
   }
 }
 
@@ -67,6 +69,7 @@ export function initResizable(
     const pos = get().reactPosition
     set({ reactPosition: { ...pos, w: container.offsetWidth, h: container.offsetHeight } })
     onResize?.(container.offsetWidth, container.offsetHeight)
+    updateReactControlsPosition()
   }
 }
 

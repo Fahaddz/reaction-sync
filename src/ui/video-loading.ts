@@ -3,9 +3,14 @@ import { createLocalPlayer, type LocalPlayer } from '../player.ts'
 import { createYouTubePlayer, type YouTubePlayer } from '../youtube.ts'
 import { parseYouTubeId, parseDelayFromFilename, checkCodecSupport, srtToVtt } from '../utils.ts'
 import { setPlayers, getBasePlayer, getReactPlayer, setDelay } from '../sync.ts'
-import { showToast } from './toast.ts'
+import { showToast, closeTipsScreen } from './toast.ts'
+import { markPairAsNew } from '../storage.ts'
 
 const $ = <T extends HTMLElement>(id: string): T | null => document.getElementById(id) as T | null
+
+// Comprehensive video format support - includes video/* MIME type plus explicit extensions
+// for formats that may not be recognized by video/* alone (e.g., MKV, AVI)
+const VIDEO_ACCEPT = 'video/*,.mkv,.avi,.mov,.wmv,.flv,.m4v,.webm,.ogv,.3gp,.ts,.mts'
 
 let baseLocal: LocalPlayer | null = null
 let baseYT: YouTubePlayer | null = null
@@ -51,6 +56,7 @@ async function handleLocalFile(which: 'base' | 'react', file: File): Promise<boo
     baseLocal.loadFile(file)
     setPlayers(baseLocal, getReactPlayer())
     set({ baseSource: source })
+    markPairAsNew()
     document.title = file.name
   } else {
     destroyReactPlayers()
@@ -60,6 +66,7 @@ async function handleLocalFile(which: 'base' | 'react', file: File): Promise<boo
     reactLocal.loadFile(file)
     setPlayers(getBasePlayer(), reactLocal)
     set({ reactSource: source })
+    markPairAsNew()
     const delayToken = parseDelayFromFilename(file.name)
     if (delayToken !== null) setDelay(delayToken)
   }
@@ -67,10 +74,11 @@ async function handleLocalFile(which: 'base' | 'react', file: File): Promise<boo
 }
 
 export async function promptLocalFile(which: 'base' | 'react', expectedName?: string): Promise<void> {
+  closeTipsScreen()
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = 'video/*'
+    input.accept = VIDEO_ACCEPT
     if (expectedName) showToast(`Please select: ${expectedName}`, 'info', 8000)
     input.onchange = async () => {
       const file = input.files?.[0]
@@ -82,6 +90,7 @@ export async function promptLocalFile(which: 'base' | 'react', expectedName?: st
 }
 
 export async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
+  closeTipsScreen()
   const url = prompt('Enter YouTube URL or direct video link:')
   if (!url) return
   const ytId = parseYouTubeId(url)
@@ -94,6 +103,7 @@ export async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
       await baseYT.initialize(ytId)
       setPlayers(baseYT, getReactPlayer())
       set({ baseSource: source })
+      markPairAsNew()
     } else {
       destroyReactPlayers()
       setVideoVisibility('react', 'youtube')
@@ -101,6 +111,7 @@ export async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
       await reactYT.initialize(ytId)
       setPlayers(getBasePlayer(), reactYT)
       set({ reactSource: source })
+      markPairAsNew()
     }
   } else {
     const source: VideoSource = { type: 'url', id: `url:${url}`, url }
@@ -113,6 +124,7 @@ export async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
       baseLocal.loadUrl(url)
       setPlayers(baseLocal, getReactPlayer())
       set({ baseSource: source })
+      markPairAsNew()
     } else {
       destroyReactPlayers()
       setVideoVisibility('react', 'local')
@@ -122,6 +134,7 @@ export async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
       reactLocal.loadUrl(url)
       setPlayers(getBasePlayer(), reactLocal)
       set({ reactSource: source })
+      markPairAsNew()
     }
   }
 }
@@ -155,6 +168,7 @@ export async function loadYouTubeVideo(which: 'base' | 'react', videoId: string,
       await baseYT.initialize(videoId, startTime)
       setPlayers(baseYT, getReactPlayer())
       set({ baseSource: { type: 'youtube', id: `yt:${videoId}` } })
+      markPairAsNew()
     } else {
       destroyReactPlayers()
       setVideoVisibility('react', 'youtube')
@@ -162,6 +176,7 @@ export async function loadYouTubeVideo(which: 'base' | 'react', videoId: string,
       await reactYT.initialize(videoId, startTime)
       setPlayers(getBasePlayer(), reactYT)
       set({ reactSource: { type: 'youtube', id: `yt:${videoId}` } })
+      markPairAsNew()
     }
   } catch (err) {
     console.error(`Failed to load YouTube video (${which}):`, err)
@@ -181,6 +196,7 @@ export async function loadUrlVideo(which: 'base' | 'react', url: string): Promis
     baseLocal.loadUrl(url)
     setPlayers(baseLocal, getReactPlayer())
     set({ baseSource: source })
+    markPairAsNew()
   } else {
     destroyReactPlayers()
     setVideoVisibility('react', 'local')
@@ -190,6 +206,7 @@ export async function loadUrlVideo(which: 'base' | 'react', url: string): Promis
     reactLocal.loadUrl(url)
     setPlayers(getBasePlayer(), reactLocal)
     set({ reactSource: source })
+    markPairAsNew()
   }
 }
 

@@ -129,3 +129,21 @@ export function updateUIFromState(): void {
   if (reactVol) reactVol.value = String(get().reactVolume)
 }
 
+/**
+ * Updates the react controls position based on container proximity to viewport bottom.
+ * When the container is near the bottom edge, controls are moved to the top to remain accessible.
+ */
+export function updateReactControlsPosition(): void {
+  const container = $('videoReactContainer')
+  const controls = container?.querySelector('.reactControls') as HTMLElement | null
+  if (!container || !controls) return
+
+  const rect = container.getBoundingClientRect()
+  const viewportHeight = window.innerHeight
+  const bottomThreshold = 100 // Distance from bottom to trigger flip
+
+  const isNearBottom = (viewportHeight - rect.bottom) < bottomThreshold
+
+  controls.classList.toggle('controls-top', isNearBottom)
+}
+
