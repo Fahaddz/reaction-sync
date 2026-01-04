@@ -23,13 +23,6 @@ export function initControlBindings(): void {
   $('videoReact')?.addEventListener('click', () => {
     isReactPlaying() ? syncPause(false) : syncPlay(false)
   })
-  // Click overlay handlers for YouTube videos
-  $('baseClickOverlay')?.addEventListener('click', () => {
-    isBasePlaying() ? syncPause(true) : syncPlay(true)
-  })
-  $('reactClickOverlay')?.addEventListener('click', () => {
-    isReactPlaying() ? syncPause(false) : syncPlay(false)
-  })
 }
 
 export function initSyncButtons(): void {

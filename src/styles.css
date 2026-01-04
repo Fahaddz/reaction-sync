@@ -137,22 +137,6 @@ input[type="range"]:hover::-moz-range-thumb {
   object-fit: contain;
 }
 
-/* Click overlay to intercept clicks on YouTube videos */
-.click-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  cursor: pointer;
-}
-
-#baseClickOverlay {
-  z-index: 2;
-}
-
-#reactClickOverlay {
-  z-index: 5;
-}
-
 #videoReactContainer {
   position: fixed;
   z-index: 100;

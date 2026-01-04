@@ -189,12 +189,28 @@ export class SyncEngine {
       this.basePlayer.onStateChange((state: PlayState) => {
         this.isBuffering.base = state === 'buffering'
         this.handleBufferingChange()
+        // Sync pause/play when user interacts with base video directly
+        if (get().synced && get().interactionState === 'idle' && this.reactPlayer) {
+          if (state === 'paused' && this.reactPlayer.isPlaying()) {
+            this.reactPlayer.pause()
+          } else if (state === 'playing' && !this.reactPlayer.isPlaying() && !this.isBuffering.react) {
+            this.reactPlayer.play()
+          }
+        }
       })
     }
     if (this.reactPlayer) {
       this.reactPlayer.onStateChange((state: PlayState) => {
         this.isBuffering.react = state === 'buffering'
         this.handleBufferingChange()
+        // Sync pause/play when user interacts with react video directly
+        if (get().synced && get().interactionState === 'idle' && this.basePlayer) {
+          if (state === 'paused' && this.basePlayer.isPlaying()) {
+            this.basePlayer.pause()
+          } else if (state === 'playing' && !this.basePlayer.isPlaying() && !this.isBuffering.base) {
+            this.basePlayer.play()
+          }
+        }
       })
     }
   }
