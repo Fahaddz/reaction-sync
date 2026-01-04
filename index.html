@@ -12,11 +12,11 @@
     <div id="videoReactContainer">
       <video id="videoReact"></video>
       <div id="videoReactYoutube"></div>
-      <div id="reactDragHandle">DRAG</div>
-      <div class="reactControls">
+      <div class="reactTopBar">
+        <div id="reactDragHandle">⋮⋮</div>
         <button id="reactPlayPause">⏵</button>
         <input type="range" id="reactSeekBar" min="0" max="100" value="0" step="any">
-        <div id="reactTimeDisplay">0:00 / 0:00</div>
+        <div id="reactTimeDisplay">0:00</div>
         <input type="range" id="reactVolumeSlider" min="0" max="1" value="1" step="any">
       </div>
       <div id="reactResizeHandle"></div>
@@ -36,7 +36,7 @@
             <button class="video-source-option" id="addBaseVideoLink">Link</button>
           </div>
         </div>
-        <button id="basePlayPause">▶</button>
+        <button id="basePlayPause" class="compact-btn">▶</button>
       </div>
 
       <div class="control-group seek-group">
@@ -44,20 +44,12 @@
         <div id="baseTimeDisplay" class="compact-time">0:00 / 0:00</div>
       </div>
 
-      <div class="control-separator"></div>
-
       <div class="control-group delay-group">
-        <div id="delayControls">
-          <span class="delayLabel">Δ</span>
-          <button id="decreaseDelayBtn" class="compact-btn ultra-compact">−</button>
-          <span id="delayDisplay">+0.0s</span>
-          <span id="syncHealthDot"></span>
-          <span id="rateDisplay">1.00x</span>
-          <button id="increaseDelayBtn" class="compact-btn ultra-compact">+</button>
-        </div>
+        <button id="decreaseDelayBtn" class="compact-btn mini">−</button>
+        <span id="delayDisplay">+0.0s</span>
+        <span id="syncHealthDot"></span>
+        <button id="increaseDelayBtn" class="compact-btn mini">+</button>
       </div>
-
-      <div class="control-separator"></div>
 
       <div class="control-group media-group">
         <div class="video-source-dropdown">
@@ -67,18 +59,16 @@
             <button class="video-source-option" id="addReactVidLink">Link</button>
           </div>
         </div>
-        <button id="addSubBtn" class="compact-btn ultra-compact">CC</button>
-        <button id="youtubeQuality" class="compact-btn ultra-compact">Q</button>
+        <button id="addSubBtn" class="compact-btn mini">CC</button>
+        <button id="youtubeQuality" class="compact-btn mini">Q</button>
         <input type="range" id="baseVolumeSlider" min="0" max="1" value="1" step="any">
       </div>
 
-      <div class="control-separator"></div>
-
       <div class="control-group sync-group">
-        <button id="syncButton" class="compact-btn ultra-compact">S</button>
-        <button id="desyncButton" class="compact-btn ultra-compact">D</button>
-        <button id="forceResyncButton" class="compact-btn ultra-compact">FR</button>
-        <button id="saveNowButton" class="compact-btn ultra-compact">💾</button>
+        <button id="syncButton" class="compact-btn mini">S</button>
+        <button id="desyncButton" class="compact-btn mini">D</button>
+        <button id="forceResyncButton" class="compact-btn mini">FR</button>
+        <button id="saveNowButton" class="compact-btn mini">💾</button>
       </div>
     </div>
 

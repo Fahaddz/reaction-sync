@@ -74,25 +74,22 @@ input[type="range"]:hover::-moz-range-thumb {
   box-shadow: 0 0 10px rgba(99, 102, 241, 0.7);
 }
 
-.slider-sm, .reactControls input[type="range"], .media-group input[type="range"] {
+.slider-sm, .media-group input[type="range"] {
   height: 4px;
 }
 
 .slider-sm::-webkit-slider-thumb,
-.reactControls input[type="range"]::-webkit-slider-thumb,
 .media-group input[type="range"]::-webkit-slider-thumb {
   width: 14px;
   height: 14px;
 }
 
 .slider-sm::-moz-range-track,
-.reactControls input[type="range"]::-moz-range-track,
 .media-group input[type="range"]::-moz-range-track {
   height: 4px;
 }
 
 .slider-sm::-moz-range-thumb,
-.reactControls input[type="range"]::-moz-range-thumb,
 .media-group input[type="range"]::-moz-range-thumb {
   width: 14px;
   height: 14px;
@@ -126,7 +123,7 @@ input[type="range"]:hover::-moz-range-thumb {
   align-items: center;
   justify-content: center;
   background: #000;
-  padding-bottom: 72px; /* Reserve space for controls */
+  padding-bottom: 44px; /* Reserve space for compact controls */
 }
 
 #videoBaseContainer video, #videoBaseContainer > div {
@@ -196,81 +193,85 @@ input[type="range"]:hover::-moz-range-thumb {
 }
 
 #reactDragHandle {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  padding: 4px 12px;
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(8px);
+  padding: 0 8px;
+  background: transparent;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 12px;
   font-family: var(--font-mono);
   font-weight: 600;
-  letter-spacing: 1px;
-  border-radius: 6px;
   cursor: grab;
   user-select: none;
-  z-index: 10;
-  opacity: 0.7;
-  transition: opacity 0.2s;
+  opacity: 0.6;
+  transition: opacity 0.15s;
 }
 
-#reactDragHandle:hover { opacity: 1; cursor: grabbing; }
+#reactDragHandle:hover { opacity: 1; }
 #reactDragHandle:active { cursor: grabbing; }
 
-.reactControls {
+/* React top bar - contains drag handle and controls */
+.reactTopBar {
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 0;
   right: 0;
-  padding: 8px 12px;
-  background: linear-gradient(transparent, rgba(0,0,0,0.8));
+  padding: 6px 8px;
+  background: linear-gradient(rgba(0,0,0,0.85), transparent);
   display: flex;
   align-items: center;
-  gap: 8px;
-  visibility: hidden;
-  transition: visibility 0.2s, top 0.2s ease, bottom 0.2s ease, background 0.2s ease;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 10;
 }
 
-#videoReactContainer:hover .reactControls { visibility: visible; }
+#videoReactContainer:hover .reactTopBar { opacity: 1; }
 
-.reactControls.controls-top {
-  bottom: auto;
-  top: 36px; /* Below drag handle */
-  background: linear-gradient(rgba(0,0,0,0.8), transparent);
-}
-
-.reactControls button {
-  background: rgba(26, 26, 36, 0.7);
+.reactTopBar button {
+  background: rgba(26, 26, 36, 0.8);
   border: 1px solid rgba(39, 39, 42, 0.5);
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 12px;
   cursor: pointer;
-  padding: 6px 10px;
-  min-height: 32px;
-  min-width: 32px;
+  padding: 4px 8px;
+  min-height: 26px;
+  min-width: 26px;
   transition: all 0.15s ease;
 }
 
-.reactControls button:hover {
+.reactTopBar button:hover {
   background: var(--accent);
   border-color: var(--accent);
-  transform: scale(1.05);
 }
 
-.reactControls input[type="range"] {
+.reactTopBar input[type="range"] {
   flex: 1;
+  height: 3px;
+}
+
+.reactTopBar input[type="range"]::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+}
+
+.reactTopBar input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
 }
 
 #reactTimeDisplay {
-  font-size: 11px;
+  font-size: 10px;
   font-family: var(--font-mono);
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
-#reactVolumeSlider { width: 60px !important; flex: none !important; }
+#reactVolumeSlider { width: 50px !important; flex: none !important; }
+
+/* Legacy reactControls - now replaced by reactTopBar */
+.reactControls {
+  display: none;
+}
 
 #reactResizeHandle {
   position: absolute;
@@ -292,31 +293,26 @@ input[type="range"]:hover::-moz-range-thumb {
   left: 0;
   right: 0;
   z-index: 200;
-  background: linear-gradient(to top, rgba(10, 10, 15, 0.98), rgba(18, 18, 26, 0.95));
-  backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(99, 102, 241, 0.25);
-  padding: 12px 24px;
-  height: 72px;
+  background: rgba(10, 10, 15, 0.95);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(99, 102, 241, 0.2);
+  padding: 6px 12px;
+  height: 44px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
+  gap: 8px;
+  box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.3);
 }
 
 .control-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(26, 26, 36, 0.6);
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(39, 39, 42, 0.5);
+  gap: 4px;
 }
 
 .control-separator {
   width: 1px;
-  height: 24px;
+  height: 20px;
   background: var(--border);
 }
 
@@ -325,29 +321,31 @@ input[type="range"]:hover::-moz-range-thumb {
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
   color: var(--text-primary);
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
   font-family: var(--font-sans);
   cursor: pointer;
   transition: all 0.15s ease;
-  min-height: 36px;
-  min-width: 36px;
+  min-height: 28px;
+  min-width: 28px;
 }
 
 .compact-btn:hover {
   background: var(--accent);
   border-color: var(--accent);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .compact-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.2);
+  transform: scale(0.95);
 }
 
-.compact-btn.ultra-compact { padding: 6px 10px; min-width: 32px; }
+.compact-btn.mini { 
+  padding: 4px 6px; 
+  min-width: 24px;
+  min-height: 24px;
+  font-size: 11px;
+}
 
 #syncButton.synced {
   background: var(--success);
@@ -357,13 +355,24 @@ input[type="range"]:hover::-moz-range-thumb {
   font-weight: 600;
 }
 
-.seek-group { flex: 1; min-width: 200px; }
+.seek-group { flex: 1; min-width: 150px; }
 .seek-group input[type="range"] {
   flex: 1;
+  height: 4px;
+}
+
+.seek-group input[type="range"]::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+}
+
+.seek-group input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
 }
 
 .compact-time {
-  font-size: 12px;
+  font-size: 10px;
   font-family: var(--font-mono);
   color: var(--text-secondary);
   white-space: nowrap;
@@ -372,37 +381,48 @@ input[type="range"]:hover::-moz-range-thumb {
 #delayControls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .delayLabel {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 11px;
   color: var(--text-secondary);
 }
 
 #delayDisplay {
   font-family: var(--font-mono);
-  font-size: 13px;
-  min-width: 50px;
+  font-size: 11px;
+  min-width: 42px;
   text-align: center;
 }
 
 #delayDisplay.synced { color: var(--success); }
 
 #syncHealthDot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   transition: background 0.2s;
 }
 
-#syncHealthDot.health-healthy, #syncHealthDot.healthy { background: var(--success); box-shadow: 0 0 6px var(--success); }
-#syncHealthDot.health-correcting, #syncHealthDot.correcting { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
-#syncHealthDot.health-drifting, #syncHealthDot.drifting { background: var(--error); box-shadow: 0 0 6px var(--error); }
+#syncHealthDot.health-healthy, #syncHealthDot.healthy { background: var(--success); box-shadow: 0 0 4px var(--success); }
+#syncHealthDot.health-correcting, #syncHealthDot.correcting { background: var(--warning); box-shadow: 0 0 4px var(--warning); }
+#syncHealthDot.health-drifting, #syncHealthDot.drifting { background: var(--error); box-shadow: 0 0 4px var(--error); }
 
 .media-group input[type="range"] {
-  width: 80px;
+  width: 60px;
+  height: 3px;
+}
+
+.media-group input[type="range"]::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+}
+
+.media-group input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
 }
 
 .video-source-dropdown { position: relative; }
@@ -414,11 +434,11 @@ input[type="range"]:hover::-moz-range-thumb {
   margin-bottom: 4px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px;
+  border-radius: 6px;
+  padding: 3px;
   display: none;
   flex-direction: column;
-  min-width: 100px;
+  min-width: 80px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
@@ -428,30 +448,29 @@ input[type="range"]:hover::-moz-range-thumb {
   background: transparent;
   border: none;
   color: var(--text-primary);
-  padding: 8px 12px;
+  padding: 6px 10px;
   text-align: left;
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
-  font-size: 13px;
-  min-height: 36px;
+  font-size: 11px;
+  min-height: 28px;
   transition: all 0.15s ease;
 }
 
 .video-source-option:hover {
   background: var(--accent);
-  transform: translateX(2px);
 }
 
 .quality-menu {
   position: fixed;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px;
+  border-radius: 6px;
+  padding: 3px;
   display: none;
   flex-direction: column;
-  min-width: 140px;
-  max-height: calc(100vh - 100px);
+  min-width: 100px;
+  max-height: calc(100vh - 80px);
   overflow-y: auto;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   z-index: 300;
@@ -463,18 +482,17 @@ input[type="range"]:hover::-moz-range-thumb {
   background: transparent;
   border: none;
   color: var(--text-primary);
-  padding: 8px 12px;
+  padding: 6px 10px;
   text-align: left;
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
-  font-size: 13px;
-  min-height: 36px;
+  font-size: 11px;
+  min-height: 28px;
   transition: all 0.15s ease;
 }
 
 .quality-menu button:hover {
   background: var(--accent);
-  transform: translateX(2px);
 }
 
 .quality-menu button.active { background: var(--accent); }
@@ -551,7 +569,7 @@ input[type="range"]:hover::-moz-range-thumb {
 
 #toastContainer {
   position: fixed;
-  bottom: 100px;
+  bottom: 60px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 400;
@@ -621,11 +639,3 @@ input[type="range"]:hover::-moz-range-thumb {
 .resume-dialog .resume-btn:hover { box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); }
 .resume-dialog .reset-btn { background: rgba(255, 255, 255, 0.1); color: var(--text-primary); }
 .resume-dialog .reset-btn:hover { background: rgba(255, 255, 255, 0.15); }
-
-#rateDisplay {
-  font-size: 11px;
-  font-family: var(--font-mono);
-  min-width: 40px;
-  text-align: center;
-  transition: color 0.2s;
-}

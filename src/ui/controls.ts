@@ -3,7 +3,7 @@ import { formatTime, formatTimeWithDecimal, throttle } from '../utils.ts'
 import {
   syncSeek, syncPlay, syncPause, enableSync, disableSync, forceResync,
   isBasePlaying, isReactPlaying, getBaseCurrentTime, getBaseDuration,
-  getReactCurrentTime, getReactDuration, setBaseVolume, setReactVolume, getCurrentRate
+  getReactCurrentTime, getReactDuration, setBaseVolume, setReactVolume
 } from '../sync.ts'
 import { showToast } from './toast.ts'
 
@@ -86,7 +86,7 @@ export function updateTimeDisplays(): void {
   const rd = getReactDuration()
 
   if (baseTime) baseTime.textContent = `${formatTime(bc)} / ${formatTime(bd)}`
-  if (reactTime) reactTime.textContent = `${formatTime(rc)} / ${formatTime(rd)}`
+  if (reactTime) reactTime.textContent = formatTime(rc)
   if (baseSeek && bd > 0) baseSeek.value = String((bc / bd) * 100)
   if (reactSeek && rd > 0) reactSeek.value = String((rc / rd) * 100)
 
@@ -94,13 +94,6 @@ export function updateTimeDisplays(): void {
   const reactPP = $('reactPlayPause')
   if (basePP) basePP.textContent = isBasePlaying() ? '⏸' : '▶'
   if (reactPP) reactPP.textContent = isReactPlaying() ? '⏸' : '⏵'
-
-  const rateDisplay = $('rateDisplay')
-  if (rateDisplay) {
-    const rate = getCurrentRate()
-    rateDisplay.textContent = rate === 1.0 ? '1.00x' : `${rate.toFixed(2)}x`
-    rateDisplay.style.color = rate === 1.0 ? '' : (rate > 1 ? 'var(--success)' : 'var(--warning)')
-  }
 }
 
 export function updateUIFromState(): void {
@@ -128,22 +121,3 @@ export function updateUIFromState(): void {
   if (baseVol) baseVol.value = String(get().baseVolume)
   if (reactVol) reactVol.value = String(get().reactVolume)
 }
-
-/**
- * Updates the react controls position based on container proximity to viewport bottom.
- * When the container is near the bottom edge, controls are moved to the top to remain accessible.
- */
-export function updateReactControlsPosition(): void {
-  const container = $('videoReactContainer')
-  const controls = container?.querySelector('.reactControls') as HTMLElement | null
-  if (!container || !controls) return
-
-  const rect = container.getBoundingClientRect()
-  const viewportHeight = window.innerHeight
-  const bottomThreshold = 100 // Distance from bottom to trigger flip
-
-  const isNearBottom = (viewportHeight - rect.bottom) < bottomThreshold
-
-  controls.classList.toggle('controls-top', isNearBottom)
-}
-
