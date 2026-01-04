@@ -16,10 +16,18 @@ export function initControlBindings(): void {
   $('reactPlayPause')?.addEventListener('click', () => {
     isReactPlaying() ? syncPause(false) : syncPlay(false)
   })
+  // Local video click handlers
   $('videoBaseLocal')?.addEventListener('click', () => {
     isBasePlaying() ? syncPause(true) : syncPlay(true)
   })
   $('videoReact')?.addEventListener('click', () => {
+    isReactPlaying() ? syncPause(false) : syncPlay(false)
+  })
+  // Click overlay handlers for YouTube videos
+  $('baseClickOverlay')?.addEventListener('click', () => {
+    isBasePlaying() ? syncPause(true) : syncPlay(true)
+  })
+  $('reactClickOverlay')?.addEventListener('click', () => {
     isReactPlaying() ? syncPause(false) : syncPlay(false)
   })
 }
