@@ -1,5 +1,5 @@
 import type { Player, PlayState } from './player.ts'
-import { showToast } from './ui/toast.ts'
+import { showToast } from './stores.ts'
 
 declare global {
   interface Window {

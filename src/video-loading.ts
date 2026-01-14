@@ -1,15 +1,10 @@
-import { set, type VideoSource } from '../state.ts'
-import { createLocalPlayer, type LocalPlayer } from '../player.ts'
-import { createYouTubePlayer, type YouTubePlayer } from '../youtube.ts'
-import { parseYouTubeId, parseDelayFromFilename, checkCodecSupport, srtToVtt } from '../utils.ts'
-import { setPlayers, getBasePlayer, getReactPlayer, setDelay } from '../sync.ts'
-import { showToast, closeTipsScreen } from './toast.ts'
-import { markPairAsNew } from '../storage.ts'
+import { baseSource, reactSource, type VideoSource, showToast, closeTipsScreen } from './stores.ts'
+import { createLocalPlayer, type LocalPlayer } from './player.ts'
+import { createYouTubePlayer, type YouTubePlayer } from './youtube.ts'
+import { parseYouTubeId, parseDelayFromFilename, checkCodecSupport, srtToVtt } from './utils.ts'
+import { setPlayers, getBasePlayer, getReactPlayer, setDelay } from './sync.ts'
+import { markPairAsNew } from './storage.ts'
 
-const $ = <T extends HTMLElement>(id: string): T | null => document.getElementById(id) as T | null
-
-// Comprehensive video format support - includes video/* MIME type plus explicit extensions
-// for formats that may not be recognized by video/* alone (e.g., MKV, AVI)
 const VIDEO_ACCEPT = 'video/*,.mkv,.avi,.mov,.wmv,.flv,.m4v,.webm,.ogv,.3gp,.ts,.mts'
 
 let baseLocal: LocalPlayer | null = null
@@ -17,12 +12,19 @@ let baseYT: YouTubePlayer | null = null
 let reactLocal: LocalPlayer | null = null
 let reactYT: YouTubePlayer | null = null
 
-function setVideoVisibility(which: 'base' | 'react', type: 'local' | 'youtube'): void {
-  const isBase = which === 'base'
-  const localEl = $(isBase ? 'videoBaseLocal' : 'videoReact')
-  const ytEl = $(isBase ? 'videoBaseYoutube' : 'videoReactYoutube')
-  if (localEl) localEl.style.display = type === 'local' ? 'block' : 'none'
-  if (ytEl) ytEl.style.display = type === 'youtube' ? 'block' : 'none'
+let baseVideoEl: HTMLVideoElement | null = null
+let baseYTContainer: HTMLDivElement | null = null
+let reactVideoEl: HTMLVideoElement | null = null
+let reactYTContainer: HTMLDivElement | null = null
+
+export function setBaseElements(video: HTMLVideoElement, ytContainer: HTMLDivElement): void {
+  baseVideoEl = video
+  baseYTContainer = ytContainer
+}
+
+export function setReactElements(video: HTMLVideoElement, ytContainer: HTMLDivElement): void {
+  reactVideoEl = video
+  reactYTContainer = ytContainer
 }
 
 function destroyBasePlayers(): void {
@@ -30,7 +32,6 @@ function destroyBasePlayers(): void {
   baseYT?.destroy()
   baseLocal = null
   baseYT = null
-  setVideoVisibility('base', 'local')
 }
 
 function destroyReactPlayers(): void {
@@ -38,7 +39,6 @@ function destroyReactPlayers(): void {
   reactYT?.destroy()
   reactLocal = null
   reactYT = null
-  setVideoVisibility('react', 'local')
 }
 
 async function handleLocalFile(which: 'base' | 'react', file: File): Promise<boolean> {
@@ -50,22 +50,20 @@ async function handleLocalFile(which: 'base' | 'react', file: File): Promise<boo
   const source: VideoSource = { type: 'local', id: `file:${file.name}|${file.size}`, name: file.name }
   if (which === 'base') {
     destroyBasePlayers()
-    const video = $<HTMLVideoElement>('videoBaseLocal')
-    if (!video) return false
-    baseLocal = createLocalPlayer(video)
+    if (!baseVideoEl) return false
+    baseLocal = createLocalPlayer(baseVideoEl)
     baseLocal.loadFile(file)
     setPlayers(baseLocal, getReactPlayer())
-    set({ baseSource: source })
+    baseSource.set(source)
     markPairAsNew()
     document.title = file.name
   } else {
     destroyReactPlayers()
-    const video = $<HTMLVideoElement>('videoReact')
-    if (!video) return false
-    reactLocal = createLocalPlayer(video)
+    if (!reactVideoEl) return false
+    reactLocal = createLocalPlayer(reactVideoEl)
     reactLocal.loadFile(file)
     setPlayers(getBasePlayer(), reactLocal)
-    set({ reactSource: source })
+    reactSource.set(source)
     markPairAsNew()
     const delayToken = parseDelayFromFilename(file.name)
     if (delayToken !== null) setDelay(delayToken)
@@ -98,42 +96,38 @@ export async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
     const source: VideoSource = { type: 'youtube', id: `yt:${ytId}` }
     if (which === 'base') {
       destroyBasePlayers()
-      setVideoVisibility('base', 'youtube')
-      baseYT = createYouTubePlayer('videoBaseYoutube')
+      if (!baseYTContainer) return
+      baseYT = createYouTubePlayer(baseYTContainer.id || 'videoBaseYoutube')
       await baseYT.initialize(ytId)
       setPlayers(baseYT, getReactPlayer())
-      set({ baseSource: source })
+      baseSource.set(source)
       markPairAsNew()
     } else {
       destroyReactPlayers()
-      setVideoVisibility('react', 'youtube')
-      reactYT = createYouTubePlayer('videoReactYoutube')
+      if (!reactYTContainer) return
+      reactYT = createYouTubePlayer(reactYTContainer.id || 'videoReactYoutube')
       await reactYT.initialize(ytId)
       setPlayers(getBasePlayer(), reactYT)
-      set({ reactSource: source })
+      reactSource.set(source)
       markPairAsNew()
     }
   } else {
     const source: VideoSource = { type: 'url', id: `url:${url}`, url }
     if (which === 'base') {
       destroyBasePlayers()
-      setVideoVisibility('base', 'local')
-      const video = $<HTMLVideoElement>('videoBaseLocal')
-      if (!video) return
-      baseLocal = createLocalPlayer(video)
+      if (!baseVideoEl) return
+      baseLocal = createLocalPlayer(baseVideoEl)
       baseLocal.loadUrl(url)
       setPlayers(baseLocal, getReactPlayer())
-      set({ baseSource: source })
+      baseSource.set(source)
       markPairAsNew()
     } else {
       destroyReactPlayers()
-      setVideoVisibility('react', 'local')
-      const video = $<HTMLVideoElement>('videoReact')
-      if (!video) return
-      reactLocal = createLocalPlayer(video)
+      if (!reactVideoEl) return
+      reactLocal = createLocalPlayer(reactVideoEl)
       reactLocal.loadUrl(url)
       setPlayers(getBasePlayer(), reactLocal)
-      set({ reactSource: source })
+      reactSource.set(source)
       markPairAsNew()
     }
   }
@@ -151,8 +145,6 @@ export function selectSubtitleFile(): void {
       const text = reader.result as string
       const vtt = file.name.endsWith('.srt') ? srtToVtt(text) : text
       baseLocal?.attachSubtitles(vtt)
-      const btn = $('addSubBtn')
-      if (btn) btn.textContent = file.name.replace(/\.[^.]+$/, '').slice(-10)
     }
     reader.readAsText(file)
   }
@@ -163,19 +155,19 @@ export async function loadYouTubeVideo(which: 'base' | 'react', videoId: string,
   try {
     if (which === 'base') {
       destroyBasePlayers()
-      setVideoVisibility('base', 'youtube')
-      baseYT = createYouTubePlayer('videoBaseYoutube')
+      if (!baseYTContainer) throw new Error('Base YouTube container not set')
+      baseYT = createYouTubePlayer(baseYTContainer.id || 'videoBaseYoutube')
       await baseYT.initialize(videoId, startTime)
       setPlayers(baseYT, getReactPlayer())
-      set({ baseSource: { type: 'youtube', id: `yt:${videoId}` } })
+      baseSource.set({ type: 'youtube', id: `yt:${videoId}` })
       markPairAsNew()
     } else {
       destroyReactPlayers()
-      setVideoVisibility('react', 'youtube')
-      reactYT = createYouTubePlayer('videoReactYoutube')
+      if (!reactYTContainer) throw new Error('React YouTube container not set')
+      reactYT = createYouTubePlayer(reactYTContainer.id || 'videoReactYoutube')
       await reactYT.initialize(videoId, startTime)
       setPlayers(getBasePlayer(), reactYT)
-      set({ reactSource: { type: 'youtube', id: `yt:${videoId}` } })
+      reactSource.set({ type: 'youtube', id: `yt:${videoId}` })
       markPairAsNew()
     }
   } catch (err) {
@@ -189,23 +181,19 @@ export async function loadUrlVideo(which: 'base' | 'react', url: string): Promis
   const source: VideoSource = { type: 'url', id: `url:${url}`, url }
   if (which === 'base') {
     destroyBasePlayers()
-    setVideoVisibility('base', 'local')
-    const video = $<HTMLVideoElement>('videoBaseLocal')
-    if (!video) return
-    baseLocal = createLocalPlayer(video)
+    if (!baseVideoEl) return
+    baseLocal = createLocalPlayer(baseVideoEl)
     baseLocal.loadUrl(url)
     setPlayers(baseLocal, getReactPlayer())
-    set({ baseSource: source })
+    baseSource.set(source)
     markPairAsNew()
   } else {
     destroyReactPlayers()
-    setVideoVisibility('react', 'local')
-    const video = $<HTMLVideoElement>('videoReact')
-    if (!video) return
-    reactLocal = createLocalPlayer(video)
+    if (!reactVideoEl) return
+    reactLocal = createLocalPlayer(reactVideoEl)
     reactLocal.loadUrl(url)
     setPlayers(getBasePlayer(), reactLocal)
-    set({ reactSource: source })
+    reactSource.set(source)
     markPairAsNew()
   }
 }
