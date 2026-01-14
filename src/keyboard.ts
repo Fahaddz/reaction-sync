@@ -1,4 +1,5 @@
-import { get } from './state.ts'
+import { get } from 'svelte/store'
+import { synced, delay, baseVolume, reactVolume, debugVisible } from './stores.ts'
 import {
   enableSync, disableSync, forceResync, syncPlay, syncPause, syncSeek, adjustDelay, setDelay,
   getBaseCurrentTime, getReactCurrentTime, setBaseVolume, setReactVolume,
@@ -22,7 +23,8 @@ function handleKeyDown(e: KeyboardEvent): void {
   if (isInput) return
 
   const key = e.key.toLowerCase()
-  const { synced, delay } = get()
+  const isSynced = get(synced)
+  const currentDelay = get(delay)
 
   if (key === 's') {
     e.preventDefault()
@@ -42,10 +44,16 @@ function handleKeyDown(e: KeyboardEvent): void {
     return
   }
 
+  if (key === 'g') {
+    e.preventDefault()
+    debugVisible.update(v => !v)
+    return
+  }
+
   if (key === ' ' || key === 'k') {
     e.preventDefault()
     const focusedBase = isFocusedOnBase()
-    if (synced) {
+    if (isSynced) {
       isBasePlaying() ? syncPause(focusedBase) : syncPlay(focusedBase)
     } else {
       const targetBase = focusedBase
@@ -58,7 +66,7 @@ function handleKeyDown(e: KeyboardEvent): void {
   if (key === 'arrowleft' || key === 'arrowright') {
     e.preventDefault()
     const amount = key === 'arrowleft' ? -5 : 5
-    const targetBase = synced ? true : (e.shiftKey || isFocusedOnBase())
+    const targetBase = isSynced ? true : (e.shiftKey || isFocusedOnBase())
     const currentTime = targetBase ? getBaseCurrentTime() : getReactCurrentTime()
     syncSeek(targetBase, currentTime + amount)
     return
@@ -67,18 +75,19 @@ function handleKeyDown(e: KeyboardEvent): void {
   if (key === 'arrowup' || key === 'arrowdown') {
     e.preventDefault()
     const delta = key === 'arrowup' ? 0.1 : -0.1
-    const { baseVolume, reactVolume } = get()
+    const currentBaseVolume = get(baseVolume)
+    const currentReactVolume = get(reactVolume)
     if (e.shiftKey) {
-      setBaseVolume(clamp(baseVolume + delta, 0, 1))
+      setBaseVolume(clamp(currentBaseVolume + delta, 0, 1))
     } else {
-      setReactVolume(clamp(reactVolume + delta, 0, 1))
+      setReactVolume(clamp(currentReactVolume + delta, 0, 1))
     }
     return
   }
 
   if (key === 'pageup' || key === 'pagedown') {
     e.preventDefault()
-    if (synced) {
+    if (isSynced) {
       adjustDelay(key === 'pageup' ? -1 : 1, 0)
     }
     return
@@ -86,9 +95,9 @@ function handleKeyDown(e: KeyboardEvent): void {
 
   if (key === ',' || key === '.') {
     e.preventDefault()
-    if (synced) {
+    if (isSynced) {
       const step = key === ',' ? -MICRO_ADJUST_STEP : MICRO_ADJUST_STEP
-      setDelay(delay + step, true)
+      setDelay(currentDelay + step, true)
     }
     return
   }
@@ -154,3 +163,5 @@ export function initDelayHold(
 
   document.addEventListener('pointerup', stopHold)
 }
+
+export { MICRO_ADJUST_STEP }

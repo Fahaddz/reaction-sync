@@ -1,6 +1,8 @@
-# Reaction Sync v2
+# Reaction Sync v3
 
 A lightweight web app for synchronizing reaction videos with their source content. Watch a reactor's video alongside the original — perfectly synced.
+
+Built with Svelte 5 + Tailwind CSS.
 
 ## Features
 
@@ -14,18 +16,22 @@ A lightweight web app for synchronizing reaction videos with their source conten
 - **Adaptive drift correction** — Automatically keeps videos in sync
 - **Playback rate micro-adjustment** — Smooth correction for small drifts
 - **Force resync** — Snap videos back to sync instantly
+- **Adaptive thresholds** — Automatically adjusts sync tolerance based on source types
+- **Buffering handling** — Pauses both videos when one buffers
 
 ### Controls
 - **Delay adjustment** — Fine-tune timing offset (hold buttons for faster adjustment)
 - **Independent volume** — Separate volume for each video
 - **Quality selection** — Choose YouTube playback quality
 - **Subtitle support** — Load .srt files for the base video
+- **Playback speed** — 0.5x, 0.75x, 1x, 1.25x, 1.5x, 2x while maintaining sync
 
 ### UI
 - **Draggable reaction window** — Position anywhere on screen
 - **Resizable** — Maintains 16:9 aspect ratio
 - **Hover controls** — Clean interface, controls appear on hover
 - **Sync health indicator** — Green/yellow/red dot shows sync status
+- **Debug panel** — Real-time sync stats (drift, rate, threshold mode)
 
 ### Progress Persistence
 - **Auto-save** — Progress saved every 10 seconds
@@ -41,6 +47,16 @@ bun run dev
 ```
 
 Open `http://localhost:3000` in your browser.
+
+## Development
+
+```bash
+bun install        # Install dependencies
+bun run dev        # Start dev server with HMR
+bun run test       # Run tests
+bun run build      # Production build
+bun run preview    # Preview production build
+```
 
 ## Usage
 
@@ -58,10 +74,13 @@ Open `http://localhost:3000` in your browser.
 | `Space` | Play/pause focused video |
 | `S` | Enable sync at current positions |
 | `D` | Disable sync |
+| `F` | Force resync |
 | `←` / `→` | Seek ±5 seconds |
 | `↑` / `↓` | Volume ±10% |
 | `Shift + ←/→` | Seek base video |
 | `Page Up/Down` | Adjust delay ±0.1s |
+| `,` / `.` | Micro-adjust delay ±0.033s |
+| `?` | Toggle debug panel |
 
 ### Delay Adjustment
 
@@ -87,36 +106,50 @@ The colored dot next to the delay shows sync status:
 
 ## Tech Stack
 
+- **Svelte 5** — Reactive UI components with runes
+- **Tailwind CSS** — Utility-first styling
 - **TypeScript** — Full type safety
 - **Vite** — Fast dev server and bundling
-- **Zero runtime dependencies** — Just vanilla JS in production
+- **Vitest** — Testing with fast-check for property-based tests
 - **YouTube IFrame API** — Loaded dynamically when needed
-- **IndexedDB** — Progress persistence with localStorage fallback
-- **Pointer Events API** — Unified mouse/touch/pen input
+- **localStorage** — Progress persistence
 
 ## Project Structure
 
 ```
 src/
-├── main.ts          # Entry point
-├── state.ts         # Reactive state management
-├── sync.ts          # Sync engine algorithm
-├── player.ts        # Player interface + LocalPlayer
-├── youtube.ts       # YouTube player implementation
-├── ui.ts            # UI bindings and controls
-├── storage.ts       # Progress persistence
-├── keyboard.ts      # Keyboard shortcuts
-├── drag-resize.ts   # Pointer events drag/resize
-├── utils.ts         # Helper functions
-└── styles.css       # All styles
+├── main.ts              # Entry point, mounts Svelte app
+├── App.svelte           # Root component
+├── stores.ts            # Svelte stores for state management
+├── sync.ts              # Sync engine algorithm
+├── player.ts            # Player interface + LocalPlayer
+├── youtube.ts           # YouTube player implementation
+├── storage.ts           # Progress persistence
+├── keyboard.ts          # Keyboard shortcuts
+├── utils.ts             # Helper functions
+├── components/
+│   ├── BaseVideo.svelte     # Main video player
+│   ├── ReactOverlay.svelte  # Draggable reaction overlay
+│   ├── Controls.svelte      # Playback controls bar
+│   ├── DebugPanel.svelte    # Sync stats display
+│   ├── Toast.svelte         # Notifications
+│   ├── TipsScreen.svelte    # Help modal
+│   ├── ResumePrompt.svelte  # Session restore prompt
+│   ├── QualityMenu.svelte   # YouTube quality selector
+│   └── SourceMenu.svelte    # Video source selector
+└── actions/
+    ├── draggable.ts     # Svelte action for drag behavior
+    └── resizable.ts     # Svelte action for resize behavior
 ```
 
-## Build
+## Build & Deploy
 
 ```bash
-bun run build      # Production build
-bun run preview    # Preview production build
+bun run build      # Production build to dist/
+bun run preview    # Preview production build locally
 ```
+
+Deploys automatically to GitHub Pages via GitHub Actions on push to main.
 
 ## Browser Support
 
@@ -133,8 +166,8 @@ Mobile browsers supported with touch controls.
 - **Sync drifting?** Try clicking **FR** (Force Resync)
 - **Videos out of sync on load?** Pause both, position manually, then press **S**
 - **Local file won't play?** Convert to H.264/MP4 using HandBrake
+- **Check sync stats** — Press `?` to toggle the debug panel
 
 ## License
 
 MIT
-

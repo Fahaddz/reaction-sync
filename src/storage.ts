@@ -1,6 +1,6 @@
-import { get, set, type VideoSource } from './state.ts'
+import { get, set, type VideoSource, showResumePrompt, showToast } from './stores.ts'
 import { getBaseCurrentTime, setDelay, syncSeek } from './sync.ts'
-import { showResumePrompt, loadYouTubeVideo, loadUrlVideo, promptLocalFile, showToast } from './ui/index.ts'
+import { loadYouTubeVideo, loadUrlVideo, promptLocalFile } from './video-loading.ts'
 
 type SessionData = {
   id: string
