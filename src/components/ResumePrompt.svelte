@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade, scale } from 'svelte/transition'
-  import { formatTime } from '../utils.ts'
-  import { resumePromptData } from '../stores.ts'
+  import { formatTime } from '../lib/utils.ts'
+  import { resumePromptData } from '../lib/stores.ts'
 
   let data = $derived($resumePromptData)
 

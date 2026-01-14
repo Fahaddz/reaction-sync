@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { getYouTubePlayers } from '../video-loading.ts'
-  import { getQualityLabel, getQualityOrder } from '../youtube.ts'
-  import { showToast } from '../stores.ts'
+  import { getYouTubePlayers } from '../lib/video-loading.ts'
+  import { getQualityLabel, getQualityOrder } from '../lib/youtube.ts'
+  import { showToast } from '../lib/stores.ts'
 
   let isOpen = $state(false)
   let qualities = $state<string[]>([])

@@ -2,8 +2,8 @@
   import { onMount } from 'svelte'
   import { draggable } from '../actions/draggable.ts'
   import { resizable } from '../actions/resizable.ts'
-  import { reactSource, reactPosition } from '../stores.ts'
-  import { syncToggle } from '../sync.ts'
+  import { reactSource, reactPosition } from '../lib/stores.ts'
+  import { syncToggle } from '../lib/sync.ts'
 
   let container: HTMLDivElement
   let dragHandle: HTMLDivElement
