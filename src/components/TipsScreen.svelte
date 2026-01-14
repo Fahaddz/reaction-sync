@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade, scale } from 'svelte/transition'
-  import { loadLastSession, clearSessions } from '../lib/storage.ts'
-  import { showToast, tipsVisible, closeTipsScreen } from '../lib/stores.ts'
+  import { loadLastSession, clearSessions } from '../storage.ts'
+  import { showToast, tipsVisible, closeTipsScreen } from '../stores.ts'
 
   let visible = $derived($tipsVisible)
 

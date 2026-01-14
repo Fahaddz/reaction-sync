@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { initKeyboardShortcuts, trackContainerFocus } from './lib/keyboard.ts'
+  import { initKeyboardShortcuts, trackContainerFocus } from './keyboard.ts'
   import Toast from './components/Toast.svelte'
   import DebugPanel from './components/DebugPanel.svelte'
   import BaseVideo from './components/BaseVideo.svelte'
@@ -10,9 +10,9 @@
   import QualityMenu from './components/QualityMenu.svelte'
   import TipsScreen from './components/TipsScreen.svelte'
   import ResumePrompt from './components/ResumePrompt.svelte'
-  import { debugVisible, subscribe } from './lib/stores.ts'
-  import { setBaseElements, setReactElements } from './lib/video-loading.ts'
-  import { startAutoSave, onSourceChange } from './lib/storage.ts'
+  import { debugVisible, subscribe } from './stores.ts'
+  import { setBaseElements, setReactElements } from './video-loading.ts'
+  import { startAutoSave, onSourceChange } from './storage.ts'
 
   let baseVideoComponent: BaseVideo
   let reactOverlayComponent: ReactOverlay

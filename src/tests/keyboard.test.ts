@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as fc from 'fast-check'
-import { MICRO_ADJUST_STEP } from '../lib/keyboard.ts'
+import { MICRO_ADJUST_STEP } from '../keyboard.ts'
 
 /**
  * Feature: svelte-tailwind-migration

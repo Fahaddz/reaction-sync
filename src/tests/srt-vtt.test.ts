@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as fc from 'fast-check'
-import { srtToVtt } from '../lib/utils.ts'
+import { srtToVtt } from '../utils.ts'
 
 /**
  * Feature: svelte-tailwind-migration

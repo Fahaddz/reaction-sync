@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as fc from 'fast-check'
-import { parseYouTubeId } from '../lib/utils.ts'
+import { parseYouTubeId } from '../utils.ts'
 
 /**
  * Feature: svelte-tailwind-migration

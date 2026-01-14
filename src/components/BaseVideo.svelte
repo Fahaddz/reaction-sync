@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { baseSource } from '../lib/stores.ts'
-  import { syncToggle } from '../lib/sync.ts'
+  import { baseSource } from '../stores.ts'
+  import { syncToggle } from '../sync.ts'
 
   let videoElement: HTMLVideoElement
   let youtubeContainer: HTMLDivElement

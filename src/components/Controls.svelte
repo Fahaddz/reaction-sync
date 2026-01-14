@@ -8,9 +8,8 @@
     reactVolume,
     userSpeed,
     baseSource,
-    reactSource,
-    showToast
-  } from '../lib/stores.ts'
+    reactSource
+  } from '../stores.ts'
   import {
     syncPlay,
     syncPause,
@@ -28,8 +27,9 @@
     getReactDuration,
     isBasePlaying,
     isReactPlaying
-  } from '../lib/sync.ts'
-  import { formatTime, formatTimeWithDecimal, throttle } from '../lib/utils.ts'
+  } from '../sync.ts'
+  import { formatTime, formatTimeWithDecimal, throttle } from '../utils.ts'
+  import { showToast } from '../stores.ts'
 
   const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2]
 

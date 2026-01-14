@@ -1,5 +1,5 @@
 import type { Action } from 'svelte/action'
-import { clamp } from '../lib/utils.ts'
+import { clamp } from '../utils.ts'
 
 export type DraggableOptions = {
   handle?: HTMLElement

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
   import { slide } from 'svelte/transition'
-  import { debugVisible, syncStats, synced, syncHealth } from '../lib/stores.ts'
+  import { debugVisible, syncStats, synced, syncHealth } from '../stores.ts'
 
   let intervalId: number | null = null
   let stats = $derived($syncStats)
