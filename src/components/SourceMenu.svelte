@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { promptLocalFile, selectUrlSource, selectSubtitleFile } from '../video-loading.ts'
+  import { promptLocalFile, selectUrlSource, selectSubtitleFile } from '../lib/video-loading.ts'
 
   interface Props {
     which: 'base' | 'react'
