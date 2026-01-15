@@ -71,3 +71,7 @@ export function parseDelayFromFilename(filename: string): number | null {
   return match ? Number(match.slice(2)) / 10 : null
 }
 
+export function isQualityActive(quality: string, currentQuality: string): boolean {
+  return quality === currentQuality || (quality === 'auto' && currentQuality === 'default')
+}
+

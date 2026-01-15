@@ -214,8 +214,7 @@ export async function checkForResume(): Promise<void> {
   showResumePrompt(
     session.baseTime,
     session.delay,
-    () => applySession(session),
-    () => {}
+    () => applySession(session)
   )
 }
 

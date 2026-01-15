@@ -97,18 +97,20 @@ export async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
     if (which === 'base') {
       destroyBasePlayers()
       if (!baseYTContainer) return
+      // Set source BEFORE initializing to ensure container is visible
+      baseSource.set(source)
       baseYT = createYouTubePlayer(baseYTContainer.id || 'videoBaseYoutube')
       await baseYT.initialize(ytId)
       setPlayers(baseYT, getReactPlayer())
-      baseSource.set(source)
       markPairAsNew()
     } else {
       destroyReactPlayers()
       if (!reactYTContainer) return
+      // Set source BEFORE initializing to ensure container is visible
+      reactSource.set(source)
       reactYT = createYouTubePlayer(reactYTContainer.id || 'videoReactYoutube')
       await reactYT.initialize(ytId)
       setPlayers(getBasePlayer(), reactYT)
-      reactSource.set(source)
       markPairAsNew()
     }
   } else {
@@ -156,18 +158,20 @@ export async function loadYouTubeVideo(which: 'base' | 'react', videoId: string,
     if (which === 'base') {
       destroyBasePlayers()
       if (!baseYTContainer) throw new Error('Base YouTube container not set')
+      // Set source BEFORE initializing to ensure container is visible
+      baseSource.set({ type: 'youtube', id: `yt:${videoId}` })
       baseYT = createYouTubePlayer(baseYTContainer.id || 'videoBaseYoutube')
       await baseYT.initialize(videoId, startTime)
       setPlayers(baseYT, getReactPlayer())
-      baseSource.set({ type: 'youtube', id: `yt:${videoId}` })
       markPairAsNew()
     } else {
       destroyReactPlayers()
       if (!reactYTContainer) throw new Error('React YouTube container not set')
+      // Set source BEFORE initializing to ensure container is visible
+      reactSource.set({ type: 'youtube', id: `yt:${videoId}` })
       reactYT = createYouTubePlayer(reactYTContainer.id || 'videoReactYoutube')
       await reactYT.initialize(videoId, startTime)
       setPlayers(getBasePlayer(), reactYT)
-      reactSource.set({ type: 'youtube', id: `yt:${videoId}` })
       markPairAsNew()
     }
   } catch (err) {

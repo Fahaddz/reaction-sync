@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
   import { baseSource } from '../lib/stores.ts'
   import { syncToggle } from '../lib/sync.ts'
 
@@ -17,14 +16,10 @@
   function handleClick() {
     syncToggle()
   }
-
-  $: sourceType = $baseSource?.type
-  $: showLocal = sourceType !== 'youtube'
-  $: showYouTube = sourceType === 'youtube'
 </script>
 
 <div 
-  class="absolute inset-0 bg-bg-primary flex items-center justify-center cursor-pointer"
+  class="absolute inset-0 bg-bg-primary cursor-pointer"
   onclick={handleClick}
   onkeydown={(e) => e.key === 'Enter' && handleClick()}
   role="button"
@@ -33,17 +28,20 @@
   <video
     bind:this={videoElement}
     class="w-full h-full object-contain"
-    class:hidden={!showLocal}
+    class:invisible={$baseSource?.type === 'youtube'}
+    class:pointer-events-none={$baseSource?.type === 'youtube'}
     playsinline
   ></video>
   <div
     bind:this={youtubeContainer}
-    class="w-full h-full"
-    class:hidden={!showYouTube}
+    id="videoBaseYoutube"
+    class="w-full h-full absolute inset-0"
+    class:invisible={$baseSource?.type !== 'youtube'}
+    class:pointer-events-none={$baseSource?.type !== 'youtube'}
   ></div>
   {#if !$baseSource}
     <div class="absolute inset-0 flex items-center justify-center text-text-secondary text-lg pointer-events-none">
-      Click "Base" to load a video
+      Click "Load" to load a video
     </div>
   {/if}
 </div>

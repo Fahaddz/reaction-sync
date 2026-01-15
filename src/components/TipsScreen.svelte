@@ -89,13 +89,19 @@
             class="flex-1 px-4 py-2 bg-accent hover:bg-accent-hover text-text-primary rounded text-sm font-medium transition-colors"
             onclick={handleLoadSession}
           >
-            Load Last Session
+            Load Last
           </button>
           <button
             class="px-4 py-2 bg-bg-tertiary border border-border hover:bg-error/20 hover:border-error text-text-secondary hover:text-error rounded text-sm transition-colors"
             onclick={handleClearStorage}
           >
-            Clear Storage
+            Clear Saved
+          </button>
+          <button
+            class="px-4 py-2 bg-bg-tertiary border border-border hover:bg-bg-secondary text-text-secondary hover:text-text-primary rounded text-sm transition-colors"
+            onclick={close}
+          >
+            Close
           </button>
         </div>
       </div>

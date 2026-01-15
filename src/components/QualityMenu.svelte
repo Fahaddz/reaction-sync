@@ -2,6 +2,7 @@
   import { getYouTubePlayers } from '../lib/video-loading.ts'
   import { getQualityLabel, getQualityOrder } from '../lib/youtube.ts'
   import { showToast } from '../lib/stores.ts'
+  import { isQualityActive } from '../lib/utils.ts'
 
   let isOpen = $state(false)
   let qualities = $state<string[]>([])
@@ -62,10 +63,6 @@
   function closeMenu() {
     isOpen = false
   }
-
-  function isActive(quality: string): boolean {
-    return quality === currentQuality || (quality === 'auto' && currentQuality === 'default')
-  }
 </script>
 
 <svelte:window onclick={closeMenu} />
@@ -90,9 +87,9 @@
       {#each qualities as quality}
         <button
           class="block w-full px-4 py-2 text-xs text-left hover:bg-accent hover:text-text-primary transition-colors"
-          class:bg-accent={isActive(quality)}
-          class:text-text-primary={isActive(quality)}
-          class:text-text-secondary={!isActive(quality)}
+          class:bg-accent={isQualityActive(quality, currentQuality)}
+          class:text-text-primary={isQualityActive(quality, currentQuality)}
+          class:text-text-secondary={!isQualityActive(quality, currentQuality)}
           onclick={() => selectQuality(quality)}
         >
           {getQualityLabel(quality)}

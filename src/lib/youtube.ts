@@ -112,6 +112,21 @@ export class YouTubePlayer implements Player {
     await loadYouTubeAPI()
     return new Promise((resolve) => {
       this.onReadyCallback = resolve
+      
+      // Get the container element and ensure it has dimensions
+      const container = document.getElementById(this.containerId)
+      if (!container) {
+        console.error(`YouTube container not found: ${this.containerId}`)
+        return
+      }
+      
+      console.log('YouTube container dimensions:', {
+        width: container.offsetWidth,
+        height: container.offsetHeight,
+        display: window.getComputedStyle(container).display,
+        visibility: window.getComputedStyle(container).visibility
+      })
+      
       this.player = new window.YT.Player(this.containerId, {
         videoId,
         width: '100%',
@@ -126,6 +141,16 @@ export class YouTubePlayer implements Player {
           onReady: (e) => {
             this.ready = true
             this.retryCount = 0
+            
+            // Log iframe details
+            const iframe = e.target.getIframe()
+            console.log('YouTube iframe created:', {
+              width: iframe.offsetWidth,
+              height: iframe.offsetHeight,
+              display: window.getComputedStyle(iframe).display,
+              position: window.getComputedStyle(iframe).position
+            })
+            
             e.target.pauseVideo()
             if (startSeconds != null && startSeconds > 0) {
               e.target.seekTo(startSeconds, true)

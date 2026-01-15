@@ -27,7 +27,7 @@ describe('Utils - formatTime', () => {
       fc.property(fc.integer({ min: 0, max: 36000 }), (seconds) => {
         const result = formatTime(seconds)
         const parts = result.split(':')
-        expect(parts[1].length).toBe(2)
+        expect(parts[1]?.length).toBe(2)
       }),
       { numRuns: 100 }
     )

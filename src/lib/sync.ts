@@ -226,6 +226,18 @@ export class SyncEngine {
       syncHealth.set('correcting')
       return
     }
+    const basePlaying = this.basePlayer.isPlaying()
+    const reactPlaying = this.reactPlayer.isPlaying()
+    
+    // Don't sync if both videos are paused
+    if (!basePlaying && !reactPlaying) {
+      if (this.driftCorrection !== 1.0) {
+        this.driftCorrection = 1.0
+        this.applyPlaybackRate()
+      }
+      return
+    }
+    
     const baseTime = this.basePlayer.getCurrentTime()
     const reactTime = this.reactPlayer.getCurrentTime()
     const currentDelay = get(delayStore)
@@ -244,16 +256,18 @@ export class SyncEngine {
     }
     syncHealth.set(health)
     this.updateSyncStats(drift, threshold)
-    const basePlaying = this.basePlayer.isPlaying()
-    const reactPlaying = this.reactPlayer.isPlaying()
-    if (basePlaying && !reactPlaying && !this.isBuffering.react) {
+    
+    // Only sync play/pause state if there's a mismatch AND we're not already well-synced
+    // This prevents the feedback loop
+    if (basePlaying && !reactPlaying && !this.isBuffering.react && absDrift > threshold * 0.5) {
       this.reactPlayer.play()
       return
     }
-    if (!basePlaying && reactPlaying && !this.isBuffering.base) {
+    if (!basePlaying && reactPlaying && !this.isBuffering.base && absDrift > threshold * 0.5) {
       this.basePlayer.play()
       return
     }
+    
     if (!basePlaying || !reactPlaying) {
       if (this.driftCorrection !== 1.0) {
         this.driftCorrection = 1.0
@@ -318,26 +332,16 @@ export class SyncEngine {
       this.basePlayer.onStateChange((state: PlayState) => {
         this.isBuffering.base = state === 'buffering'
         this.handleBufferingChange()
-        if (get(synced) && get(interactionState) === 'idle' && this.reactPlayer) {
-          if (state === 'paused' && this.reactPlayer.isPlaying()) {
-            this.reactPlayer.pause()
-          } else if (state === 'playing' && !this.reactPlayer.isPlaying() && !this.isBuffering.react) {
-            this.reactPlayer.play()
-          }
-        }
+        // Don't sync play/pause in state callbacks - let the sync loop handle it
+        // This prevents feedback loops where each video triggers the other
       })
     }
     if (this.reactPlayer) {
       this.reactPlayer.onStateChange((state: PlayState) => {
         this.isBuffering.react = state === 'buffering'
         this.handleBufferingChange()
-        if (get(synced) && get(interactionState) === 'idle' && this.basePlayer) {
-          if (state === 'paused' && this.basePlayer.isPlaying()) {
-            this.basePlayer.pause()
-          } else if (state === 'playing' && !this.basePlayer.isPlaying() && !this.isBuffering.base) {
-            this.basePlayer.play()
-          }
-        }
+        // Don't sync play/pause in state callbacks - let the sync loop handle it
+        // This prevents feedback loops where each video triggers the other
       })
     }
   }
@@ -596,7 +600,3 @@ export const getUserSpeed = syncEngine.getUserSpeed.bind(syncEngine)
 export const isBufferPauseActive = syncEngine.isBufferPauseActive.bind(syncEngine)
 export const getThresholdInfo = syncEngine.getThresholdInfo.bind(syncEngine)
 export const getBufferEventCount = syncEngine.getBufferEventCount.bind(syncEngine)
-
-export function getSyncStats(): SyncStats {
-  return get(syncStats)
-}

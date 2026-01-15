@@ -9,10 +9,6 @@ import { clamp } from './utils.ts'
 
 const MICRO_ADJUST_STEP = 0.033
 
-let delayHoldStart = 0
-let delayHoldDir = 0
-let delayHoldFrame: number | null = null
-
 export function initKeyboardShortcuts(): void {
   document.addEventListener('keydown', handleKeyDown, true)
 }
@@ -121,47 +117,6 @@ export function trackContainerFocus(): void {
   react?.addEventListener('pointerenter', () => {
     react.dataset.lastInteracted = String(Date.now())
   })
-}
-
-export function initDelayHold(
-  decreaseBtn: HTMLElement,
-  increaseBtn: HTMLElement
-): void {
-  function startHold(dir: number) {
-    if (delayHoldDir === dir) return
-    stopHold()
-    delayHoldDir = dir
-    delayHoldStart = performance.now()
-    adjustDelay(dir, 0)
-    tick()
-  }
-
-  function tick() {
-    if (!delayHoldDir) return
-    const elapsed = performance.now() - delayHoldStart
-    if (elapsed >= 80) {
-      adjustDelay(delayHoldDir, elapsed)
-    }
-    delayHoldFrame = requestAnimationFrame(tick)
-  }
-
-  function stopHold() {
-    delayHoldDir = 0
-    if (delayHoldFrame) {
-      cancelAnimationFrame(delayHoldFrame)
-      delayHoldFrame = null
-    }
-  }
-
-  decreaseBtn.addEventListener('pointerdown', () => startHold(-1))
-  decreaseBtn.addEventListener('pointerup', stopHold)
-  decreaseBtn.addEventListener('pointerleave', stopHold)
-
-  increaseBtn.addEventListener('pointerdown', () => startHold(1))
-  increaseBtn.addEventListener('pointerup', stopHold)
-  increaseBtn.addEventListener('pointerleave', stopHold)
-
-  document.addEventListener('pointerup', stopHold)
 }
 
 export { MICRO_ADJUST_STEP }

@@ -436,7 +436,7 @@ describe('Session Storage Round-Trip', () => {
           fullSessionDataArb,
           fc.integer({ min: 2, max: 5 }),
           (session, roundTrips) => {
-            let current = session
+            let current: FullSessionData = session
             
             for (let i = 0; i < roundTrips; i++) {
               const serialized = serializeSession(current)
