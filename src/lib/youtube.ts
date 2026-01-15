@@ -112,20 +112,12 @@ export class YouTubePlayer implements Player {
     await loadYouTubeAPI()
     return new Promise((resolve) => {
       this.onReadyCallback = resolve
-      
       // Get the container element and ensure it has dimensions
       const container = document.getElementById(this.containerId)
       if (!container) {
         console.error(`YouTube container not found: ${this.containerId}`)
         return
       }
-      
-      console.log('YouTube container dimensions:', {
-        width: container.offsetWidth,
-        height: container.offsetHeight,
-        display: window.getComputedStyle(container).display,
-        visibility: window.getComputedStyle(container).visibility
-      })
       
       this.player = new window.YT.Player(this.containerId, {
         videoId,
