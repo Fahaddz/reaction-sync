@@ -133,15 +133,10 @@ export class YouTubePlayer implements Player {
           onReady: (e) => {
             this.ready = true
             this.retryCount = 0
+            this.ready = true
+            this.retryCount = 0
             
-            // Log iframe details
-            const iframe = e.target.getIframe()
-            console.log('YouTube iframe created:', {
-              width: iframe.offsetWidth,
-              height: iframe.offsetHeight,
-              display: window.getComputedStyle(iframe).display,
-              position: window.getComputedStyle(iframe).position
-            })
+            e.target.pauseVideo()
             
             e.target.pauseVideo()
             if (startSeconds != null && startSeconds > 0) {
