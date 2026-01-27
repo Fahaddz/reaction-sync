@@ -79,12 +79,31 @@ export async function promptLocalFile(which: 'base' | 'react', expectedName?: st
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = VIDEO_ACCEPT
-    if (expectedName) showToast(`Please select: ${expectedName}`, 'info', 8000)
-    input.onchange = async () => {
+    
+    if (expectedName) {
+      showToast(`Please select: ${expectedName}`, 'info', 8000)
+    }
+    
+    // Prevent any form submission behavior
+    input.onchange = async (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      
       const file = input.files?.[0]
-      if (file) await handleLocalFile(which, file)
+      if (file) {
+        try {
+          await handleLocalFile(which, file)
+        } catch (err) {
+          console.error('Error loading file:', err)
+          showToast('Failed to load file', 'error')
+        }
+      }
       resolve()
     }
+    
+    // Handle cancel case
+    input.oncancel = () => resolve()
+    
     input.click()
   })
 }
