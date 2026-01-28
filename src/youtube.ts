@@ -66,21 +66,59 @@ let apiLoading = false
 const apiReadyCallbacks: (() => void)[] = []
 
 function loadYouTubeAPI(): Promise<void> {
+  // Check if API is already fully loaded (e.g., from cache or previous load)
+  if (window.YT && window.YT.Player) {
+    apiLoaded = true
+    return Promise.resolve()
+  }
+  
   if (apiLoaded) return Promise.resolve()
   if (apiLoading) {
     return new Promise(resolve => apiReadyCallbacks.push(resolve))
   }
   apiLoading = true
+  
   return new Promise(resolve => {
     apiReadyCallbacks.push(resolve)
+    
+    // Handle case where API script exists but callback hasn't fired
+    const existingScript = document.querySelector('script[src*="youtube.com/iframe_api"]')
+    if (existingScript) {
+      // Script exists, wait for it with a timeout fallback
+      const checkReady = setInterval(() => {
+        if (window.YT && window.YT.Player) {
+          clearInterval(checkReady)
+          apiLoaded = true
+          apiLoading = false
+          apiReadyCallbacks.forEach(cb => cb())
+          apiReadyCallbacks.length = 0
+        }
+      }, 100)
+      
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        clearInterval(checkReady)
+        if (!apiLoaded) {
+          console.error('YouTube API failed to load')
+          apiLoading = false
+        }
+      }, 10000)
+      return
+    }
+    
     window.onYouTubeIframeAPIReady = () => {
       apiLoaded = true
       apiLoading = false
       apiReadyCallbacks.forEach(cb => cb())
       apiReadyCallbacks.length = 0
     }
+    
     const tag = document.createElement('script')
     tag.src = 'https://www.youtube.com/iframe_api'
+    tag.onerror = () => {
+      console.error('Failed to load YouTube iframe API script')
+      apiLoading = false
+    }
     document.head.appendChild(tag)
   })
 }
