@@ -87,7 +87,7 @@ export function updateTimeDisplays(): void {
   const rd = getReactDuration()
 
   if (baseTime) baseTime.textContent = `${formatTime(bc)} / ${formatTime(bd)}`
-  if (reactTime) reactTime.textContent = formatTime(rc)
+  if (reactTime) reactTime.textContent = `${formatTime(rc)} / ${formatTime(rd)}`
   if (baseSeek && bd > 0) baseSeek.value = String((bc / bd) * 100)
   if (reactSeek && rd > 0) reactSeek.value = String((rc / rd) * 100)
 
