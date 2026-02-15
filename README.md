@@ -33,6 +33,12 @@ A lightweight web app for synchronizing reaction videos with their source conten
 - **Load Last** — Restore previous session instantly
 - **Cross-session** — Works after closing browser
 
+### YouTube Reliability
+- **Resilient API loader** — Retries API bootstrap with timeout and recovery
+- **Stale callback protection** — Old iframe callbacks are ignored after re-init
+- **Retry cleanup** — Pending retry timers are canceled on destroy/reload
+- **Container reset** — Old iframe nodes are cleared before new player creation
+
 ## Quick Start
 
 ```bash
@@ -98,17 +104,26 @@ The colored dot next to the delay shows sync status:
 
 ```
 src/
-├── main.ts          # Entry point
-├── state.ts         # Reactive state management
-├── sync.ts          # Sync engine algorithm
-├── player.ts        # Player interface + LocalPlayer
-├── youtube.ts       # YouTube player implementation
-├── ui.ts            # UI bindings and controls
-├── storage.ts       # Progress persistence
-├── keyboard.ts      # Keyboard shortcuts
-├── drag-resize.ts   # Pointer events drag/resize
-├── utils.ts         # Helper functions
-└── styles.css       # All styles
+├── main.ts               # Entry point
+├── state.ts              # Reactive state management
+├── sync.ts               # Sync engine algorithm
+├── player.ts             # Player interface + LocalPlayer
+├── youtube.ts            # YouTube player implementation
+├── storage.ts            # Progress persistence
+├── keyboard.ts           # Keyboard shortcuts
+├── drag-resize.ts        # Pointer events drag/resize
+├── utils.ts              # Helper functions
+├── styles.css            # All styles
+├── ui/
+│   ├── index.ts          # UI bootstrap/exports
+│   ├── controls.ts       # Playback + seek + volume controls
+│   ├── menus.ts          # Source + quality menus
+│   ├── toast.ts          # Toasts and prompts
+│   └── video-loading.ts  # Local/URL/YouTube load flow
+├── controls.test.ts
+├── storage.test.ts
+├── youtube.test.ts
+└── ui/video-loading.test.ts
 ```
 
 ## Build
@@ -116,6 +131,12 @@ src/
 ```bash
 bun run build      # Production build
 bun run preview    # Preview production build
+```
+
+## Testing
+
+```bash
+bun run test       # Run unit and property tests
 ```
 
 ## Browser Support
@@ -130,6 +151,7 @@ Mobile browsers supported with touch controls.
 ## Tips
 
 - **YouTube not loading?** Make sure you're serving via HTTP, not `file://`
+- **YouTube still fails on a specific video?** The uploader may block embedding (`101`/`150`).
 - **Sync drifting?** Try clicking **FR** (Force Resync)
 - **Videos out of sync on load?** Pause both, position manually, then press **S**
 - **Local file won't play?** Convert to H.264/MP4 using HandBrake
@@ -137,4 +159,3 @@ Mobile browsers supported with touch controls.
 ## License
 
 MIT
-

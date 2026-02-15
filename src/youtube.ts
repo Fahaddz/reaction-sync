@@ -64,6 +64,7 @@ declare namespace YT {
 const YT_API_SRC = 'https://www.youtube.com/iframe_api'
 const API_LOAD_TIMEOUT_MS = 12000
 const API_LOAD_MAX_ATTEMPTS = 3
+const PLAYER_LOAD_MAX_RETRIES = 3
 
 let apiLoaded = false
 let apiLoadPromise: Promise<void> | null = null
@@ -173,6 +174,8 @@ export class YouTubePlayer implements Player {
   private onQualityChangeCallback: ((quality: string) => void) | null = null
   private pendingPlay = false
   private initTimeoutId: ReturnType<typeof setTimeout> | null = null
+  private retryTimeoutId: ReturnType<typeof setTimeout> | null = null
+  private initVersion = 0
 
   constructor(containerId: string) {
     this.containerId = containerId
@@ -180,24 +183,53 @@ export class YouTubePlayer implements Player {
 
   async initialize(videoId: string, startSeconds?: number): Promise<void> {
     await loadYouTubeAPI()
+    const version = ++this.initVersion
+    this.retryCount = 0
+    this.clearRetryTimeout()
     if (this.pendingInit) {
       this.pendingInit.reject(new Error('YouTube initialization interrupted by a newer request'))
       this.pendingInit = null
     }
     return new Promise((resolve, reject) => {
       this.pendingInit = { resolve, reject }
-      this.createPlayer(videoId, startSeconds)
+      this.createPlayer(videoId, startSeconds, version)
     })
   }
 
-  private createPlayer(videoId: string, startSeconds?: number): void {
-    const startAt = startSeconds != null && startSeconds > 0 ? startSeconds : undefined
-    if (this.player) {
-      try {
-        this.player.destroy()
-      } catch {}
-      this.player = null
+  private clearInitTimeout(): void {
+    if (this.initTimeoutId) {
+      clearTimeout(this.initTimeoutId)
+      this.initTimeoutId = null
     }
+  }
+
+  private clearRetryTimeout(): void {
+    if (this.retryTimeoutId) {
+      clearTimeout(this.retryTimeoutId)
+      this.retryTimeoutId = null
+    }
+  }
+
+  private destroyCurrentPlayer(): void {
+    if (!this.player) return
+    try {
+      this.player.destroy()
+    } catch {}
+    this.player = null
+  }
+
+  private clearContainer(): void {
+    const container = document.getElementById(this.containerId)
+    container?.replaceChildren()
+  }
+
+  private createPlayer(videoId: string, startSeconds: number | undefined, version: number): void {
+    if (version !== this.initVersion) return
+    const startAt = startSeconds != null && startSeconds > 0 ? startSeconds : undefined
+    this.clearInitTimeout()
+    this.clearRetryTimeout()
+    this.destroyCurrentPlayer()
+    this.clearContainer()
     this.ready = false
     if (!window.YT?.Player) {
       this.pendingInit?.reject(new Error('YouTube API is not ready'))
@@ -205,40 +237,57 @@ export class YouTubePlayer implements Player {
       return
     }
 
-    this.player = new window.YT.Player(this.containerId, {
-      videoId,
-      width: '100%',
-      height: '100%',
-      playerVars: {
-        controls: 0, disablekb: 1, modestbranding: 1, rel: 0,
-        enablejsapi: 1, playsinline: 1, iv_load_policy: 3,
-        autoplay: 0,
-        origin: window.location.origin
-      },
-      events: {
-        onReady: (e) => {
-          this.ready = true
-          this.retryCount = 0
-          e.target.pauseVideo()
-          if (startAt != null) {
-            e.target.seekTo(startAt, true)
-            this.lastTime = startAt
-          }
-          this.initTimeoutId = setTimeout(() => {
-            this.setHighestQuality()
-            if (!this.pendingPlay) {
-              e.target.pauseVideo()
-            }
-            this.initTimeoutId = null
-          }, 500)
-          this.pendingInit?.resolve()
-          this.pendingInit = null
+    try {
+      this.player = new window.YT.Player(this.containerId, {
+        videoId,
+        width: '100%',
+        height: '100%',
+        playerVars: {
+          controls: 0, disablekb: 1, modestbranding: 1, rel: 0,
+          enablejsapi: 1, playsinline: 1, iv_load_policy: 3,
+          autoplay: 0,
+          origin: window.location.origin
         },
-        onStateChange: (e) => this.handleStateChange(e.data),
-        onError: (e) => this.handleError(e.data, videoId, startAt),
-        onPlaybackQualityChange: (e) => this.onQualityChangeCallback?.(e.data)
-      }
-    })
+        events: {
+          onReady: (e) => {
+            if (version !== this.initVersion) return
+            this.ready = true
+            this.retryCount = 0
+            e.target.pauseVideo()
+            if (startAt != null) {
+              e.target.seekTo(startAt, true)
+              this.lastTime = startAt
+            }
+            this.initTimeoutId = setTimeout(() => {
+              if (version !== this.initVersion) return
+              this.setHighestQuality()
+              if (!this.pendingPlay) {
+                e.target.pauseVideo()
+              }
+              this.initTimeoutId = null
+            }, 500)
+            this.pendingInit?.resolve()
+            this.pendingInit = null
+          },
+          onStateChange: (e) => {
+            if (version !== this.initVersion) return
+            this.handleStateChange(e.data)
+          },
+          onError: (e) => {
+            if (version !== this.initVersion) return
+            this.handleError(e.data, videoId, startAt, version)
+          },
+          onPlaybackQualityChange: (e) => {
+            if (version !== this.initVersion) return
+            this.onQualityChangeCallback?.(e.data)
+          }
+        }
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'YouTube player initialization failed'
+      this.pendingInit?.reject(new Error(message))
+      this.pendingInit = null
+    }
   }
 
   private handleStateChange(state: number): void {
@@ -254,16 +303,19 @@ export class YouTubePlayer implements Player {
     }
   }
 
-  private handleError(errorCode: number, videoId: string, startAt?: number): void {
+  private handleError(errorCode: number, videoId: string, startAt: number | undefined, version: number): void {
+    if (version !== this.initVersion) return
     const errors: Record<number, string> = {
       2: 'Invalid URL', 5: 'HTML5 error', 100: 'Not found', 101: 'Embedding disabled', 150: 'Embedding disabled'
     }
     const message = errors[errorCode] || `YouTube error ${errorCode}`
-    if (this.retryCount < 3) {
+    if (this.retryCount < PLAYER_LOAD_MAX_RETRIES) {
       this.retryCount++
-      setTimeout(() => {
+      this.clearRetryTimeout()
+      this.retryTimeoutId = setTimeout(() => {
+        if (version !== this.initVersion) return
         const retryStart = this.lastTime > 0 ? this.lastTime : startAt
-        this.createPlayer(videoId, retryStart)
+        this.createPlayer(videoId, retryStart, version)
       }, 2000 * this.retryCount)
     } else {
       this.pendingInit?.reject(new Error(message))
@@ -344,12 +396,11 @@ export class YouTubePlayer implements Player {
   }
 
   destroy(): void {
-    if (this.initTimeoutId) {
-      clearTimeout(this.initTimeoutId)
-      this.initTimeoutId = null
-    }
-    this.player?.destroy()
-    this.player = null
+    this.initVersion++
+    this.clearInitTimeout()
+    this.clearRetryTimeout()
+    this.destroyCurrentPlayer()
+    this.clearContainer()
     this.ready = false
     this.pendingPlay = false
     this.stateCallback = null
