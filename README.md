@@ -26,6 +26,7 @@ A lightweight web app for synchronizing reaction videos with their source conten
 - **Resizable** — Maintains 16:9 aspect ratio
 - **Hover controls** — Clean interface, controls appear on hover
 - **Sync health indicator** — Green/yellow/red dot shows sync status
+- **Single default design** — Brutalist Signal styling (no runtime theme switcher)
 
 ### Progress Persistence
 - **Auto-save** — Progress saved every 10 seconds

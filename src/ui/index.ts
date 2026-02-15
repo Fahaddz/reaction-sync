@@ -15,4 +15,3 @@ export function initUI(): void {
   subscribe(updateUIFromState)
   setInterval(updateTimeDisplays, 500)
 }
-
