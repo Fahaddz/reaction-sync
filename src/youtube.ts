@@ -5,6 +5,7 @@ declare global {
   interface Window {
     YT?: typeof YT
     onYouTubeIframeAPIReady?: () => void
+    YTConfig?: unknown
   }
 }
 
@@ -78,6 +79,37 @@ function removeYouTubeApiScripts(): void {
   scripts.forEach(script => script.remove())
 }
 
+function removeYouTubeWidgetScripts(): void {
+  const scripts = document.querySelectorAll<HTMLScriptElement>('script[src*="www-widgetapi"]')
+  scripts.forEach(script => script.remove())
+}
+
+function resetYouTubeRuntimeState(): void {
+  apiLoaded = false
+  window.onYouTubeIframeAPIReady = undefined
+  window.YTConfig = undefined
+  try {
+    delete (window as Window & { YT?: typeof YT }).YT
+  } catch {
+    window.YT = undefined
+  }
+  removeYouTubeApiScripts()
+  removeYouTubeWidgetScripts()
+}
+
+function installSessionRestoreGuard(): void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return
+  window.addEventListener('pageshow', (event) => {
+    const persisted = (event as PageTransitionEvent).persisted
+    const discarded = (document as Document & { wasDiscarded?: boolean }).wasDiscarded === true
+    if (persisted || discarded) {
+      resetYouTubeRuntimeState()
+    }
+  })
+}
+
+installSessionRestoreGuard()
+
 function loadYouTubeAPIAttempt(attempt: number): Promise<void> {
   if (isYouTubeApiReady()) {
     apiLoaded = true
@@ -131,6 +163,9 @@ async function loadYouTubeAPI(): Promise<void> {
     apiLoaded = true
     return
   }
+  if (apiLoaded && !isYouTubeApiReady()) {
+    apiLoaded = false
+  }
   if (apiLoaded) return
   if (apiLoadPromise) return apiLoadPromise
 
@@ -138,7 +173,12 @@ async function loadYouTubeAPI(): Promise<void> {
     let lastError: Error | null = null
     for (let attempt = 0; attempt < API_LOAD_MAX_ATTEMPTS; attempt++) {
       try {
-        removeYouTubeApiScripts()
+        if (attempt > 0) {
+          resetYouTubeRuntimeState()
+        } else {
+          removeYouTubeApiScripts()
+          removeYouTubeWidgetScripts()
+        }
         await loadYouTubeAPIAttempt(attempt)
         apiLoaded = true
         return
@@ -182,7 +222,12 @@ export class YouTubePlayer implements Player {
   }
 
   async initialize(videoId: string, startSeconds?: number): Promise<void> {
-    await loadYouTubeAPI()
+    try {
+      await loadYouTubeAPI()
+    } catch {
+      resetYouTubeRuntimeState()
+      await loadYouTubeAPI()
+    }
     const version = ++this.initVersion
     this.retryCount = 0
     this.clearRetryTimeout()
@@ -320,6 +365,7 @@ export class YouTubePlayer implements Player {
     } else {
       this.pendingInit?.reject(new Error(message))
       this.pendingInit = null
+      resetYouTubeRuntimeState()
       showToast(`YouTube failed: ${message}`, 'error', 5000)
     }
   }
