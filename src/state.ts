@@ -17,6 +17,7 @@ export type State = {
   interactionState: InteractionState
   baseVolume: number
   reactVolume: number
+  playbackSpeed: number
   syncHealth: SyncHealth
   reactPosition: { x: number; y: number; w: number; h: number }
   lastInteractionTime: number
@@ -32,6 +33,7 @@ const initialState: State = {
   interactionState: 'idle',
   baseVolume: 1,
   reactVolume: 1,
+  playbackSpeed: 1.0,
   syncHealth: '',
   reactPosition: { x: 16, y: 16, w: 400, h: 225 },
   lastInteractionTime: 0

@@ -10,6 +10,8 @@ export interface Player {
   getVolume(): number
   setVolume(v: number): void
   setPlaybackRate(rate: number): void
+  getPlaybackRate(): number
+  getAvailablePlaybackRates?(): number[]
   onStateChange(cb: (state: PlayState) => void): void
   getElement(): HTMLElement | null
   destroy(): void
@@ -70,6 +72,10 @@ export class LocalPlayer implements Player {
 
   setPlaybackRate(rate: number): void {
     this.video.playbackRate = rate
+  }
+
+  getPlaybackRate(): number {
+    return this.video.playbackRate
   }
 
   onStateChange(cb: (state: PlayState) => void): void {

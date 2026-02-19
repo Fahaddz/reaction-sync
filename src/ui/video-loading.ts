@@ -17,6 +17,11 @@ let baseYT: YouTubePlayer | null = null
 let reactLocal: LocalPlayer | null = null
 let reactYT: YouTubePlayer | null = null
 
+export type LocalFilePromptResult = {
+  selected: boolean
+  loaded: boolean
+}
+
 function setVideoVisibility(which: 'base' | 'react', type: 'local' | 'youtube'): void {
   const isBase = which === 'base'
   const localEl = $(isBase ? 'videoBaseLocal' : 'videoReact')
@@ -73,12 +78,19 @@ async function handleLocalFile(which: 'base' | 'react', file: File): Promise<boo
   return true
 }
 
-export async function promptLocalFile(which: 'base' | 'react', expectedName?: string): Promise<void> {
+export async function promptLocalFile(which: 'base' | 'react', expectedName?: string): Promise<LocalFilePromptResult> {
   closeTipsScreen()
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = VIDEO_ACCEPT
+    let settled = false
+
+    const complete = (result: LocalFilePromptResult): void => {
+      if (settled) return
+      settled = true
+      resolve(result)
+    }
     
     if (expectedName) {
       showToast(`Please select: ${expectedName}`, 'info', 8000)
@@ -90,19 +102,22 @@ export async function promptLocalFile(which: 'base' | 'react', expectedName?: st
       event.stopPropagation()
       
       const file = input.files?.[0]
-      if (file) {
-        try {
-          await handleLocalFile(which, file)
-        } catch (err) {
-          console.error('Error loading file:', err)
-          showToast('Failed to load file', 'error')
-        }
+      if (!file) {
+        complete({ selected: false, loaded: false })
+        return
       }
-      resolve()
+      try {
+        const loaded = await handleLocalFile(which, file)
+        complete({ selected: true, loaded })
+      } catch (err) {
+        console.error('Error loading file:', err)
+        showToast('Failed to load file', 'error')
+        complete({ selected: true, loaded: false })
+      }
     }
     
     // Handle cancel case
-    input.oncancel = () => resolve()
+    input.oncancel = () => complete({ selected: false, loaded: false })
     
     input.click()
   })
@@ -110,28 +125,18 @@ export async function promptLocalFile(which: 'base' | 'react', expectedName?: st
 
 export async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
   closeTipsScreen()
-  const url = prompt('Enter YouTube URL or direct video link:')
+  const urlInput = prompt('Enter YouTube URL or direct video link:')
+  if (!urlInput) return
+  const url = urlInput.trim()
   if (!url) return
   const ytId = parseYouTubeId(url)
   if (ytId) {
-    const source: VideoSource = { type: 'youtube', id: `yt:${ytId}` }
-    if (which === 'base') {
-      destroyBasePlayers()
-      setVideoVisibility('base', 'youtube')
-      baseYT = createYouTubePlayer('videoBaseYoutube')
-      await baseYT.initialize(ytId)
-      setPlayers(baseYT, getReactPlayer())
-      set({ baseSource: source })
-      markPairAsNew()
-    } else {
-      destroyReactPlayers()
-      setVideoVisibility('react', 'youtube')
-      reactYT = createYouTubePlayer('videoReactYoutube')
-      await reactYT.initialize(ytId)
-      setPlayers(getBasePlayer(), reactYT)
-      set({ reactSource: source })
-      markPairAsNew()
+    try {
+      await loadYouTubeVideo(which, ytId)
+    } catch {
+      // Error toast is already shown in loadYouTubeVideo.
     }
+    return
   } else {
     const source: VideoSource = { type: 'url', id: `url:${url}`, url }
     if (which === 'base') {
@@ -231,8 +236,4 @@ export async function loadUrlVideo(which: 'base' | 'react', url: string): Promis
 
 export function getYouTubePlayers(): { baseYT: YouTubePlayer | null; reactYT: YouTubePlayer | null } {
   return { baseYT, reactYT }
-}
-
-export function getLocalPlayers(): { baseLocal: LocalPlayer | null; reactLocal: LocalPlayer | null } {
-  return { baseLocal, reactLocal }
 }

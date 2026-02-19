@@ -2,9 +2,10 @@ import { get } from './state.ts'
 import {
   enableSync, disableSync, forceResync, syncPlay, syncPause, syncSeek, adjustDelay, setDelay,
   getBaseCurrentTime, getReactCurrentTime, setBaseVolume, setReactVolume,
-  isBasePlaying, isReactPlaying
+  isBasePlaying, isReactPlaying, adjustPlaybackSpeed, setPlaybackSpeed
 } from './sync.ts'
-import { clamp } from './utils.ts'
+import { clamp, formatPlaybackSpeed } from './utils.ts'
+import { showToast } from './ui/toast.ts'
 
 const MICRO_ADJUST_STEP = 0.033
 
@@ -18,7 +19,7 @@ export function initKeyboardShortcuts(): void {
 
 function handleKeyDown(e: KeyboardEvent): void {
   const active = document.activeElement
-  const isInput = active?.tagName === 'INPUT' || active?.tagName === 'TEXTAREA'
+  const isInput = active?.tagName === 'INPUT' || active?.tagName === 'TEXTAREA' || active?.tagName === 'SELECT'
   if (isInput) return
 
   const key = e.key.toLowerCase()
@@ -90,6 +91,20 @@ function handleKeyDown(e: KeyboardEvent): void {
       const step = key === ',' ? -MICRO_ADJUST_STEP : MICRO_ADJUST_STEP
       setDelay(delay + step, true)
     }
+    return
+  }
+
+  if (key === '[' || key === ']') {
+    e.preventDefault()
+    const result = adjustPlaybackSpeed(key === '[' ? -1 : 1)
+    showToast(`Speed ${formatPlaybackSpeed(result.applied)}`, 'info', 1200)
+    return
+  }
+
+  if (key === '\\') {
+    e.preventDefault()
+    const result = setPlaybackSpeed(1.0)
+    showToast(`Speed ${formatPlaybackSpeed(result.applied)}`, 'info', 1200)
     return
   }
 }

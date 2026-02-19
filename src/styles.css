@@ -321,11 +321,6 @@ input[type="range"]:hover::-moz-range-thumb {
 
 #reactVolumeSlider { width: 40px !important; flex: none !important; }
 
-/* Legacy reactControls - now replaced by reactTopBar */
-.reactControls {
-  display: none;
-}
-
 #reactResizeHandle {
   position: absolute;
   bottom: 0;
@@ -361,12 +356,6 @@ input[type="range"]:hover::-moz-range-thumb {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.control-separator {
-  width: 1px;
-  height: 20px;
-  background: var(--border);
 }
 
 .playback-group button,
@@ -431,18 +420,6 @@ input[type="range"]:hover::-moz-range-thumb {
   white-space: nowrap;
 }
 
-#delayControls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.delayLabel {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
 #delayDisplay {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -466,6 +443,15 @@ input[type="range"]:hover::-moz-range-thumb {
 .media-group input[type="range"] {
   width: 60px;
   height: 3px;
+}
+
+#playbackSpeedSlider {
+  width: 72px !important;
+}
+
+.speed-display {
+  min-width: 42px;
+  text-align: center;
 }
 
 .media-group input[type="range"]::-webkit-slider-thumb {
@@ -495,7 +481,7 @@ input[type="range"]:hover::-moz-range-thumb {
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
-.video-source-menu.show, .video-source-menu.open { display: flex; }
+.video-source-menu.open { display: flex; }
 
 .video-source-option {
   background: transparent;
@@ -529,7 +515,7 @@ input[type="range"]:hover::-moz-range-thumb {
   z-index: 300;
 }
 
-.quality-menu.show, .quality-menu.open { display: flex; }
+.quality-menu.open { display: flex; }
 
 .quality-menu button {
   background: transparent;

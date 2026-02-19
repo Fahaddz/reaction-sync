@@ -1,5 +1,5 @@
 import { get, set, type VideoSource } from './state.ts'
-import { getBaseCurrentTime, setDelay, syncSeek, getBasePlayer, getReactPlayer, setBaseVolume, setReactVolume } from './sync.ts'
+import { getBaseCurrentTime, setDelay, setPlaybackSpeed, syncSeek, getBasePlayer, getReactPlayer, setBaseVolume, setReactVolume } from './sync.ts'
 import { showResumePrompt, loadYouTubeVideo, loadUrlVideo, promptLocalFile, showToast } from './ui/index.ts'
 
 // Constants for video ready detection and retry logic
@@ -17,6 +17,7 @@ type SessionData = {
   baseTime: number
   baseVol: number
   reactVol: number
+  playbackSpeed?: number
   position: { x: number; y: number; w: number; h: number }
   updatedAt: number
 }
@@ -41,6 +42,23 @@ const currentSessionPairs = new Set<string>()
 export function markPairAsNew(): void {
   const key = getPairKey()
   if (key) currentSessionPairs.add(key)
+}
+
+export function shouldOfferResumePrompt(options: {
+  prompted: boolean
+  isLoadingSession: boolean
+  pairKey: string | null
+  currentSessionPairs: Set<string>
+  session: Pick<SessionData, 'updatedAt' | 'baseTime'> | null
+  now: number
+}): boolean {
+  const { prompted, isLoadingSession, pairKey, currentSessionPairs, session, now } = options
+  if (prompted || isLoadingSession) return false
+  if (!pairKey) return false
+  if (currentSessionPairs.has(pairKey)) return false
+  if (!session) return false
+  if (now - session.updatedAt > TTL) return false
+  return session.baseTime >= 5
 }
 
 async function openDB(): Promise<IDBDatabase> {
@@ -82,6 +100,7 @@ export async function saveSession(): Promise<void> {
     baseTime: getBaseCurrentTime(),
     baseVol: state.baseVolume,
     reactVol: state.reactVolume,
+    playbackSpeed: state.playbackSpeed,
     position: state.reactPosition,
     updatedAt: Date.now()
   }
@@ -203,18 +222,19 @@ export function startAutoSave(): void {
 }
 
 export async function checkForResume(): Promise<void> {
-  if (prompted || isLoadingSession) return
   const key = getPairKey()
-  if (!key) return
-  
-  // Skip if this pair was loaded fresh in current session
-  if (currentSessionPairs.has(key)) return
+  if (!key || prompted || isLoadingSession || currentSessionPairs.has(key)) return
   
   const session = await loadSession(key)
+  if (!shouldOfferResumePrompt({
+    prompted,
+    isLoadingSession,
+    pairKey: key,
+    currentSessionPairs,
+    session,
+    now: Date.now()
+  })) return
   if (!session) return
-  if (Date.now() - session.updatedAt > TTL) return
-  // Only show resume if we have meaningful progress (at least 5 seconds watched)
-  if (session.baseTime < 5) return
   prompted = true
   showResumePrompt(
     session.baseTime,
@@ -225,20 +245,7 @@ export async function checkForResume(): Promise<void> {
 }
 
 function applySession(session: SessionData): void {
-  setDelay(session.delay)
-  set({
-    baseVolume: session.baseVol,
-    reactVolume: session.reactVol,
-    reactPosition: session.position
-  })
-  const container = document.getElementById('videoReactContainer')
-  if (container) {
-    container.style.left = `${session.position.x}px`
-    container.style.top = `${session.position.y}px`
-    container.style.width = `${session.position.w}px`
-    container.style.height = `${session.position.h}px`
-  }
-  setTimeout(() => syncSeek(true, session.baseTime), 200)
+  finalizeSessionLoad(session)
 }
 
 export async function loadLastSession(): Promise<void> {
@@ -258,6 +265,7 @@ export async function loadLastSession(): Promise<void> {
 
 async function loadSessionVideos(session: SessionData): Promise<void> {
   const { baseMeta, reactMeta, baseTime, delay } = session
+  setPlaybackSpeed(session.playbackSpeed ?? 1.0)
   const needsBaseLocal = baseMeta?.type === 'local'
   const needsReactLocal = reactMeta?.type === 'local'
   
@@ -289,11 +297,25 @@ async function loadSessionVideos(session: SessionData): Promise<void> {
 }
 
 // Track file selection state for auto-close (Requirements 4.1, 4.2)
-interface FileSelectionState {
+export interface FileSelectionState {
   needsBase: boolean
   needsReact: boolean
   baseSelected: boolean
   reactSelected: boolean
+}
+
+export function areRequiredFilesSelected(state: FileSelectionState): boolean {
+  return (!state.needsBase || state.baseSelected) && (!state.needsReact || state.reactSelected)
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => {
+    if (char === '&') return '&amp;'
+    if (char === '<') return '&lt;'
+    if (char === '>') return '&gt;'
+    if (char === '"') return '&quot;'
+    return '&#39;'
+  })
 }
 
 function showLocalFilePrompt(session: SessionData, needsBase: boolean, needsReact: boolean): void {
@@ -310,15 +332,13 @@ function showLocalFilePrompt(session: SessionData, needsBase: boolean, needsReac
   
   const baseFileName = session.baseMeta?.name || 'unknown'
   const reactFileName = session.reactMeta?.name || 'unknown'
+  const baseFileNameSafe = escapeHtml(baseFileName)
+  const reactFileNameSafe = escapeHtml(reactFileName)
   
   // Auto-close logic: evaluate selection state and close menu when all files selected
   // (Requirements 4.3, 4.4, 4.5)
   const checkAndAutoClose = () => {
-    const allSelected = 
-      (!selectionState.needsBase || selectionState.baseSelected) &&
-      (!selectionState.needsReact || selectionState.reactSelected)
-    
-    if (allSelected) {
+    if (areRequiredFilesSelected(selectionState)) {
       container.classList.remove('open')
       finalizeSessionLoad(session)
     }
@@ -328,8 +348,8 @@ function showLocalFilePrompt(session: SessionData, needsBase: boolean, needsReac
     <div class="resume-dialog">
       <h3>Select Local Files</h3>
       <p style="font-size:12px;opacity:0.8;margin-bottom:12px;">
-        ${needsBase ? `Base: <b>${baseFileName}</b><br>` : ''}
-        ${needsReact ? `React: <b>${reactFileName}</b>` : ''}
+        ${needsBase ? `Base: <b>${baseFileNameSafe}</b><br>` : ''}
+        ${needsReact ? `React: <b>${reactFileNameSafe}</b>` : ''}
       </p>
       <div class="buttons" style="flex-wrap:wrap;gap:6px;">
         ${needsBase ? '<button class="pick-base" style="background:#2d5a">Pick Base</button>' : ''}
@@ -341,29 +361,36 @@ function showLocalFilePrompt(session: SessionData, needsBase: boolean, needsReac
   container.classList.add('open')
   
   container.querySelector('.pick-base')?.addEventListener('click', async () => {
-    await promptLocalFile('base', baseFileName)
-    // Track that base file has been selected (Requirement 4.1)
-    selectionState.baseSelected = true
+    const result = await promptLocalFile('base', baseFileName)
+    // Track that base file has actually loaded.
+    selectionState.baseSelected = selectionState.baseSelected || result.loaded
     // Check if all files are selected and auto-close (Requirements 4.3, 4.4, 4.5)
     checkAndAutoClose()
   })
   
   container.querySelector('.pick-react')?.addEventListener('click', async () => {
-    await promptLocalFile('react', reactFileName)
-    // Track that react file has been selected (Requirement 4.2)
-    selectionState.reactSelected = true
+    const result = await promptLocalFile('react', reactFileName)
+    // Track that react file has actually loaded.
+    selectionState.reactSelected = selectionState.reactSelected || result.loaded
     // Check if all files are selected and auto-close (Requirements 4.3, 4.4, 4.5)
     checkAndAutoClose()
   })
   
   container.querySelector('.done-btn')?.addEventListener('click', () => {
     container.classList.remove('open')
-    finalizeSessionLoad(session)
+    if (areRequiredFilesSelected(selectionState)) {
+      finalizeSessionLoad(session)
+      return
+    }
+    const missing: string[] = []
+    if (selectionState.needsBase && !selectionState.baseSelected) missing.push('Base')
+    if (selectionState.needsReact && !selectionState.reactSelected) missing.push('React')
+    showToast(`Session restore skipped. Missing: ${missing.join(', ')}`, 'warning')
   })
 }
 
 // Apply seek time to both videos after they are ready
-function applySeekTime(baseTime: number, delay: number): void {
+function applySeekTime(baseTime: number): void {
   syncSeek(true, baseTime)
 }
 
@@ -433,13 +460,6 @@ function getLocalVideoElement(which: 'base' | 'react'): HTMLVideoElement | null 
     return element
   }
   return null
-}
-
-/**
- * Check if a player is a local video player (not YouTube).
- */
-function isLocalVideo(which: 'base' | 'react'): boolean {
-  return getLocalVideoElement(which) !== null
 }
 
 /**
@@ -557,6 +577,7 @@ async function applySeekTimeWithReadyCheck(baseTime: number, delay: number): Pro
 }
 
 function finalizeSessionLoad(session: SessionData): void {
+  setPlaybackSpeed(session.playbackSpeed ?? 1.0)
   setDelay(session.delay)
   set({
     baseVolume: session.baseVol,
@@ -582,7 +603,7 @@ function finalizeSessionLoad(session: SessionData): void {
       .catch(err => {
         console.error('Failed to apply seek time:', err)
         // Fallback to simple seek if the ready check fails
-        applySeekTime(session.baseTime, session.delay)
+        applySeekTime(session.baseTime)
       })
   }, 100)
   

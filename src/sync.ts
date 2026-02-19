@@ -1,17 +1,40 @@
 import type { Player, PlayState } from './player.ts'
 import { get, set, type SyncHealth } from './state.ts'
-import { clamp } from './utils.ts'
+import { clamp, normalizePlaybackSpeed, PLAYBACK_SPEED_MAX, PLAYBACK_SPEED_MIN, PLAYBACK_SPEED_STEP } from './utils.ts'
 
 const SYNC_INTERVAL_MS = 100
 const TIGHT_THRESHOLD = 0.05
 const LOOSE_THRESHOLD = 0.25
 const SEEK_THRESHOLD = 0.5
-const RATE_MIN = 0.97
-const RATE_MAX = 1.03
+const CORRECTION_RANGE = 0.03
 const SEEK_COOLDOWN = 300
 const DELAY_STEP = 0.1
 const DRIFT_HISTORY_SIZE = 10
 const SEEK_VERIFY_DELAY = 150
+
+export type PlaybackSpeedUpdate = {
+  requested: number
+  applied: number
+  constrained: boolean
+}
+
+function uniqueSorted(values: number[]): number[] {
+  return [...new Set(values.map(v => Math.round(v * 100) / 100))].sort((a, b) => a - b)
+}
+
+function nearestRate(target: number, candidates: number[]): number {
+  if (candidates.length === 0) return target
+  let best = candidates[0] ?? target
+  let bestDistance = Math.abs(target - best)
+  for (const candidate of candidates) {
+    const distance = Math.abs(target - candidate)
+    if (distance < bestDistance) {
+      best = candidate
+      bestDistance = distance
+    }
+  }
+  return best
+}
 
 export class SyncEngine {
   private basePlayer: Player | null = null
@@ -25,6 +48,46 @@ export class SyncEngine {
   private pendingSeekVerify: { target: number; time: number } | null = null
   private consecutiveDriftDir = 0
   private lastDriftDir = 0
+  private playbackBaseRate = normalizePlaybackSpeed(get().playbackSpeed)
+
+  private getRateBounds(baseRate: number): { min: number; max: number } {
+    return {
+      min: clamp(baseRate * (1 - CORRECTION_RANGE), PLAYBACK_SPEED_MIN, PLAYBACK_SPEED_MAX),
+      max: clamp(baseRate * (1 + CORRECTION_RANGE), PLAYBACK_SPEED_MIN, PLAYBACK_SPEED_MAX)
+    }
+  }
+
+  private getSupportedRates(player: Player | null): number[] | null {
+    const rates = player?.getAvailablePlaybackRates?.()
+    if (!rates || rates.length === 0) return null
+    const normalized = uniqueSorted(rates.map(normalizePlaybackSpeed))
+    return normalized.length > 0 ? normalized : null
+  }
+
+  private resolveSupportedBaseRate(desiredRate: number): number {
+    const desired = normalizePlaybackSpeed(desiredRate)
+    const baseRates = this.getSupportedRates(this.basePlayer)
+    const reactRates = this.getSupportedRates(this.reactPlayer)
+    if (!baseRates && !reactRates) return desired
+    if (baseRates && !reactRates) return nearestRate(desired, baseRates)
+    if (!baseRates && reactRates) return nearestRate(desired, reactRates)
+    const shared = baseRates!.filter(rate => reactRates!.some(v => Math.abs(v - rate) < 0.001))
+    if (shared.length > 0) return nearestRate(desired, shared)
+    return nearestRate(desired, baseRates!)
+  }
+
+  private resetCorrectionState(): void {
+    this.currentRate = this.playbackBaseRate
+    this.driftHistory = []
+    this.consecutiveDriftDir = 0
+    this.lastDriftDir = 0
+  }
+
+  private applyCurrentRates(): void {
+    this.basePlayer?.setPlaybackRate(this.playbackBaseRate)
+    const reactRate = get().synced ? this.currentRate : this.playbackBaseRate
+    this.reactPlayer?.setPlaybackRate(reactRate)
+  }
 
   private getAdaptiveThreshold(): number {
     if (this.isBuffering.base || this.isBuffering.react) return LOOSE_THRESHOLD
@@ -51,25 +114,23 @@ export class SyncEngine {
     return 0
   }
 
-  private calculateRateCorrection(drift: number, threshold: number): number {
+  private calculateRateCorrection(drift: number, threshold: number, baseRate: number): number {
+    const bounds = this.getRateBounds(baseRate)
     if (Math.abs(drift) <= threshold * 0.5) {
-      return this.currentRate > 1 ? Math.max(1.0, this.currentRate - 0.002) : Math.min(1.0, this.currentRate + 0.002)
+      const nudge = this.currentRate > baseRate ? -0.002 : 0.002
+      if (Math.abs(this.currentRate - baseRate) <= 0.002) return baseRate
+      return clamp(this.currentRate + nudge, bounds.min, bounds.max)
     }
     const driftDir = Math.sign(drift)
     const driftMagnitude = Math.abs(drift)
-    let targetRate = 1.0
+    let targetRate = baseRate
     if (driftMagnitude > threshold) {
       const intensity = clamp((driftMagnitude - threshold) / (SEEK_THRESHOLD - threshold), 0, 1)
-      const rateOffset = intensity * 0.03
-      targetRate = driftDir > 0 ? 1.0 + rateOffset : 1.0 - rateOffset
+      const rateOffset = baseRate * CORRECTION_RANGE * intensity
+      targetRate = driftDir > 0 ? baseRate + rateOffset : baseRate - rateOffset
     }
     const smoothing = 0.3
-    return clamp(this.currentRate + (targetRate - this.currentRate) * smoothing, RATE_MIN, RATE_MAX)
-  }
-
-  private handleBufferingChange(): void {
-    if (!get().synced || !this.basePlayer || !this.reactPlayer) return
-    if (get().interactionState !== 'idle') return
+    return clamp(this.currentRate + (targetRate - this.currentRate) * smoothing, bounds.min, bounds.max)
   }
 
   private verifySeek(): void {
@@ -92,6 +153,12 @@ export class SyncEngine {
     if (timestamp - this.lastSyncTime < SYNC_INTERVAL_MS) return
     this.lastSyncTime = timestamp
     if (!this.basePlayer || !this.reactPlayer) return
+    const desiredBaseRate = normalizePlaybackSpeed(get().playbackSpeed)
+    if (Math.abs(desiredBaseRate - this.playbackBaseRate) > 0.001) {
+      this.playbackBaseRate = this.resolveSupportedBaseRate(desiredBaseRate)
+      this.resetCorrectionState()
+      this.applyCurrentRates()
+    }
     if (get().interactionState !== 'idle') return
     if (Date.now() - this.lastSeekTime < SEEK_COOLDOWN) return
     if (this.isBuffering.base || this.isBuffering.react) {
@@ -126,9 +193,9 @@ export class SyncEngine {
       return
     }
     if (!basePlaying || !reactPlaying) {
-      if (this.currentRate !== 1.0) {
-        this.currentRate = 1.0
-        this.reactPlayer.setPlaybackRate(1.0)
+      if (Math.abs(this.currentRate - this.playbackBaseRate) > 0.001) {
+        this.currentRate = this.playbackBaseRate
+        this.reactPlayer.setPlaybackRate(this.playbackBaseRate)
       }
       return
     }
@@ -140,8 +207,8 @@ export class SyncEngine {
     }
     this.lastDriftDir = driftDir
     if (absDrift > SEEK_THRESHOLD) {
-      this.currentRate = 1.0
-      this.reactPlayer.setPlaybackRate(1.0)
+      this.currentRate = this.playbackBaseRate
+      this.reactPlayer.setPlaybackRate(this.playbackBaseRate)
       const correction = targetReact
       this.reactPlayer.seek(correction)
       this.lastSeekTime = Date.now()
@@ -153,17 +220,18 @@ export class SyncEngine {
     }
     if (absDrift > threshold || this.consecutiveDriftDir > 5) {
       const trend = this.getDriftTrend()
-      let newRate = this.calculateRateCorrection(drift, threshold)
+      let newRate = this.calculateRateCorrection(drift, threshold, this.playbackBaseRate)
       if (trend !== 0 && Math.sign(trend) === driftDir) {
-        newRate = clamp(newRate + trend * 0.005, RATE_MIN, RATE_MAX)
+        const bounds = this.getRateBounds(this.playbackBaseRate)
+        newRate = clamp(newRate + trend * 0.005, bounds.min, bounds.max)
       }
       if (Math.abs(newRate - this.currentRate) > 0.001) {
         this.currentRate = newRate
         this.reactPlayer.setPlaybackRate(this.currentRate)
       }
-    } else if (absDrift <= threshold * 0.3 && this.currentRate !== 1.0) {
-      this.currentRate = 1.0
-      this.reactPlayer.setPlaybackRate(1.0)
+    } else if (absDrift <= threshold * 0.3 && Math.abs(this.currentRate - this.playbackBaseRate) > 0.001) {
+      this.currentRate = this.playbackBaseRate
+      this.reactPlayer.setPlaybackRate(this.playbackBaseRate)
     }
   }
 
@@ -185,10 +253,13 @@ export class SyncEngine {
     if (this.reactPlayer) this.reactPlayer.onStateChange(() => {})
     this.basePlayer = base
     this.reactPlayer = react
+    this.playbackBaseRate = this.resolveSupportedBaseRate(get().playbackSpeed)
+    set({ playbackSpeed: this.playbackBaseRate })
+    this.resetCorrectionState()
+    this.applyCurrentRates()
     if (this.basePlayer) {
       this.basePlayer.onStateChange((state: PlayState) => {
         this.isBuffering.base = state === 'buffering'
-        this.handleBufferingChange()
         // Sync pause/play when user interacts with base video directly
         if (get().synced && get().interactionState === 'idle' && this.reactPlayer) {
           if (state === 'paused' && this.reactPlayer.isPlaying()) {
@@ -202,7 +273,6 @@ export class SyncEngine {
     if (this.reactPlayer) {
       this.reactPlayer.onStateChange((state: PlayState) => {
         this.isBuffering.react = state === 'buffering'
-        this.handleBufferingChange()
         // Sync pause/play when user interacts with react video directly
         if (get().synced && get().interactionState === 'idle' && this.basePlayer) {
           if (state === 'paused' && this.basePlayer.isPlaying()) {
@@ -228,10 +298,10 @@ export class SyncEngine {
     const baseTime = this.basePlayer.getCurrentTime()
     const reactTime = this.reactPlayer.getCurrentTime()
     const delay = Math.round((reactTime - baseTime) * 100) / 100
-    this.driftHistory = []
-    this.currentRate = 1.0
-    this.consecutiveDriftDir = 0
-    this.lastDriftDir = 0
+    this.playbackBaseRate = this.resolveSupportedBaseRate(get().playbackSpeed)
+    set({ playbackSpeed: this.playbackBaseRate })
+    this.resetCorrectionState()
+    this.applyCurrentRates()
     set({ delay: clamp(delay, -300, 300), synced: true, syncHealth: 'healthy' })
     this.startSyncLoop()
   }
@@ -239,11 +309,10 @@ export class SyncEngine {
   disableSync(): void {
     this.stopSyncLoop()
     set({ synced: false, syncHealth: '' })
-    this.reactPlayer?.setPlaybackRate(1)
-    this.currentRate = 1.0
-    this.driftHistory = []
-    this.consecutiveDriftDir = 0
-    this.lastDriftDir = 0
+    this.playbackBaseRate = this.resolveSupportedBaseRate(get().playbackSpeed)
+    set({ playbackSpeed: this.playbackBaseRate })
+    this.resetCorrectionState()
+    this.applyCurrentRates()
     this.isBuffering = { base: false, react: false }
   }
 
@@ -252,8 +321,8 @@ export class SyncEngine {
     const wasPlaying = this.basePlayer.isPlaying() || this.reactPlayer.isPlaying()
     this.basePlayer.pause()
     this.reactPlayer.pause()
-    this.currentRate = 1.0
-    this.reactPlayer.setPlaybackRate(1.0)
+    this.currentRate = this.playbackBaseRate
+    this.reactPlayer.setPlaybackRate(this.playbackBaseRate)
     const { delay } = get()
     const baseTime = this.basePlayer.getCurrentTime()
     const targetReact = Math.max(0, baseTime + delay)
@@ -296,6 +365,24 @@ export class SyncEngine {
     if (elapsed > 2000) step = 1.0
     else if (elapsed > 1000) step = 0.5
     this.setDelay(delay + direction * step, true)
+  }
+
+  setPlaybackSpeed(value: number): PlaybackSpeedUpdate {
+    const requested = normalizePlaybackSpeed(value)
+    const applied = this.resolveSupportedBaseRate(requested)
+    this.playbackBaseRate = applied
+    set({ playbackSpeed: applied })
+    this.resetCorrectionState()
+    this.applyCurrentRates()
+    return { requested, applied, constrained: Math.abs(requested - applied) > PLAYBACK_SPEED_STEP * 0.5 }
+  }
+
+  adjustPlaybackSpeed(direction: number): PlaybackSpeedUpdate {
+    return this.setPlaybackSpeed(get().playbackSpeed + direction * PLAYBACK_SPEED_STEP)
+  }
+
+  getPlaybackSpeed(): number {
+    return this.playbackBaseRate
   }
 
   syncPlay(sourceIsBase: boolean): void {
@@ -349,14 +436,6 @@ export class SyncEngine {
     setTimeout(() => set({ interactionState: 'idle' }), SEEK_COOLDOWN)
   }
 
-  syncToggle(): void {
-    if (this.basePlayer?.isPlaying() || this.reactPlayer?.isPlaying()) {
-      this.syncPause(true)
-    } else {
-      this.syncPlay(true)
-    }
-  }
-
   getBaseCurrentTime(): number {
     return this.basePlayer?.getCurrentTime() || 0
   }
@@ -406,10 +485,12 @@ export const disableSync = syncEngine.disableSync.bind(syncEngine)
 export const forceResync = syncEngine.forceResync.bind(syncEngine)
 export const setDelay = syncEngine.setDelay.bind(syncEngine)
 export const adjustDelay = syncEngine.adjustDelay.bind(syncEngine)
+export const setPlaybackSpeed = syncEngine.setPlaybackSpeed.bind(syncEngine)
+export const adjustPlaybackSpeed = syncEngine.adjustPlaybackSpeed.bind(syncEngine)
+export const getPlaybackSpeed = syncEngine.getPlaybackSpeed.bind(syncEngine)
 export const syncPlay = syncEngine.syncPlay.bind(syncEngine)
 export const syncPause = syncEngine.syncPause.bind(syncEngine)
 export const syncSeek = syncEngine.syncSeek.bind(syncEngine)
-export const syncToggle = syncEngine.syncToggle.bind(syncEngine)
 export const getBaseCurrentTime = syncEngine.getBaseCurrentTime.bind(syncEngine)
 export const getReactCurrentTime = syncEngine.getReactCurrentTime.bind(syncEngine)
 export const getBaseDuration = syncEngine.getBaseDuration.bind(syncEngine)
@@ -419,3 +500,7 @@ export const isReactPlaying = syncEngine.isReactPlaying.bind(syncEngine)
 export const setBaseVolume = syncEngine.setBaseVolume.bind(syncEngine)
 export const setReactVolume = syncEngine.setReactVolume.bind(syncEngine)
 export const getCurrentRate = syncEngine.getCurrentRate.bind(syncEngine)
+
+export const MIN_PLAYBACK_SPEED = PLAYBACK_SPEED_MIN
+export const MAX_PLAYBACK_SPEED = PLAYBACK_SPEED_MAX
+export const PLAYBACK_SPEED_INCREMENT = PLAYBACK_SPEED_STEP

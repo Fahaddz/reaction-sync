@@ -1,6 +1,10 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { YouTubePlayer } from './youtube.ts'
 
+declare namespace YT {
+  interface Player {}
+}
+
 type MockPlayerEvents = {
   onReady?: (event: { target: YT.Player }) => void
   onStateChange?: (event: { target: YT.Player; data: number }) => void
@@ -131,7 +135,9 @@ describe('YouTubePlayer lifecycle guards', () => {
 
     expect(instances).toHaveLength(2)
 
-    instances[0].options.events?.onReady?.({ target: instances[0] as unknown as YT.Player })
+    const first = instances[0]!
+    const second = instances[1]!
+    first.options.events?.onReady?.({ target: first as unknown as YT.Player })
     await Promise.resolve()
 
     let resolved = false
@@ -139,7 +145,7 @@ describe('YouTubePlayer lifecycle guards', () => {
     await Promise.resolve()
     expect(resolved).toBe(false)
 
-    instances[1].options.events?.onReady?.({ target: instances[1] as unknown as YT.Player })
+    second.options.events?.onReady?.({ target: second as unknown as YT.Player })
 
     await expect(firstInitHandled).resolves.toBeInstanceOf(Error)
     await expect(secondInit).resolves.toBeUndefined()

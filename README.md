@@ -18,6 +18,7 @@ A lightweight web app for synchronizing reaction videos with their source conten
 ### Controls
 - **Delay adjustment** — Fine-tune timing offset (hold buttons for faster adjustment)
 - **Independent volume** — Separate volume for each video
+- **Global playback speed** — One speed control for both videos across local/URL/YouTube
 - **Quality selection** — Choose YouTube playback quality
 - **Subtitle support** — Load .srt files for the base video
 
@@ -32,6 +33,7 @@ A lightweight web app for synchronizing reaction videos with their source conten
 - **Auto-save** — Progress saved every 10 seconds
 - **Resume prompt** — Pick up where you left off
 - **Load Last** — Restore previous session instantly
+- **Speed restore** — Restores saved playback speed with delay/position/volume
 - **Cross-session** — Works after closing browser
 
 ### YouTube Reliability
@@ -67,6 +69,8 @@ Open `http://localhost:3000` in your browser.
 | `D` | Disable sync |
 | `←` / `→` | Seek ±5 seconds |
 | `↑` / `↓` | Volume ±10% |
+| `[` / `]` | Playback speed ±0.05x |
+| `\` | Reset playback speed to 1.00x |
 | `Shift + ←/→` | Seek base video |
 | `Page Up/Down` | Adjust delay ±0.1s |
 
@@ -122,6 +126,8 @@ src/
 │   ├── toast.ts          # Toasts and prompts
 │   └── video-loading.ts  # Local/URL/YouTube load flow
 ├── controls.test.ts
+├── playback-speed.test.ts
+├── storage.logic.test.ts
 ├── storage.test.ts
 ├── youtube.test.ts
 └── ui/video-loading.test.ts
@@ -138,7 +144,15 @@ bun run preview    # Preview production build
 
 ```bash
 bun run test       # Run unit and property tests
+bun run typecheck  # Strict TypeScript check (no emit)
 ```
+
+## CI Checks
+
+GitHub Pages deploy runs these checks before publishing:
+- `bun run test`
+- `bun run typecheck`
+- `bun run build`
 
 ## Browser Support
 

@@ -22,6 +22,21 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
+export const PLAYBACK_SPEED_MIN = 0.25
+export const PLAYBACK_SPEED_MAX = 2.0
+export const PLAYBACK_SPEED_STEP = 0.05
+
+export function normalizePlaybackSpeed(value: number): number {
+  if (!isFinite(value) || isNaN(value)) return 1.0
+  const clamped = clamp(value, PLAYBACK_SPEED_MIN, PLAYBACK_SPEED_MAX)
+  const stepped = Math.round(clamped / PLAYBACK_SPEED_STEP) * PLAYBACK_SPEED_STEP
+  return Math.round(clamp(stepped, PLAYBACK_SPEED_MIN, PLAYBACK_SPEED_MAX) * 100) / 100
+}
+
+export function formatPlaybackSpeed(rate: number): string {
+  return `${normalizePlaybackSpeed(rate).toFixed(2)}x`
+}
+
 export function throttle<T extends (...args: unknown[]) => void>(fn: T, ms: number): T {
   let last = 0
   return ((...args: unknown[]) => {
@@ -70,4 +85,3 @@ export function parseDelayFromFilename(filename: string): number | null {
   const match = tokens.find(t => t.startsWith('dt') && !isNaN(Number(t.slice(2))))
   return match ? Number(match.slice(2)) / 10 : null
 }
-

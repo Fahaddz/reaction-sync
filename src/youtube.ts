@@ -29,6 +29,8 @@ declare namespace YT {
     setVolume(volume: number): void
     getVolume(): number
     setPlaybackRate(rate: number): void
+    getPlaybackRate(): number
+    getAvailablePlaybackRates(): number[]
     getAvailableQualityLevels(): string[]
     getPlaybackQuality(): string
     setPlaybackQuality(quality: string): void
@@ -336,14 +338,16 @@ export class YouTubePlayer implements Player {
   }
 
   private handleStateChange(state: number): void {
-    if (state === window.YT.PlayerState.PLAYING) {
+    const playerState = window.YT?.PlayerState
+    if (!playerState) return
+    if (state === playerState.PLAYING) {
       this.pendingPlay = false
       this.stateCallback?.('playing')
-    } else if (state === window.YT.PlayerState.PAUSED) {
+    } else if (state === playerState.PAUSED) {
       this.stateCallback?.('paused')
-    } else if (state === window.YT.PlayerState.BUFFERING) {
+    } else if (state === playerState.BUFFERING) {
       this.stateCallback?.('buffering')
-    } else if (state === window.YT.PlayerState.ENDED) {
+    } else if (state === playerState.ENDED) {
       this.stateCallback?.('ended')
     }
   }
@@ -413,8 +417,9 @@ export class YouTubePlayer implements Player {
   }
 
   isPlaying(): boolean {
-    if (!this.player || !this.ready) return false
-    return this.player.getPlayerState() === window.YT.PlayerState.PLAYING
+    const playerState = window.YT?.PlayerState
+    if (!this.player || !this.ready || !playerState) return false
+    return this.player.getPlayerState() === playerState.PLAYING
   }
 
   getVolume(): number {
@@ -427,6 +432,14 @@ export class YouTubePlayer implements Player {
 
   setPlaybackRate(rate: number): void {
     this.player?.setPlaybackRate(rate)
+  }
+
+  getPlaybackRate(): number {
+    return this.player?.getPlaybackRate() || 1
+  }
+
+  getAvailablePlaybackRates(): number[] {
+    return this.player?.getAvailablePlaybackRates() || []
   }
 
   onStateChange(cb: (state: PlayState) => void): void {

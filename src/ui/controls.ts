@@ -1,9 +1,10 @@
 import { get } from '../state.ts'
-import { formatTime, formatTimeWithDecimal, throttle } from '../utils.ts'
+import { formatPlaybackSpeed, formatTime, formatTimeWithDecimal, throttle } from '../utils.ts'
 import {
   syncSeek, syncPlay, syncPause, enableSync, disableSync, forceResync,
   isBasePlaying, isReactPlaying, getBaseCurrentTime, getBaseDuration,
-  getReactCurrentTime, getReactDuration, setBaseVolume, setReactVolume
+  getReactCurrentTime, getReactDuration, setBaseVolume, setReactVolume,
+  setPlaybackSpeed, MIN_PLAYBACK_SPEED, MAX_PLAYBACK_SPEED, PLAYBACK_SPEED_INCREMENT
 } from '../sync.ts'
 import { showToast } from './toast.ts'
 
@@ -50,6 +51,27 @@ export function initVolumeSliders(): void {
   const reactVol = $<HTMLInputElement>('reactVolumeSlider')
   baseVol?.addEventListener('input', () => setBaseVolume(parseFloat(baseVol.value)))
   reactVol?.addEventListener('input', () => setReactVolume(parseFloat(reactVol.value)))
+}
+
+export function initPlaybackSpeedControl(): void {
+  const speedSlider = $<HTMLInputElement>('playbackSpeedSlider')
+  if (!speedSlider) return
+  speedSlider.min = String(MIN_PLAYBACK_SPEED)
+  speedSlider.max = String(MAX_PLAYBACK_SPEED)
+  speedSlider.step = String(PLAYBACK_SPEED_INCREMENT)
+  speedSlider.value = String(get().playbackSpeed)
+
+  const applySpeed = (showFeedback: boolean) => {
+    const requested = parseFloat(speedSlider.value)
+    const result = setPlaybackSpeed(requested)
+    speedSlider.value = String(result.applied)
+    if (showFeedback && result.constrained) {
+      showToast(`Speed adjusted to supported value: ${formatPlaybackSpeed(result.applied)}`, 'warning', 2500)
+    }
+  }
+
+  speedSlider.addEventListener('input', throttle(() => applySpeed(false), 50))
+  speedSlider.addEventListener('change', () => applySpeed(true))
 }
 
 export function initSeekBars(): void {
@@ -119,6 +141,10 @@ export function updateUIFromState(): void {
 
   const baseVol = $<HTMLInputElement>('baseVolumeSlider')
   const reactVol = $<HTMLInputElement>('reactVolumeSlider')
+  const speedSlider = $<HTMLInputElement>('playbackSpeedSlider')
+  const speedDisplay = $('playbackSpeedDisplay')
   if (baseVol) baseVol.value = String(get().baseVolume)
   if (reactVol) reactVol.value = String(get().reactVolume)
+  if (speedSlider) speedSlider.value = String(get().playbackSpeed)
+  if (speedDisplay) speedDisplay.textContent = formatPlaybackSpeed(get().playbackSpeed)
 }
