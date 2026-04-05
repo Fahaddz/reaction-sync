@@ -1,5 +1,3 @@
-import type Hls from 'hls.js'
-
 export type PlayState = 'playing' | 'paused' | 'buffering' | 'ended'
 
 export interface Player {
@@ -21,7 +19,6 @@ export interface Player {
 
 export class LocalPlayer implements Player {
   private video: HTMLVideoElement
-  private hls: Hls | null = null
   private stateCallback: ((state: PlayState) => void) | null = null
   private handlePlay: () => void
   private handlePause: () => void
@@ -94,51 +91,17 @@ export class LocalPlayer implements Player {
     this.video.removeEventListener('pause', this.handlePause)
     this.video.removeEventListener('waiting', this.handleWaiting)
     this.video.removeEventListener('ended', this.handleEnded)
-    this.destroySource()
-    this.video.removeAttribute('src')
+    this.video.src = ''
     this.video.load()
     this.stateCallback = null
   }
 
-  private destroySource(): void {
-    if (this.hls) {
-      this.hls.destroy()
-      this.hls = null
-    }
-    this.video.src = ''
-  }
-
   loadFile(file: File): void {
-    this.destroySource()
     this.video.src = URL.createObjectURL(file)
     this.video.load()
   }
 
-  async loadUrl(url: string): Promise<void> {
-    this.destroySource()
-    if (isHlsUrl(url)) {
-      if (this.video.canPlayType('application/vnd.apple.mpegurl')) {
-        this.video.src = url
-        this.video.load()
-        return
-      }
-
-      const HlsCtor = await getHlsConstructor()
-      if (HlsCtor?.isSupported()) {
-        const hls = new HlsCtor()
-        hls.loadSource(url)
-        hls.attachMedia(this.video)
-        hls.on(HlsCtor.Events.ERROR, (_event, data) => {
-          if (data.fatal) {
-            hls.destroy()
-            this.hls = null
-          }
-        })
-        this.hls = hls
-        return
-      }
-    }
-
+  loadUrl(url: string): void {
     this.video.src = url
     this.video.load()
   }
@@ -158,26 +121,4 @@ export class LocalPlayer implements Player {
 
 export function createLocalPlayer(video: HTMLVideoElement): LocalPlayer {
   return new LocalPlayer(video)
-}
-
-function isHlsUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url, window.location.href)
-    return parsed.pathname.endsWith('.m3u8')
-  } catch {
-    return url.includes('.m3u8')
-  }
-}
-
-type HlsConstructor = typeof import('hls.js').default
-
-let hlsConstructorPromise: Promise<HlsConstructor | null> | null = null
-
-async function getHlsConstructor(): Promise<HlsConstructor | null> {
-  if (!hlsConstructorPromise) {
-    hlsConstructorPromise = import('hls.js')
-      .then((module) => module.default)
-      .catch(() => null)
-  }
-  return hlsConstructorPromise
 }

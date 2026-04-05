@@ -7,9 +7,9 @@ export type VideoSource = {
 
 export type SyncHealth = 'healthy' | 'correcting' | 'drifting' | ''
 
-type InteractionState = 'idle' | 'seeking' | 'interacting'
+export type InteractionState = 'idle' | 'seeking' | 'interacting'
 
-type State = {
+export type State = {
   baseSource: VideoSource | null
   reactSource: VideoSource | null
   delay: number

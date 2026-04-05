@@ -1,10 +1,5 @@
 node_modules
 dist
-.output
-.nitro
-.tanstack
-.pages
-.fallow
 *.log
 .DS_Store
 .env

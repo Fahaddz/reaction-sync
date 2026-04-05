@@ -38,16 +38,13 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Export Pages Artifact
-        run: bun run export:pages
-
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./.pages
+          path: ./dist
 
   deploy:
     environment:
