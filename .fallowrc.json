@@ -1,0 +1,40 @@
+{
+  "ignorePatterns": [
+    ".fallow/**",
+    ".output/**",
+    ".pages/**",
+    "src/routeTree.gen.ts",
+    "src/router.tsx"
+  ],
+  "ignoreDependencies": [
+    "@tailwindcss/typography"
+  ],
+  "rules": {
+    "circular-dependencies": "off"
+  },
+  "duplicates": {
+    "ignore": [
+      "**/*.test.ts",
+      "**/*.test.tsx"
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "nitro.config.ts"
+      ],
+      "rules": {
+        "unused-files": "off"
+      }
+    },
+    {
+      "files": [
+        "src/player.ts",
+        "src/youtube.ts"
+      ],
+      "rules": {
+        "unused-class-members": "off"
+      }
+    }
+  ]
+}

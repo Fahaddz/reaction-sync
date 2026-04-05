@@ -2,9 +2,9 @@ import { set, type VideoSource } from '../state.ts'
 import { createLocalPlayer, type LocalPlayer } from '../player.ts'
 import { createYouTubePlayer, type YouTubePlayer } from '../youtube.ts'
 import { parseYouTubeId, parseDelayFromFilename, checkCodecSupport, srtToVtt } from '../utils.ts'
+import { markPairAsNew } from '../session-pairs.ts'
 import { setPlayers, getBasePlayer, getReactPlayer, setDelay } from '../sync.ts'
 import { showToast, closeTipsScreen } from './toast.ts'
-import { markPairAsNew } from '../storage.ts'
 
 const $ = <T extends HTMLElement>(id: string): T | null => document.getElementById(id) as T | null
 
@@ -17,7 +17,7 @@ let baseYT: YouTubePlayer | null = null
 let reactLocal: LocalPlayer | null = null
 let reactYT: YouTubePlayer | null = null
 
-export type LocalFilePromptResult = {
+type LocalFilePromptResult = {
   selected: boolean
   loaded: boolean
 }
@@ -123,46 +123,6 @@ export async function promptLocalFile(which: 'base' | 'react', expectedName?: st
   })
 }
 
-export async function selectUrlSource(which: 'base' | 'react'): Promise<void> {
-  closeTipsScreen()
-  const urlInput = prompt('Enter YouTube URL or direct video link:')
-  if (!urlInput) return
-  const url = urlInput.trim()
-  if (!url) return
-  const ytId = parseYouTubeId(url)
-  if (ytId) {
-    try {
-      await loadYouTubeVideo(which, ytId)
-    } catch {
-      // Error toast is already shown in loadYouTubeVideo.
-    }
-    return
-  } else {
-    const source: VideoSource = { type: 'url', id: `url:${url}`, url }
-    if (which === 'base') {
-      destroyBasePlayers()
-      setVideoVisibility('base', 'local')
-      const video = $<HTMLVideoElement>('videoBaseLocal')
-      if (!video) return
-      baseLocal = createLocalPlayer(video)
-      baseLocal.loadUrl(url)
-      setPlayers(baseLocal, getReactPlayer())
-      set({ baseSource: source })
-      markPairAsNew()
-    } else {
-      destroyReactPlayers()
-      setVideoVisibility('react', 'local')
-      const video = $<HTMLVideoElement>('videoReact')
-      if (!video) return
-      reactLocal = createLocalPlayer(video)
-      reactLocal.loadUrl(url)
-      setPlayers(getBasePlayer(), reactLocal)
-      set({ reactSource: source })
-      markPairAsNew()
-    }
-  }
-}
-
 export function selectSubtitleFile(): void {
   const input = document.createElement('input')
   input.type = 'file'
@@ -217,7 +177,7 @@ export async function loadUrlVideo(which: 'base' | 'react', url: string): Promis
     const video = $<HTMLVideoElement>('videoBaseLocal')
     if (!video) return
     baseLocal = createLocalPlayer(video)
-    baseLocal.loadUrl(url)
+    await baseLocal.loadUrl(url)
     setPlayers(baseLocal, getReactPlayer())
     set({ baseSource: source })
     markPairAsNew()
@@ -227,11 +187,29 @@ export async function loadUrlVideo(which: 'base' | 'react', url: string): Promis
     const video = $<HTMLVideoElement>('videoReact')
     if (!video) return
     reactLocal = createLocalPlayer(video)
-    reactLocal.loadUrl(url)
+    await reactLocal.loadUrl(url)
     setPlayers(getBasePlayer(), reactLocal)
     set({ reactSource: source })
     markPairAsNew()
   }
+}
+
+export async function loadSourceFromUrl(which: 'base' | 'react', url: string): Promise<void> {
+  closeTipsScreen()
+  const trimmed = url.trim()
+  if (!trimmed) return
+
+  const ytId = parseYouTubeId(trimmed)
+  if (ytId) {
+    try {
+      await loadYouTubeVideo(which, ytId)
+    } catch {
+      // Error toast is already shown in loadYouTubeVideo.
+    }
+    return
+  }
+
+  await loadUrlVideo(which, trimmed)
 }
 
 export function getYouTubePlayers(): { baseYT: YouTubePlayer | null; reactYT: YouTubePlayer | null } {
