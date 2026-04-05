@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="frame-src 'self' https://youtube.com https://*.youtube.com https://youtube-nocookie.com https://*.youtube-nocookie.com;">
+    <title>reaction-sync</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Chivo+Mono:wght@400;500;700&family=Karla:wght@400;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="videoReactContainer">
+      <div class="react-video-wrapper">
+        <video id="videoReact"></video>
+        <div id="videoReactYoutube"></div>
+      </div>
+      <div class="reactTopBar">
+        <div id="reactDragHandle">⋮⋮</div>
+        <button id="reactPlayPause">⏵</button>
+        <input type="range" id="reactSeekBar" min="0" max="100" value="0" step="any">
+        <div id="reactTimeDisplay">0:00</div>
+        <input type="range" id="reactVolumeSlider" min="0" max="1" value="1" step="any">
+      </div>
+      <div id="reactResizeHandle"></div>
+    </div>
+
+    <div id="videoBaseContainer">
+      <video id="videoBaseLocal"></video>
+      <div id="videoBaseYoutube"></div>
+    </div>
+
+    <div id="baseVideoControls">
+      <div class="control-group playback-group">
+        <div class="video-source-dropdown">
+          <button id="baseVideoSourceBtn" class="compact-btn">Base</button>
+          <div id="baseVideoSourceMenu" class="video-source-menu">
+            <button class="video-source-option" id="addBaseVideoLocal">Local</button>
+            <button class="video-source-option" id="addBaseVideoLink">Link</button>
+          </div>
+        </div>
+        <button id="basePlayPause" class="compact-btn">▶</button>
+      </div>
+
+      <div class="control-group seek-group">
+        <input type="range" id="baseSeekBar" min="0" max="100" value="0" step="any">
+        <div id="baseTimeDisplay" class="compact-time">0:00 / 0:00</div>
+      </div>
+
+      <div class="control-group delay-group">
+        <button id="decreaseDelayBtn" class="compact-btn mini">−</button>
+        <span id="delayDisplay">+0.0s</span>
+        <span id="syncHealthDot"></span>
+        <button id="increaseDelayBtn" class="compact-btn mini">+</button>
+      </div>
+
+      <div class="control-group media-group">
+        <div class="video-source-dropdown">
+          <button id="reactVideoSourceBtn" class="compact-btn">React</button>
+          <div id="reactVideoSourceMenu" class="video-source-menu">
+            <button class="video-source-option" id="addReactVidLocal">Local</button>
+            <button class="video-source-option" id="addReactVidLink">Link</button>
+          </div>
+        </div>
+        <button id="addSubBtn" class="compact-btn mini">CC</button>
+        <button id="youtubeQuality" class="compact-btn mini">Q</button>
+        <input type="range" id="baseVolumeSlider" min="0" max="1" value="1" step="any">
+        <input type="range" id="playbackSpeedSlider" min="0.25" max="2" value="1" step="0.05" aria-label="Playback speed">
+        <span id="playbackSpeedDisplay" class="compact-time speed-display">1.00x</span>
+      </div>
+
+      <div class="control-group sync-group">
+        <button id="syncButton" class="compact-btn mini">S</button>
+        <button id="desyncButton" class="compact-btn mini">D</button>
+        <button id="forceResyncButton" class="compact-btn mini">FR</button>
+        <button id="saveNowButton" class="compact-btn mini">💾</button>
+      </div>
+    </div>
+
+    <div id="tipsScreen">
+      <div id="tipsHeader">
+        <span>reaction-sync v2.1.3 • Quick Start</span>
+        <div class="tips-buttons">
+          <button id="loadLastPairBtn">Load Last</button>
+          <button id="clearStorageBtn">Clear Saved</button>
+          <button id="tipsClose">Close</button>
+        </div>
+      </div>
+      <div id="tipsBody">
+        <ul>
+          <li>Load <b>Base</b> and <b>React</b> videos from Local or Link (YouTube/direct).</li>
+          <li>Press <b>S</b> to sync, <b>D</b> to desync. Use <b>FR</b> to force re-sync.</li>
+          <li>Use <b>Space</b> to play/pause the focused video.</li>
+          <li>Seek with Arrow keys. Hold <b>Shift</b> to target the base video.</li>
+          <li>Adjust delay with <b>− / +</b> buttons. Use <b>, / .</b> for frame-level (~33ms) adjust.</li>
+          <li>Adjust speed with <b>[ / ]</b> and reset to 1.00x with <b>\</b>.</li>
+          <li>For YouTube, use <b>Q</b> to change quality.</li>
+          <li>Drag the React window using the left handle. Resize from the bottom-right corner.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div id="qualityMenu" class="quality-menu"></div>
+    <div id="toastContainer"></div>
+    <div id="resumePrompt"></div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

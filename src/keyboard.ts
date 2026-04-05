@@ -18,125 +18,95 @@ export function initKeyboardShortcuts(): void {
 }
 
 function handleKeyDown(e: KeyboardEvent): void {
-  if (isTypingIntoInput()) return
+  const active = document.activeElement
+  const isInput = active?.tagName === 'INPUT' || active?.tagName === 'TEXTAREA' || active?.tagName === 'SELECT'
+  if (isInput) return
 
   const key = e.key.toLowerCase()
-  if (handleSyncModeShortcut(key, e)) return
-  if (handlePlayPauseShortcut(key, e)) return
-  if (handleSeekShortcut(key, e)) return
-  if (handleVolumeShortcut(key, e)) return
-  if (handleDelayShortcut(key, e)) return
-  handlePlaybackSpeedShortcut(key, e)
-}
+  const { synced, delay } = get()
 
-function isTypingIntoInput(): boolean {
-  const active = document.activeElement
-  return active?.tagName === 'INPUT' || active?.tagName === 'TEXTAREA' || active?.tagName === 'SELECT'
-}
-
-function handleSyncModeShortcut(key: string, e: KeyboardEvent): boolean {
   if (key === 's') {
     e.preventDefault()
     enableSync()
-    return true
+    return
   }
 
   if (key === 'd') {
     e.preventDefault()
     disableSync()
-    return true
+    return
   }
 
   if (key === 'f') {
     e.preventDefault()
     forceResync()
-    return true
+    return
   }
 
-  return false
-}
-
-function handlePlayPauseShortcut(key: string, e: KeyboardEvent): boolean {
-  if (key !== ' ' && key !== 'k') return false
-
-  e.preventDefault()
-  const focusedBase = isFocusedOnBase()
-  const { synced } = get()
-  const targetBase = focusedBase
-
-  if (synced) {
-    isBasePlaying() ? syncPause(targetBase) : syncPlay(targetBase)
-    return true
+  if (key === ' ' || key === 'k') {
+    e.preventDefault()
+    const focusedBase = isFocusedOnBase()
+    if (synced) {
+      isBasePlaying() ? syncPause(focusedBase) : syncPlay(focusedBase)
+    } else {
+      const targetBase = focusedBase
+      const playing = targetBase ? isBasePlaying() : isReactPlaying()
+      playing ? syncPause(targetBase) : syncPlay(targetBase)
+    }
+    return
   }
 
-  const playing = targetBase ? isBasePlaying() : isReactPlaying()
-  playing ? syncPause(targetBase) : syncPlay(targetBase)
-  return true
-}
-
-function handleSeekShortcut(key: string, e: KeyboardEvent): boolean {
-  if (key !== 'arrowleft' && key !== 'arrowright') return false
-
-  e.preventDefault()
-  const amount = key === 'arrowleft' ? -5 : 5
-  const { synced } = get()
-  const targetBase = synced || e.shiftKey || isFocusedOnBase()
-  const currentTime = targetBase ? getBaseCurrentTime() : getReactCurrentTime()
-  syncSeek(targetBase, currentTime + amount)
-  return true
-}
-
-function handleVolumeShortcut(key: string, e: KeyboardEvent): boolean {
-  if (key !== 'arrowup' && key !== 'arrowdown') return false
-
-  e.preventDefault()
-  const delta = key === 'arrowup' ? 0.1 : -0.1
-  const { baseVolume, reactVolume } = get()
-
-  if (e.shiftKey) {
-    setBaseVolume(clamp(baseVolume + delta, 0, 1))
-  } else {
-    setReactVolume(clamp(reactVolume + delta, 0, 1))
+  if (key === 'arrowleft' || key === 'arrowright') {
+    e.preventDefault()
+    const amount = key === 'arrowleft' ? -5 : 5
+    const targetBase = synced ? true : (e.shiftKey || isFocusedOnBase())
+    const currentTime = targetBase ? getBaseCurrentTime() : getReactCurrentTime()
+    syncSeek(targetBase, currentTime + amount)
+    return
   }
 
-  return true
-}
-
-function handleDelayShortcut(key: string, e: KeyboardEvent): boolean {
-  const { synced, delay } = get()
+  if (key === 'arrowup' || key === 'arrowdown') {
+    e.preventDefault()
+    const delta = key === 'arrowup' ? 0.1 : -0.1
+    const { baseVolume, reactVolume } = get()
+    if (e.shiftKey) {
+      setBaseVolume(clamp(baseVolume + delta, 0, 1))
+    } else {
+      setReactVolume(clamp(reactVolume + delta, 0, 1))
+    }
+    return
+  }
 
   if (key === 'pageup' || key === 'pagedown') {
     e.preventDefault()
     if (synced) {
       adjustDelay(key === 'pageup' ? -1 : 1, 0)
     }
-    return true
+    return
   }
 
-  if (key !== ',' && key !== '.') return false
-
-  e.preventDefault()
-  if (synced) {
-    const step = key === ',' ? -MICRO_ADJUST_STEP : MICRO_ADJUST_STEP
-    setDelay(delay + step, true)
+  if (key === ',' || key === '.') {
+    e.preventDefault()
+    if (synced) {
+      const step = key === ',' ? -MICRO_ADJUST_STEP : MICRO_ADJUST_STEP
+      setDelay(delay + step, true)
+    }
+    return
   }
-  return true
-}
 
-function handlePlaybackSpeedShortcut(key: string, e: KeyboardEvent): boolean {
   if (key === '[' || key === ']') {
     e.preventDefault()
     const result = adjustPlaybackSpeed(key === '[' ? -1 : 1)
     showToast(`Speed ${formatPlaybackSpeed(result.applied)}`, 'info', 1200)
-    return true
+    return
   }
 
-  if (key !== '\\') return false
-
-  e.preventDefault()
-  const result = setPlaybackSpeed(1.0)
-  showToast(`Speed ${formatPlaybackSpeed(result.applied)}`, 'info', 1200)
-  return true
+  if (key === '\\') {
+    e.preventDefault()
+    const result = setPlaybackSpeed(1.0)
+    showToast(`Speed ${formatPlaybackSpeed(result.applied)}`, 'info', 1200)
+    return
+  }
 }
 
 function isFocusedOnBase(): boolean {

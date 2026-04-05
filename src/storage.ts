@@ -1,8 +1,6 @@
 import { get, set, type VideoSource } from './state.ts'
-import { getCurrentPairKey, getCurrentSessionPairs } from './session-pairs.ts'
 import { getBaseCurrentTime, setDelay, setPlaybackSpeed, syncSeek, getBasePlayer, getReactPlayer, setBaseVolume, setReactVolume } from './sync.ts'
-import { showResumePrompt, showToast } from './ui/toast.ts'
-import { loadYouTubeVideo, loadUrlVideo, promptLocalFile } from './ui/video-loading.ts'
+import { showResumePrompt, loadYouTubeVideo, loadUrlVideo, promptLocalFile, showToast } from './ui/index.ts'
 
 // Constants for video ready detection and retry logic
 const MAX_SEEK_RETRIES = 3
@@ -33,6 +31,18 @@ let db: IDBDatabase | null = null
 let saveIntervalId: ReturnType<typeof setInterval> | null = null
 let prompted = false
 let isLoadingSession = false
+
+// Track video pairs loaded in current session to prevent false resume prompts
+const currentSessionPairs = new Set<string>()
+
+/**
+ * Mark a video pair as newly loaded in the current session.
+ * This prevents the resume prompt from appearing for pairs that were just loaded.
+ */
+export function markPairAsNew(): void {
+  const key = getPairKey()
+  if (key) currentSessionPairs.add(key)
+}
 
 export function shouldOfferResumePrompt(options: {
   prompted: boolean
@@ -69,8 +79,14 @@ async function openDB(): Promise<IDBDatabase> {
   })
 }
 
-async function saveSession(): Promise<void> {
-  const key = getCurrentPairKey()
+function getPairKey(): string | null {
+  const { baseSource, reactSource } = get()
+  if (!baseSource || !reactSource) return null
+  return `${baseSource.id}||${reactSource.id}`
+}
+
+export async function saveSession(): Promise<void> {
+  const key = getPairKey()
   if (!key) return
   const state = get()
   if (!state.synced) return
@@ -205,9 +221,8 @@ export function startAutoSave(): void {
   document.addEventListener('saveNow', () => saveSession())
 }
 
-async function checkForResume(): Promise<void> {
-  const key = getCurrentPairKey()
-  const currentSessionPairs = getCurrentSessionPairs()
+export async function checkForResume(): Promise<void> {
+  const key = getPairKey()
   if (!key || prompted || isLoadingSession || currentSessionPairs.has(key)) return
   
   const session = await loadSession(key)
@@ -282,7 +297,7 @@ async function loadSessionVideos(session: SessionData): Promise<void> {
 }
 
 // Track file selection state for auto-close (Requirements 4.1, 4.2)
-interface FileSelectionState {
+export interface FileSelectionState {
   needsBase: boolean
   needsReact: boolean
   baseSelected: boolean
@@ -485,59 +500,6 @@ async function seekWithRetry(
   return false
 }
 
-type LocalVideoTargets = {
-  baseVideo: HTMLVideoElement | null
-  reactVideo: HTMLVideoElement | null
-  baseTime: number
-  reactTime: number
-}
-
-function getLocalVideoTargets(baseTime: number, delay: number): LocalVideoTargets {
-  return {
-    baseVideo: getLocalVideoElement('base'),
-    reactVideo: getLocalVideoElement('react'),
-    baseTime,
-    reactTime: Math.max(0, baseTime + delay)
-  }
-}
-
-async function waitForLocalVideosReady(targets: LocalVideoTargets): Promise<void> {
-  const readinessChecks = [targets.baseVideo, targets.reactVideo]
-    .filter((video): video is HTMLVideoElement => video !== null)
-    .map((video) => waitForVideoReady(video))
-
-  if (readinessChecks.length === 0) return
-
-  const readyResults = await Promise.all(readinessChecks)
-  if (!readyResults.every(Boolean)) {
-    console.warn('Not all videos became ready, attempting seek anyway')
-  }
-}
-
-async function seekLocalVideos(targets: LocalVideoTargets): Promise<void> {
-  const seekOperations = [
-    targets.baseVideo ? seekWithRetry(targets.baseVideo, targets.baseTime) : null,
-    targets.reactVideo ? seekWithRetry(targets.reactVideo, targets.reactTime) : null
-  ].filter((operation): operation is Promise<boolean> => operation !== null)
-
-  if (seekOperations.length === 0) return
-
-  const seekResults = await Promise.all(seekOperations)
-  if (!seekResults.every(Boolean)) {
-    console.warn('Some seek operations did not complete successfully')
-  }
-}
-
-function seekRemotePlayers(targets: LocalVideoTargets): void {
-  if (!targets.baseVideo) {
-    getBasePlayer()?.seek(targets.baseTime)
-  }
-
-  if (!targets.reactVideo) {
-    getReactPlayer()?.seek(targets.reactTime)
-  }
-}
-
 /**
  * Wait for local videos to be ready and apply seek time.
  * Implements Requirements 2.4 and 2.5:
@@ -545,18 +507,73 @@ function seekRemotePlayers(targets: LocalVideoTargets): void {
  * - Verify seek operations completed successfully
  */
 async function applySeekTimeWithReadyCheck(baseTime: number, delay: number): Promise<void> {
-  const targets = getLocalVideoTargets(baseTime, delay)
-  const hasLocalBase = targets.baseVideo !== null
-  const hasLocalReact = targets.reactVideo !== null
-
+  const baseVideo = getLocalVideoElement('base')
+  const reactVideo = getLocalVideoElement('react')
+  
+  const hasLocalBase = baseVideo !== null
+  const hasLocalReact = reactVideo !== null
+  
+  // If no local videos, use the simple sync seek
   if (!hasLocalBase && !hasLocalReact) {
     syncSeek(true, baseTime)
     return
   }
-
-  await waitForLocalVideosReady(targets)
-  seekRemotePlayers(targets)
-  await seekLocalVideos(targets)
+  
+  // Wait for local videos to be ready (Requirement 2.4)
+  const readyPromises: Promise<boolean>[] = []
+  
+  if (hasLocalBase && baseVideo) {
+    readyPromises.push(waitForVideoReady(baseVideo))
+  }
+  if (hasLocalReact && reactVideo) {
+    readyPromises.push(waitForVideoReady(reactVideo))
+  }
+  
+  const readyResults = await Promise.all(readyPromises)
+  const allReady = readyResults.every(ready => ready)
+  
+  if (!allReady) {
+    console.warn('Not all videos became ready, attempting seek anyway')
+  }
+  
+  // Calculate target times
+  const reactTime = Math.max(0, baseTime + delay)
+  
+  // Apply seek with retry logic (Requirement 2.5)
+  const seekPromises: Promise<boolean>[] = []
+  
+  if (hasLocalBase && baseVideo) {
+    seekPromises.push(seekWithRetry(baseVideo, baseTime))
+  }
+  if (hasLocalReact && reactVideo) {
+    seekPromises.push(seekWithRetry(reactVideo, reactTime))
+  }
+  
+  // For non-local videos, use syncSeek
+  if (!hasLocalBase || !hasLocalReact) {
+    // If one is local and one is not, we need to handle them separately
+    if (!hasLocalBase) {
+      // Base is YouTube/URL, seek it via syncSeek
+      const basePlayer = getBasePlayer()
+      if (basePlayer) {
+        basePlayer.seek(baseTime)
+      }
+    }
+    if (!hasLocalReact) {
+      // React is YouTube/URL, seek it via player
+      const reactPlayer = getReactPlayer()
+      if (reactPlayer) {
+        reactPlayer.seek(reactTime)
+      }
+    }
+  }
+  
+  const seekResults = await Promise.all(seekPromises)
+  const allSeeksSucceeded = seekResults.every(success => success)
+  
+  if (!allSeeksSucceeded) {
+    console.warn('Some seek operations did not complete successfully')
+  }
 }
 
 function finalizeSessionLoad(session: SessionData): void {
