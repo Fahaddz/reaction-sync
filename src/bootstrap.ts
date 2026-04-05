@@ -1,11 +1,21 @@
-import './styles.css'
 import { subscribe } from './state.ts'
-import { initUI, closeTipsScreen, getYouTubePlayers } from './ui/index.ts'
+import { initUI } from './ui/index.ts'
+import { getYouTubePlayers } from './ui/video-loading.ts'
 import { initDraggable, initResizable, applyPosition } from './drag-resize.ts'
 import { initKeyboardShortcuts, trackContainerFocus, initDelayHold } from './keyboard.ts'
-import { startAutoSave, loadLastSession, clearSessions, onSourceChange } from './storage.ts'
+import { startAutoSave, onSourceChange } from './storage.ts'
 
-function init(): void {
+declare global {
+  interface Window {
+    __reactionSyncInitialized?: boolean
+  }
+}
+
+export function startReactionSyncApp(): void {
+  if (typeof window === 'undefined') return
+  if (window.__reactionSyncInitialized) return
+  window.__reactionSyncInitialized = true
+
   initUI()
   initKeyboardShortcuts()
   trackContainerFocus()
@@ -21,7 +31,7 @@ function init(): void {
   if (reactContainer && resizeHandle) {
     initResizable(reactContainer, resizeHandle, (w, h) => {
       const { reactYT } = getYouTubePlayers()
-      reactYT?.setSize(w, h - 30)
+      reactYT?.setSize(w, h - 44)
     })
     applyPosition(reactContainer)
   }
@@ -32,29 +42,9 @@ function init(): void {
     initDelayHold(decreaseBtn, increaseBtn)
   }
 
-  document.getElementById('tipsClose')?.addEventListener('click', closeTipsScreen)
-
-  document.getElementById('loadLastPairBtn')?.addEventListener('click', () => {
-    loadLastSession()
-    closeTipsScreen()
-  })
-
-  document.getElementById('clearStorageBtn')?.addEventListener('click', () => {
-    if (confirm('Clear saved video progress?')) {
-      clearSessions()
-      alert('Saved progress cleared.')
-    }
-  })
-
   subscribe(() => {
     onSourceChange()
   })
 
   startAutoSave()
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init)
-} else {
-  init()
 }
